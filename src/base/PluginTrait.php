@@ -101,7 +101,7 @@ trait PluginTrait
     /**
      * Registers Warp's site URL rules — the front-end passwordless endpoints.
      *
-     * Extended in later phases (registration, passkeys, sessions).
+     * Extended in later phases (sessions).
      *
      * @author CraftPulse
      * @since 5.0.0
@@ -116,6 +116,9 @@ trait PluginTrait
                 $event->rules['warp/auth/verify-link'] = 'warp/auth/verify-link';
                 $event->rules['warp/auth/verify-code'] = 'warp/auth/verify-code';
                 $event->rules['warp/auth/verify-registration'] = 'warp/auth/verify-registration';
+                $event->rules['warp/passkeys/creation-options'] = 'warp/passkeys/creation-options';
+                $event->rules['warp/passkeys/verify-creation'] = 'warp/passkeys/verify-creation';
+                $event->rules['warp/passkeys/delete'] = 'warp/passkeys/delete';
             },
         );
     }
