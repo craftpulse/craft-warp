@@ -12,8 +12,8 @@
    safe). If you prefer to prefill it, append ?email=... to this page's URL when
    you build your own redirect and it will populate below.
 
-   The code length shown here (6 digits) matches Warp's default otpDigits
-   setting. If you change that setting, update the maxlength and copy to match.
+   The code length below is read from Warp's otpDigits setting via
+   craft.warp.otpDigits, so it tracks the setting automatically.
 
    Reached via:  the hashed "redirect" the login form posts. This page URL is
    yours; Warp fixes only the action route.
@@ -29,6 +29,7 @@
 {%- set loginUrl = '/members/login' -%}   {# back to the request form — your route #}
 {%- set afterSignInUrl = '/members' -%}   {# where a correct code lands the user #}
 {%- set prefillEmail = craft.app.request.getParam('email') ?? '' -%}
+{%- set otpDigits = craft.warp.otpDigits -%}
 
 <main class="warp-auth" id="main-content" tabindex="-1">
     <h1 class="warp-auth__title">{{ 'Enter your sign-in code'|t('warp') }}</h1>
@@ -68,12 +69,12 @@
                 inputmode="numeric"
                 autocomplete="one-time-code"
                 pattern="[0-9]*"
-                maxlength="6"
+                maxlength="{{ otpDigits }}"
                 aria-describedby="warp-code-hint"
                 required
                 {{ prefillEmail ? 'autofocus' : '' }}
             >
-            <span class="warp-field__hint" id="warp-code-hint">{{ 'Enter the 6-digit code from your email.'|t('warp') }}</span>
+            <span class="warp-field__hint" id="warp-code-hint">{{ 'Enter the {digits}-digit code from your email.'|t('warp', { digits: otpDigits }) }}</span>
         </div>
 
         <button class="warp-button warp-button--primary" type="submit">

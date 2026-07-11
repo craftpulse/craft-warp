@@ -135,12 +135,10 @@ class OverviewController extends Controller
             return [];
         }
 
-        $users = User::find()
+        return User::find()
             ->id($userIds)
             ->status(null)
             ->indexBy('id')
             ->all();
-
-        return $users;
     }
 }

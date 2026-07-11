@@ -47,6 +47,18 @@ it('exposes the published webauthn client url', function() {
     expect((new WarpVariable())->getWebauthnJsUrl())->toContain('authkit-webauthn.js');
 });
 
+it('reports the configured otp digit length from settings', function() {
+    $original = Warp::$plugin->getSettings()->otpDigits;
+    Warp::$plugin->getSettings()->otpDigits = 8;
+
+    try {
+        expect((new WarpVariable())->getOtpDigits())->toBe(8)
+            ->and(trim(Craft::$app->getView()->renderString('{{ craft.warp.otpDigits }}')))->toBe('8');
+    } finally {
+        Warp::$plugin->getSettings()->otpDigits = $original;
+    }
+});
+
 it('reports the enabled login methods from settings', function() {
     Warp::$plugin->getSettings()->loginMethods = [Settings::CHANNEL_OTP];
 
@@ -80,6 +92,7 @@ it('resolves every craft.warp accessor the example templates call through Twig',
         haspasskeys:{{ craft.warp.hasPasskeys ? 'yes' : 'no' }}
         registration:{{ craft.warp.registrationEnabled ? 'yes' : 'no' }}
         nudge:{{ craft.warp.showPasskeyNudge ? 'yes' : 'no' }}
+        otpdigits:{{ craft.warp.otpDigits }}
         TWIG;
 
     $out = Craft::$app->getView()->renderString($template);
@@ -90,5 +103,6 @@ it('resolves every craft.warp accessor the example templates call through Twig',
         ->toContain('passkeys:0')
         ->toContain('haspasskeys:no')
         ->toContain('registration:')
-        ->toContain('nudge:no');
+        ->toContain('nudge:no')
+        ->toContain('otpdigits:6');
 });

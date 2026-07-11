@@ -63,6 +63,21 @@ class WarpVariable
     }
 
     /**
+     * Returns the number of digits in an issued one-time code, so a code-entry
+     * template can size its input and copy to the configured length instead of
+     * hardcoding a default.
+     *
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getOtpDigits(): int
+    {
+        return $this->_settings()->otpDigits;
+    }
+
+    /**
      * Returns the current user's saved passkeys, or an empty array for a guest —
      * ready for a management UI.
      *
