@@ -19,9 +19,9 @@ use craftpulse\warp\db\Table;
  * on uninstall.
  *
  * Warp owns the append-only login log (`warp_logins`, Phase 6) that backs the
- * overview screen — the passwordless token store lives in the shared
- * `craftpulse/craft-auth-kit` plugin. The session registry (`warp_sessions`,
- * Phase 7) is created here as that feature phase lands. Warp is unreleased
+ * overview screen and the device registry (`warp_sessions`, Phase 7) that backs
+ * the front-end session-management screen — the passwordless token store lives
+ * in the shared `craftpulse/craft-auth-kit` plugin. Warp is unreleased
  * throughout, so this migration is edited freely per phase (reinstall in the
  * playground) until 5.0.0 tags.
  *
@@ -50,6 +50,7 @@ class Install extends Migration
      */
     public function safeDown(): bool
     {
+        $this->dropTableIfExists(Table::SESSIONS);
         $this->dropTableIfExists(Table::LOGINS);
 
         return true;
@@ -78,6 +79,19 @@ class Install extends Migration
                 'uid' => $this->uid(),
             ]);
         }
+
+        if (!$this->db->tableExists(Table::SESSIONS)) {
+            $this->createTable(Table::SESSIONS, [
+                'id' => $this->primaryKey(),
+                'userId' => $this->integer()->notNull(),
+                'tokenHash' => $this->char(64)->notNull(),
+                'userAgent' => $this->string(255),
+                'ip' => $this->string(45),
+                'dateCreated' => $this->dateTime()->notNull(),
+                'dateUpdated' => $this->dateTime()->notNull(),
+                'uid' => $this->uid(),
+            ]);
+        }
     }
 
     /**
@@ -87,6 +101,10 @@ class Install extends Migration
      * `dateCreated` is indexed for the ordered scan; `userId` backs the FK and
      * the per-user lookups a future account screen may want.
      *
+     * The session registry is looked up by `userId` (the per-user session list)
+     * and by `tokenHash` (the current-session match and prune-by-token path);
+     * the hash is unique, so no two logins can register the same Craft token.
+     *
      * @author CraftPulse
      * @since 5.0.0
      */
@@ -94,13 +112,17 @@ class Install extends Migration
     {
         $this->createIndex(null, Table::LOGINS, ['dateCreated']);
         $this->createIndex(null, Table::LOGINS, ['userId']);
+        $this->createIndex(null, Table::SESSIONS, ['tokenHash'], true);
+        $this->createIndex(null, Table::SESSIONS, ['userId']);
     }
 
     /**
      * Adds the foreign keys tying Warp's login log to Craft's users.
      *
      * A login row is owned by its user — CASCADE, so deleting a user clears
-     * their audit trail with them.
+     * their audit trail with them. A session-registry row is likewise owned by
+     * its user, and CASCADE keeps it in step with core's own `{{%sessions}}`
+     * rows, which core deletes the same way when a user is removed.
      *
      * @author CraftPulse
      * @since 5.0.0
@@ -108,5 +130,6 @@ class Install extends Migration
     private function _addForeignKeys(): void
     {
         $this->addForeignKey(null, Table::LOGINS, ['userId'], CraftTable::USERS, ['id'], 'CASCADE', null);
+        $this->addForeignKey(null, Table::SESSIONS, ['userId'], CraftTable::USERS, ['id'], 'CASCADE', null);
     }
 }
