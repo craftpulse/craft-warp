@@ -25,6 +25,7 @@ it('defaults to secure passwordless tunables', function() {
         ->and($settings->perEmailLimit)->toBe(5)
         ->and($settings->perEmailWindow)->toBe(300)
         ->and($settings->enableRegistration)->toBeTrue()
+        ->and($settings->enablePasskeyNudge)->toBeTrue()
         ->and($settings->registrationGroupUid)->toBeNull()
         ->and($settings->loginMethods)->toBe([Settings::CHANNEL_MAGIC_LINK, Settings::CHANNEL_OTP]);
 });

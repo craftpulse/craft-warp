@@ -61,6 +61,16 @@ class Settings extends Model
     public bool $enableRegistration = true;
 
     /**
+     * @var bool Whether to nudge a user to enroll a passkey after they sign in
+     * over an email flow (magic link, code, or registration) while holding no
+     * passkey yet. Surfaced once per triggering login through
+     * [[\craftpulse\warp\variables\WarpVariable::getShowPasskeyNudge()]].
+     *
+     * @since 5.0.0
+     */
+    public bool $enablePasskeyNudge = true;
+
+    /**
      * @var array<int, string> The passwordless login channels Warp offers, a
      * subset of [[CHANNEL_MAGIC_LINK]] and [[CHANNEL_OTP]]. A channel not listed
      * here is refused at issuance even if requested directly, so disabling one
@@ -192,7 +202,7 @@ class Settings extends Model
         $rules[] = [['otpDigits'], 'integer', 'min' => 4, 'max' => 10];
         $rules[] = [['otpMaxAttempts'], 'integer', 'min' => 1, 'max' => 10];
         $rules[] = [['perEmailLimit'], 'integer', 'min' => 1, 'max' => 100];
-        $rules[] = [['enableRegistration'], 'boolean'];
+        $rules[] = [['enableRegistration', 'enablePasskeyNudge'], 'boolean'];
         $rules[] = [['registrationGroupUid'], 'string'];
         $rules[] = [['registrationGroupUid'], 'validateRegistrationGroupUid'];
 
