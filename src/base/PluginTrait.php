@@ -11,9 +11,11 @@
 namespace craftpulse\warp\base;
 
 use craft\events\RegisterUrlRulesEvent;
+use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craftpulse\authkit\AuthKit;
 use craftpulse\warp\models\Settings;
+use craftpulse\warp\variables\WarpVariable;
 use yii\base\Event;
 
 /**
@@ -127,12 +129,19 @@ trait PluginTrait
      * Registers the `craft.warp` Twig variable — the single front-end handle
      * for the passwordless surface.
      *
-     * Filled in Phase 4 (front-end passkeys + variable).
-     *
      * @author CraftPulse
      * @since 5.0.0
      */
     private function _registerVariable(): void
     {
+        Event::on(
+            CraftVariable::class,
+            CraftVariable::EVENT_INIT,
+            static function(Event $event): void {
+                /** @var CraftVariable $variable */
+                $variable = $event->sender;
+                $variable->set('warp', WarpVariable::class);
+            },
+        );
     }
 }

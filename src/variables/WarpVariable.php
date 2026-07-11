@@ -11,13 +11,20 @@
 namespace craftpulse\warp\variables;
 
 use Craft;
+use craftpulse\authkit\variables\AuthKitVariable;
+use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\Passwordless;
+use craftpulse\warp\Warp;
 
 /**
  * WarpVariable is the `craft.warp` Twig variable — the single front-end handle
  * onto Warp's passwordless surface: passkey state for a management UI (delegated
  * to Auth Kit), the reference WebAuthn client URL, whether registration is open,
  * the enabled login methods, and the show-once passkey-enrollment nudge.
+ *
+ * The passkey passthroughs delegate to Auth Kit's own variable, so templates
+ * never need to know where the split falls — Warp owns the front-end handle,
+ * Auth Kit owns the credential machinery.
  *
  * @author CraftPulse
  * @since 5.0.0
@@ -26,6 +33,62 @@ class WarpVariable
 {
     // Public Methods
     // =========================================================================
+
+    /**
+     * Returns whether the current user has any passkeys enrolled.
+     *
+     * @return bool
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getHasPasskeys(): bool
+    {
+        return $this->_authKitVariable()->hasPasskeys();
+    }
+
+    /**
+     * Returns the enabled passwordless login methods, a subset of
+     * [[Settings::CHANNEL_MAGIC_LINK]] and [[Settings::CHANNEL_OTP]] — so a
+     * template can render only the channels the site offers.
+     *
+     * @return array<int, string>
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getLoginMethods(): array
+    {
+        return $this->_settings()->loginMethods;
+    }
+
+    /**
+     * Returns the current user's saved passkeys, or an empty array for a guest —
+     * ready for a management UI.
+     *
+     * @return array<int, array<string, mixed>>
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getPasskeys(): array
+    {
+        return $this->_authKitVariable()->passkeys();
+    }
+
+    /**
+     * Returns whether passwordless registration is currently open — both Warp's
+     * own setting and Craft's `allowPublicRegistration` must be on.
+     *
+     * @return bool
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getRegistrationEnabled(): bool
+    {
+        return Warp::$plugin->getRegistration()->isEnabled();
+    }
 
     /**
      * Returns whether the passkey-enrollment nudge should be shown, clearing the
@@ -47,8 +110,36 @@ class WarpVariable
         return $show;
     }
 
+    /**
+     * Returns the published URL of the reference WebAuthn client script, for the
+     * passkey login and enrollment JS.
+     *
+     * @return string
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getWebauthnJsUrl(): string
+    {
+        return $this->_authKitVariable()->webauthnJsUrl();
+    }
+
     // Private Methods
     // =========================================================================
+
+    /**
+     * Returns Auth Kit's own Twig variable, which owns the passkey surface Warp
+     * re-exposes.
+     *
+     * @return AuthKitVariable
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _authKitVariable(): AuthKitVariable
+    {
+        return new AuthKitVariable();
+    }
 
     /**
      * Returns Craft's session component, narrowed for static analysis — the
@@ -65,5 +156,21 @@ class WarpVariable
         $app = Craft::$app;
 
         return $app->getSession();
+    }
+
+    /**
+     * Returns Warp's settings model.
+     *
+     * @return Settings
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _settings(): Settings
+    {
+        $settings = Warp::$plugin->getSettings();
+        assert($settings instanceof Settings);
+
+        return $settings;
     }
 }

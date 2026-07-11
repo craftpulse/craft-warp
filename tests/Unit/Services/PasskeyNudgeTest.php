@@ -22,6 +22,7 @@ use craftpulse\authkit\AuthKit;
 use craftpulse\authkit\models\Token;
 use craftpulse\authkit\records\Token as TokenRecord;
 use craftpulse\authkit\services\Passkeys;
+use craftpulse\warp\services\Passwordless;
 use craftpulse\warp\variables\WarpVariable;
 use craftpulse\warp\Warp;
 
@@ -79,12 +80,14 @@ function loginViaMagicLink(User $user): void
 
 beforeEach(function() {
     Craft::$app->getUser()->setIdentity(null);
+    Craft::$app->getSession()->remove(Passwordless::SESSION_PASSKEY_NUDGE_KEY);
     Warp::$plugin->getSettings()->enablePasskeyNudge = true;
     stubPasskeys(false);
 });
 
 afterEach(function() {
     Craft::$app->getUser()->setIdentity(null);
+    Craft::$app->getSession()->remove(Passwordless::SESSION_PASSKEY_NUDGE_KEY);
     Warp::$plugin->getSettings()->enablePasskeyNudge = true;
     AuthKit::getInstance()->set('passkeys', ['class' => Passkeys::class]);
 
