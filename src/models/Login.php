@@ -11,6 +11,7 @@
 namespace craftpulse\warp\models;
 
 use craft\base\Model;
+use craftpulse\warp\helpers\Device;
 use DateTime;
 
 /**
@@ -108,4 +109,22 @@ class Login extends Model
      * @since 5.0.0
      */
     public ?int $userId = null;
+
+    // Public Methods
+    // =========================================================================
+
+    /**
+     * Returns a coarse, human-friendly device label for the captured
+     * user-agent — "Chrome on macOS", or "Unknown device" when none was
+     * captured. Display only; see [[Device::label()]].
+     *
+     * @return string
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getDeviceLabel(): string
+    {
+        return Device::label($this->userAgent);
+    }
 }

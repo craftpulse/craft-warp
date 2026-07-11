@@ -19,11 +19,10 @@ namespace craftpulse\warp\services;
  * `@property-read` tag on this trait's docblock for property-style access —
  * never duplicated on the main plugin class.
  *
- * Later services (Sessions) are registered as their feature phases land.
- *
  * @property-read Logins $logins
  * @property-read Passwordless $passwordless
  * @property-read Registration $registration
+ * @property-read Sessions $sessions
  *
  * @author CraftPulse
  * @since 5.0.0
@@ -48,6 +47,7 @@ trait ServicesTrait
                 'logins' => ['class' => Logins::class],
                 'passwordless' => ['class' => Passwordless::class],
                 'registration' => ['class' => Registration::class],
+                'sessions' => ['class' => Sessions::class],
             ],
         ];
     }
@@ -96,6 +96,22 @@ trait ServicesTrait
     {
         $component = $this->get('registration');
         assert($component instanceof Registration);
+
+        return $component;
+    }
+
+    /**
+     * Returns the sessions service.
+     *
+     * @return Sessions
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getSessions(): Sessions
+    {
+        $component = $this->get('sessions');
+        assert($component instanceof Sessions);
 
         return $component;
     }

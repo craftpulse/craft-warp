@@ -58,6 +58,7 @@ trait PluginTrait
         $this->_registerCpUrlRules();
         $this->_registerUserPermissions();
         $this->_registerLoginLog();
+        $this->_registerSessionRegistry();
         $this->_registerVariable();
         $this->_configureAuthKit();
     }
@@ -73,6 +74,11 @@ trait PluginTrait
      * same event but resolves to a `warp/auth/*` route and is recorded by
      * `Passwordless::loginUser()` instead.
      *
+     * The device-registry capture rides the same event but is deliberately
+     * unguarded: every front-end login — email flow or passkey — should register
+     * its device, and by this point core has already generated the session token
+     * the capture hashes.
+     *
      * @author CraftPulse
      * @since 5.0.0
      */
@@ -82,6 +88,8 @@ trait PluginTrait
             WebUser::class,
             WebUser::EVENT_AFTER_LOGIN,
             function(UserEvent $event): void {
+                $this->getSessions()->record();
+
                 if (Craft::$app->requestedRoute !== 'users/login-with-passkey') {
                     return;
                 }
@@ -99,6 +107,51 @@ trait PluginTrait
             Gc::EVENT_RUN,
             function(): void {
                 $this->getLogins()->prune();
+            },
+        );
+    }
+
+    /**
+     * Wires the device registry's pruning: forgetting a session's registry row
+     * when the user logs out, and clearing orphaned rows on garbage collection.
+     *
+     * The registry capture itself rides the login log's `EVENT_AFTER_LOGIN`
+     * listener (see [[_registerLoginLog()]]) rather than a second handler, so a
+     * login is recorded once. Logout is caught here on `EVENT_BEFORE_LOGOUT`,
+     * where the session token is still readable, so the exact row can be removed;
+     * garbage collection sweeps up rows whose core session has since vanished.
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _registerSessionRegistry(): void
+    {
+        Event::on(
+            WebUser::class,
+            WebUser::EVENT_BEFORE_LOGOUT,
+            function(UserEvent $event): void {
+                if (!$event->identity instanceof User) {
+                    return;
+                }
+
+                // BEFORE_LOGOUT only fires on web requests, so the session is a
+                // web user; the token is still readable here, before core clears
+                // it, so the exact registry row can be forgotten.
+                $userSession = Craft::$app->getUser();
+                assert($userSession instanceof WebUser);
+                $token = $userSession->getToken();
+
+                if ($token !== null) {
+                    $this->getSessions()->pruneToken($token);
+                }
+            },
+        );
+
+        Event::on(
+            Gc::class,
+            Gc::EVENT_RUN,
+            function(): void {
+                $this->getSessions()->pruneOrphans();
             },
         );
     }

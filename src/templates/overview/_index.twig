@@ -87,9 +87,9 @@
                         </td>
                         <td data-title="{{ 'Device'|t('warp') }}">
                             {% if login.userAgent %}
-                                <span title="{{ login.userAgent }}">{{ login.userAgent|slice(0, 60) }}</span>
+                                <span title="{{ login.userAgent }}">{{ login.deviceLabel }}</span>
                             {% else %}
-                                <span class="light">{{ 'Unknown device'|t('warp') }}</span>
+                                <span class="light">{{ login.deviceLabel }}</span>
                             {% endif %}
                         </td>
                         <td data-title="{{ 'IP address'|t('warp') }}">
