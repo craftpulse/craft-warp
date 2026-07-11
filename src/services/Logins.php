@@ -19,6 +19,7 @@ use craft\web\Request as WebRequest;
 use craftpulse\warp\db\Table;
 use craftpulse\warp\models\Login;
 use craftpulse\warp\records\Login as LoginRecord;
+use Throwable;
 use yii\base\Component;
 
 /**
@@ -105,8 +106,8 @@ class Logins extends Component
     /**
      * Records a successful passwordless sign-in.
      *
-     * Best-effort: a failed insert is swallowed so a bookkeeping problem can
-     * never block a login the user has already completed. The user-agent is
+     * Best-effort: a failed insert is logged and swallowed so a bookkeeping
+     * problem can never block a login the user has already completed. The user-agent is
      * truncated to [[USER_AGENT_MAX_LENGTH]] and the IP to the column width at
      * the database boundary.
      *
@@ -127,12 +128,18 @@ class Logins extends Component
             $ip = $request->getUserIP();
         }
 
-        $record = new LoginRecord();
-        $record->userId = (int)$user->id;
-        $record->method = $method;
-        $record->userAgent = $userAgent !== null ? mb_substr($userAgent, 0, self::USER_AGENT_MAX_LENGTH) : null;
-        $record->ip = $ip;
-        $record->save(false);
+        // A bookkeeping failure must never block a login already completed, so
+        // the insert is wrapped: any failure is logged and swallowed.
+        try {
+            $record = new LoginRecord();
+            $record->userId = (int)$user->id;
+            $record->method = $method;
+            $record->userAgent = $userAgent !== null ? mb_substr($userAgent, 0, self::USER_AGENT_MAX_LENGTH) : null;
+            $record->ip = $ip;
+            $record->save(false);
+        } catch (Throwable $e) {
+            Craft::warning("Could not record the login for user {$user->id}: {$e->getMessage()}", __METHOD__);
+        }
     }
 
     // Private Methods

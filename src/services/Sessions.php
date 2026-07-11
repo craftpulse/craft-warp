@@ -21,6 +21,7 @@ use craftpulse\warp\db\Table;
 use craftpulse\warp\helpers\Device;
 use craftpulse\warp\models\SessionInfo;
 use craftpulse\warp\records\Session as SessionRecord;
+use Throwable;
 use yii\base\Component;
 
 /**
@@ -176,7 +177,8 @@ class Sessions extends Component
      * Called from `WebUser::EVENT_AFTER_LOGIN`, by which point core has already
      * generated the token and inserted the `{{%sessions}}` row. Best-effort and
      * null-guarded: no token (a console or session-less context) or an already
-     * recorded hash is a silent no-op, and a failed write never blocks a login.
+     * recorded hash is a silent no-op, and a failed registry read or write is
+     * logged and swallowed so it never blocks a login.
      *
      * @author CraftPulse
      * @since 5.0.0
@@ -197,11 +199,6 @@ class Sessions extends Component
         }
 
         $tokenHash = hash('sha256', $token);
-
-        if (SessionRecord::find()->where(['tokenHash' => $tokenHash])->exists()) {
-            return;
-        }
-
         $request = Craft::$app->getRequest();
         $userAgent = null;
         $ip = null;
@@ -211,12 +208,22 @@ class Sessions extends Component
             $ip = $request->getUserIP();
         }
 
-        $record = new SessionRecord();
-        $record->userId = (int)$user->id;
-        $record->tokenHash = $tokenHash;
-        $record->userAgent = $userAgent !== null ? mb_substr($userAgent, 0, self::USER_AGENT_MAX_LENGTH) : null;
-        $record->ip = $ip;
-        $record->save(false);
+        // Bookkeeping must never block a login already completed, so the registry
+        // read and write are wrapped: any failure is logged and swallowed.
+        try {
+            if (SessionRecord::find()->where(['tokenHash' => $tokenHash])->exists()) {
+                return;
+            }
+
+            $record = new SessionRecord();
+            $record->userId = (int)$user->id;
+            $record->tokenHash = $tokenHash;
+            $record->userAgent = $userAgent !== null ? mb_substr($userAgent, 0, self::USER_AGENT_MAX_LENGTH) : null;
+            $record->ip = $ip;
+            $record->save(false);
+        } catch (Throwable $e) {
+            Craft::warning("Could not record the session for user {$user->id}: {$e->getMessage()}", __METHOD__);
+        }
     }
 
     /**
