@@ -29,13 +29,16 @@ use yii\web\Response;
  * and verify one — a magic link (GET, single-use) or an OTP code (POST,
  * attempt-capped).
  *
- * Every endpoint is deliberately opaque. [[actionRequest()]] responds
- * identically whether or not the address belongs to an account; both verify
- * actions log any failure server-side and surface only a generic message — a
- * verbose error on an anonymous endpoint is a probing surface.
+ * The same posted email form drives login and registration: [[actionRequest()]]
+ * resolves the address and either issues a login credential for an existing
+ * account or, when registration is open, a registration link for an unknown one
+ * — responding byte-identically in every branch so the endpoint never reveals
+ * which addresses are registered. [[actionVerifyRegistration()]] closes the
+ * signup loop, mirroring [[actionVerifyLink()]]'s opaque, generic-failure shape.
  *
- * [[actionRequest()]] is structured for Phase 3: registration branches from the
- * same posted email form without changing the response.
+ * Every endpoint is deliberately opaque. All three verify actions log any
+ * failure server-side and surface only a generic message — a verbose error on
+ * an anonymous endpoint is a probing surface.
  *
  * @author CraftPulse
  * @since 5.0.0
@@ -83,7 +86,7 @@ class AuthController extends Controller
     /**
      * @inheritdoc
      */
-    protected array|bool|int $allowAnonymous = ['request', 'verify-link', 'verify-code'];
+    protected array|bool|int $allowAnonymous = ['request', 'verify-link', 'verify-code', 'verify-registration'];
 
     // Public Methods
     // =========================================================================
@@ -142,10 +145,20 @@ class AuthController extends Controller
         $channel = $this->_resolveChannel((string)$this->request->getBodyParam('channel', ''));
         $returnUrl = $this->_returnUrl($this->request->getBodyParam('returnUrl'));
 
-        // Existing-user login credential. Phase 3 branches from here to
-        // registration when the address maps to no account; the response below
-        // stays identical so neither branch is distinguishable.
-        Warp::$plugin->getPasswordless()->request($email, $channel, $returnUrl);
+        // One form, two outcomes, one response. An unknown address takes the
+        // registration path only when signup is open; every other case — an
+        // existing account of any status (Auth Kit's eligibility rules decide
+        // whether a credential actually issues), or an unknown address with
+        // registration closed — takes the login path, whose timing equalizer
+        // covers the send-nothing branch. Both live paths do the same
+        // token-write + email work, so no branch is distinguishable.
+        $user = Craft::$app->getUsers()->getUserByUsernameOrEmail($email);
+
+        if ($user === null && Warp::$plugin->getRegistration()->isEnabled()) {
+            AuthKit::$plugin->getTokens()->issueRegistration($email, $returnUrl);
+        } else {
+            Warp::$plugin->getPasswordless()->request($email, $channel, $returnUrl);
+        }
 
         $message = Craft::t('warp', 'If an account matches that address, a sign-in message is on its way.');
 
@@ -231,6 +244,44 @@ class AuthController extends Controller
         return $this->redirect($returnUrl);
     }
 
+    /**
+     * Consumes a registration token, provisions or resolves the account its
+     * payload names, and logs that user in.
+     *
+     * Mirrors [[actionVerifyLink()]]: the token (a 32-byte secret) authorizes,
+     * and any failure — an unknown, expired, or reused token, or an account
+     * state that must fail closed — collapses to a single generic flash, its
+     * cause logged server-side only.
+     *
+     * @return Response
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function actionVerifyRegistration(): Response
+    {
+        $token = (string)$this->request->getQueryParam(Tokens::TOKEN_PARAM, '');
+        $consumed = AuthKit::$plugin->getTokens()->consumeRegistration($token);
+
+        if ($consumed === null) {
+            return $this->_registrationFailureResponse('A registration verification failed or was reused.');
+        }
+
+        $user = Warp::$plugin->getRegistration()->fulfill($consumed);
+
+        if ($user === null) {
+            return $this->_registrationFailureResponse('A registration token could not be fulfilled into a usable account.');
+        }
+
+        if (!Warp::$plugin->getPasswordless()->loginUser($user)) {
+            return $this->_registrationFailureResponse('Craft refused the registration session login.');
+        }
+
+        $returnUrl = $this->_returnUrl($this->request->getQueryParam('returnUrl'));
+
+        return $this->redirect($returnUrl ?? UrlHelper::siteUrl());
+    }
+
     // Private Methods
     // =========================================================================
 
@@ -254,6 +305,26 @@ class AuthController extends Controller
         $this->setFailFlash($message);
 
         return $this->redirect($this->request->getReferrer() ?? UrlHelper::siteUrl());
+    }
+
+    /**
+     * Builds the generic registration-verification failure response, opaque to
+     * whether the token, the account state, or the session login was the point
+     * of failure. The specific cause is logged, never surfaced — it mirrors
+     * [[actionVerifyLink()]]'s single generic flash.
+     *
+     * @param string $logMessage the internal detail written to the warning log
+     * @return Response
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _registrationFailureResponse(string $logMessage): Response
+    {
+        Craft::warning($logMessage, __METHOD__);
+        $this->setFailFlash(Craft::t('warp', 'This sign-in link is invalid or has expired. Please request a new one.'));
+
+        return $this->redirect(UrlHelper::siteUrl());
     }
 
     /**

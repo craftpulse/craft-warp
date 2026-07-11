@@ -13,13 +13,16 @@
 
 use craft\elements\User;
 use craft\helpers\Db;
+use craft\helpers\Json;
 use craft\helpers\StringHelper;
+use craft\models\UserGroup;
 use craftpulse\authkit\AuthKit;
 use craftpulse\authkit\models\Token;
 use craftpulse\authkit\records\Token as TokenRecord;
 use craftpulse\authkit\services\Tokens;
 use craftpulse\warp\controllers\AuthController;
 use craftpulse\warp\tests\Support\CollectingMailer;
+use craftpulse\warp\Warp;
 use yii\web\TooManyRequestsHttpException;
 
 function activeAuthUser(): User
@@ -59,12 +62,68 @@ function seedOtp(User $user, string $code): void
     $record->save(false);
 }
 
+function seedRegistration(string $email, string $rawToken, string $expiryModifier = '+15 minutes'): void
+{
+    $record = new TokenRecord();
+    $record->userId = null;
+    $record->type = Token::TYPE_REGISTER;
+    $record->tokenHash = hash('sha256', $rawToken);
+    $record->expiryDate = (string)Db::prepareDateForDb((new DateTime())->modify($expiryModifier));
+    $record->payload = Json::encode(['email' => $email]);
+    $record->save(false);
+}
+
+function suspendedAuthUser(string $email): User
+{
+    $user = new User();
+    $user->username = $email;
+    $user->email = $email;
+
+    if (!Craft::$app->getElements()->saveElement($user)) {
+        throw new RuntimeException('Could not save suspended auth controller test user.');
+    }
+
+    Craft::$app->getUsers()->activateUser($user);
+    Craft::$app->getUsers()->suspendUser(Craft::$app->getUsers()->getUserById((int)$user->id));
+
+    return Craft::$app->getUsers()->getUserById((int)$user->id);
+}
+
+function makeAuthGroup(): UserGroup
+{
+    $unique = strtolower(str_replace('-', '', StringHelper::UUID()));
+    $group = new UserGroup(['name' => "WA {$unique}", 'handle' => "wa{$unique}"]);
+
+    if (!Craft::$app->getUserGroups()->saveGroup($group)) {
+        throw new RuntimeException('Could not save auth controller test user group.');
+    }
+
+    return $group;
+}
+
+function capturedMailer(): CollectingMailer
+{
+    $mailer = AuthKit::$plugin->getTokens()->mailer;
+    assert($mailer instanceof CollectingMailer);
+
+    return $mailer;
+}
+
+function enablePublicRegistration(): void
+{
+    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', true);
+    Warp::$plugin->getSettings()->enableRegistration = true;
+}
+
 beforeEach(function() {
     Craft::$app->getUser()->setIdentity(null);
 
     // Swap Auth Kit's token store for one wired to a captured mailer so request
-    // tests never touch a real transport.
+    // tests never touch a real transport, then re-apply Warp's wiring so the
+    // fresh instance carries Warp's verify routes (the emitted links must point
+    // at warp/auth/*), not Auth Kit's defaults.
     AuthKit::getInstance()->set('tokens', new Tokens(['mailer' => new CollectingMailer()]));
+    (new ReflectionMethod(Warp::class, '_configureAuthKit'))->invoke(Warp::$plugin);
 });
 
 afterEach(function() {
@@ -74,6 +133,17 @@ afterEach(function() {
         Craft::$app->getElements()->deleteElement($user, true);
     }
 
+    // Registration tokens carry a null userId, so they do not cascade-delete
+    // with the test users above and craft-pest's HTTP dispatch commits them past
+    // the wrapping transaction. Purge them explicitly so fixed-hash fixtures
+    // never collide across runs.
+    TokenRecord::deleteAll(['and', ['type' => Token::TYPE_REGISTER], ['like', 'payload', 'warp-test.example']]);
+
+    $settings = Warp::$plugin->getSettings();
+    $settings->enableRegistration = true;
+    $settings->registrationGroupUid = null;
+
+    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
     AuthKit::getInstance()->set('tokens', ['class' => Tokens::class]);
 });
 
@@ -214,3 +284,110 @@ it('rate-limits OTP verify posts per IP', function() {
 it('rejects an OTP verify that is not a POST', function() {
     $this->get('/warp/auth/verify-code');
 })->throws(yii\web\MethodNotAllowedHttpException::class);
+
+// =============================================================================
+// request — enumeration safety across the login/registration branches
+// =============================================================================
+
+it('responds byte-identically across existing, unknown, suspended, and registration-off addresses', function() {
+    enablePublicRegistration();
+
+    $active = activeAuthUser();
+    $suspended = suspendedAuthUser('susp-' . str_replace('-', '', StringHelper::UUID()) . '@warp-test.example');
+
+    $existing = $this->postJson('/warp/auth/request', ['email' => $active->email]);
+    $unknown = $this->postJson('/warp/auth/request', ['email' => 'ghost-' . StringHelper::UUID() . '@warp-test.example']);
+    $suspendedResp = $this->postJson('/warp/auth/request', ['email' => $suspended->email]);
+
+    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
+    $registrationOff = $this->postJson('/warp/auth/request', ['email' => 'ghost2-' . StringHelper::UUID() . '@warp-test.example']);
+
+    expect($unknown->getStatusCode())->toBe($existing->getStatusCode())
+        ->and($unknown->content)->toBe($existing->content)
+        ->and($suspendedResp->getStatusCode())->toBe($existing->getStatusCode())
+        ->and($suspendedResp->content)->toBe($existing->content)
+        ->and($registrationOff->getStatusCode())->toBe($existing->getStatusCode())
+        ->and($registrationOff->content)->toBe($existing->content);
+});
+
+it('sends no registration email when public registration is off', function() {
+    // allowPublicRegistration defaults off; an unknown address gets nothing.
+    $this->post('/warp/auth/request', ['email' => 'noreg-' . StringHelper::UUID() . '@warp-test.example']);
+
+    expect(capturedMailer()->sent)->toHaveCount(0);
+});
+
+// =============================================================================
+// verify-registration — full passwordless signup
+// =============================================================================
+
+it('completes a full passwordless signup from request through to a logged-in session', function() {
+    enablePublicRegistration();
+    $group = makeAuthGroup();
+    Warp::$plugin->getSettings()->registrationGroupUid = $group->uid;
+
+    $email = 'signup-' . str_replace('-', '', StringHelper::UUID()) . '@warp-test.example';
+
+    $this->post('/warp/auth/request', ['email' => $email, 'returnUrl' => '/members']);
+
+    $mailer = capturedMailer();
+    expect($mailer->sent)->toHaveCount(1)
+        ->and($mailer->lastRecipients())->toBe([$email])
+        ->and($mailer->lastLink())->toContain('warp/auth/verify-registration');
+
+    parse_str((string)parse_url((string)$mailer->lastLink(), PHP_URL_QUERY), $params);
+    $rawToken = (string)($params[Tokens::TOKEN_PARAM] ?? '');
+
+    $response = $this->get('/warp/auth/verify-registration?' . http_build_query([
+        Tokens::TOKEN_PARAM => $rawToken,
+        'returnUrl' => '/members',
+    ]));
+
+    $user = Craft::$app->getUsers()->getUserByUsernameOrEmail($email);
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and((string)$response->getHeaders()->get('location'))->toContain('/members')
+        ->and($user)->not->toBeNull()
+        ->and($user->getStatus())->toBe(User::STATUS_ACTIVE)
+        ->and($user->getHasPassword())->toBeFalse()
+        ->and($user->isInGroup($group))->toBeTrue()
+        ->and(Craft::$app->getUser()->getId())->toBe((int)$user->id);
+
+    Craft::$app->getUserGroups()->deleteGroupById((int)$group->id);
+});
+
+it('fails generically and logs no one in when a registration link is reused', function() {
+    $email = 'reuse-' . str_replace('-', '', StringHelper::UUID()) . '@warp-test.example';
+    $rawToken = 'reuse-' . StringHelper::UUID();
+    seedRegistration($email, $rawToken);
+
+    $first = $this->get('/warp/auth/verify-registration?mlToken=' . $rawToken);
+
+    expect($first->getStatusCode())->toBe(302)
+        ->and(Craft::$app->getUser()->getId())->not->toBeNull();
+
+    Craft::$app->getUser()->logout();
+    $replay = $this->get('/warp/auth/verify-registration?mlToken=' . $rawToken);
+
+    expect($replay->getStatusCode())->toBe(302)
+        ->and(Craft::$app->getUser()->getIsGuest())->toBeTrue();
+});
+
+it('fails closed when a registration token resolves to a suspended account', function() {
+    $email = 'suspreg-' . str_replace('-', '', StringHelper::UUID()) . '@warp-test.example';
+    $rawToken = 'susp-' . StringHelper::UUID();
+    suspendedAuthUser($email);
+    seedRegistration($email, $rawToken);
+
+    $response = $this->get('/warp/auth/verify-registration?mlToken=' . $rawToken);
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and(Craft::$app->getUser()->getIsGuest())->toBeTrue();
+});
+
+it('fails opaquely on an unknown registration token without creating an account', function() {
+    $response = $this->get('/warp/auth/verify-registration?mlToken=never-issued-registration');
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and(Craft::$app->getUser()->getIsGuest())->toBeTrue();
+});

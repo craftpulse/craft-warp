@@ -115,6 +115,7 @@ trait PluginTrait
                 $event->rules['warp/auth/request'] = 'warp/auth/request';
                 $event->rules['warp/auth/verify-link'] = 'warp/auth/verify-link';
                 $event->rules['warp/auth/verify-code'] = 'warp/auth/verify-code';
+                $event->rules['warp/auth/verify-registration'] = 'warp/auth/verify-registration';
             },
         );
     }
