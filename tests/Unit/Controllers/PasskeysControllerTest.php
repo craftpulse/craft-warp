@@ -14,7 +14,10 @@
 
 use craft\elements\User;
 use craft\helpers\StringHelper;
+use craftpulse\authkit\audit\AuthEvent;
+use craftpulse\authkit\AuthKit;
 use craftpulse\authkit\services\Passkeys;
+use craftpulse\warp\tests\Support\CollectingAuditSink;
 
 function passkeyUser(): User
 {
@@ -49,6 +52,9 @@ afterEach(function() {
     foreach (User::find()->email('*@warp-test.example')->status(null)->all() as $user) {
         Craft::$app->getElements()->deleteElement($user, true);
     }
+
+    AuthKit::$plugin->getAudit()->setSinks([]);
+    AuthKit::getInstance()->set('passkeys', ['class' => Passkeys::class]);
 });
 
 // =============================================================================
@@ -131,4 +137,96 @@ it('deletes a passkey for a recently-authenticated user', function() {
     $response = $this->postJson('/warp/passkeys/delete', ['uid' => StringHelper::UUID()]);
 
     expect($response->getStatusCode())->toBe(200);
+});
+
+// =============================================================================
+// audit emission — enroll / delete record through Auth Kit's contract
+// =============================================================================
+
+it('records a passkey.enrolled audit event on a successful verify-creation', function() {
+    $sink = new CollectingAuditSink();
+    AuthKit::$plugin->getAudit()->setSinks([$sink]);
+
+    // Swap in a Passkeys double: the real verify-creation demands a live WebAuthn
+    // ceremony, so stub both the recent-auth gate and the attestation.
+    AuthKit::getInstance()->set('passkeys', new class() extends Passkeys {
+        /**
+         * @inheritdoc
+         */
+        public function hasRecentAuth(?int $within = null): bool
+        {
+            return true;
+        }
+
+        /**
+         * @inheritdoc
+         */
+        public function verifyCreation(string $credentials, ?string $credentialName = null): bool
+        {
+            return true;
+        }
+    });
+
+    $user = passkeyUser();
+    $this->actingAs($user);
+
+    $response = $this->postJson('/warp/passkeys/verify-creation', ['credentials' => '{}']);
+
+    expect($response->getStatusCode())->toBe(200);
+
+    $event = $sink->firstOfName(AuthEvent::PASSKEY_ENROLLED);
+
+    expect($event)->not->toBeNull()
+        ->and($event->emitter)->toBe('warp')
+        ->and($event->outcome)->toBe(AuthEvent::OUTCOME_SUCCESS)
+        ->and($event->userId)->toBe((int)$user->id);
+});
+
+it('records no audit event when verify-creation fails', function() {
+    $sink = new CollectingAuditSink();
+    AuthKit::$plugin->getAudit()->setSinks([$sink]);
+
+    AuthKit::getInstance()->set('passkeys', new class() extends Passkeys {
+        /**
+         * @inheritdoc
+         */
+        public function hasRecentAuth(?int $within = null): bool
+        {
+            return true;
+        }
+
+        /**
+         * @inheritdoc
+         */
+        public function verifyCreation(string $credentials, ?string $credentialName = null): bool
+        {
+            return false;
+        }
+    });
+
+    $user = passkeyUser();
+    $this->actingAs($user);
+
+    $this->postJson('/warp/passkeys/verify-creation', ['credentials' => '{}']);
+
+    expect($sink->ofName(AuthEvent::PASSKEY_ENROLLED))->toBe([]);
+});
+
+it('records a passkey.deleted audit event on a successful delete', function() {
+    $sink = new CollectingAuditSink();
+    AuthKit::$plugin->getAudit()->setSinks([$sink]);
+
+    $user = passkeyUser();
+    $this->actingAs($user);
+    stampRecentAuth();
+
+    $this->postJson('/warp/passkeys/delete', ['uid' => StringHelper::UUID()]);
+
+    $event = $sink->firstOfName(AuthEvent::PASSKEY_DELETED);
+
+    expect($event)->not->toBeNull()
+        ->and($event->emitter)->toBe('warp')
+        ->and($event->outcome)->toBe(AuthEvent::OUTCOME_SUCCESS)
+        ->and($event->userId)->toBe((int)$user->id)
+        ->and($event->details)->toBe([]);
 });

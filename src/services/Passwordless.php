@@ -12,7 +12,9 @@ namespace craftpulse\warp\services;
 
 use Craft;
 use craft\elements\User;
+use craftpulse\authkit\audit\AuthEvent;
 use craftpulse\authkit\AuthKit;
+use craftpulse\warp\models\Login;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\Warp;
 use yii\base\Component;
@@ -79,6 +81,7 @@ class Passwordless extends Component
         }
 
         Warp::$plugin->getLogins()->record($user, $method);
+        $this->_recordAuditEvent($user, $method);
         $this->_flagPasskeyNudge($user);
 
         return true;
@@ -146,6 +149,43 @@ class Passwordless extends Component
         }
 
         $this->_session()->set(self::SESSION_PASSKEY_NUDGE_KEY, true);
+    }
+
+    /**
+     * Records the completed sign-in as an audit fact through Auth Kit's neutral
+     * contract — a no-op with no sinks registered.
+     *
+     * A magic-link or OTP sign-in is a `login.*` event. A registration sign-in
+     * is instead a single `registration.fulfilled` — the signup implies the
+     * login, so emitting a `login.*` event alongside it would double-log one
+     * user action. A passkey sign-in never reaches this service (it runs through
+     * core's endpoint); it is recorded by the `EVENT_AFTER_LOGIN` listener in
+     * `PluginTrait`. Any other method is not an audit event and is skipped.
+     *
+     * @param User $user the user who just signed in
+     * @param string $method the passwordless method used — a [[Login]] `METHOD_*` constant
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _recordAuditEvent(User $user, string $method): void
+    {
+        $name = match ($method) {
+            Login::METHOD_MAGIC_LINK => AuthEvent::LOGIN_MAGIC_LINK,
+            Login::METHOD_OTP => AuthEvent::LOGIN_OTP,
+            Login::METHOD_REGISTER => AuthEvent::REGISTRATION_FULFILLED,
+            default => null,
+        };
+
+        if ($name === null) {
+            return;
+        }
+
+        AuthKit::$plugin->getAudit()->record(new AuthEvent(
+            name: $name,
+            emitter: 'warp',
+            userId: (int)$user->id,
+        ));
     }
 
     /**

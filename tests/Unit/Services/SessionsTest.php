@@ -23,8 +23,11 @@ use craft\db\Table as CraftTable;
 use craft\elements\User;
 use craft\helpers\Db;
 use craft\helpers\StringHelper;
+use craftpulse\authkit\audit\AuthEvent;
+use craftpulse\authkit\AuthKit;
 use craftpulse\warp\db\Table;
 use craftpulse\warp\records\Session as SessionRecord;
+use craftpulse\warp\tests\Support\CollectingAuditSink;
 use craftpulse\warp\Warp;
 
 function sessionsUser(): User
@@ -90,6 +93,8 @@ afterEach(function() {
     foreach (User::find()->email('*@warp-test.example')->status(null)->all() as $user) {
         Craft::$app->getElements()->deleteElement($user, true);
     }
+
+    AuthKit::$plugin->getAudit()->setSinks([]);
 });
 
 // =============================================================================
@@ -204,6 +209,73 @@ it('signs out an unknown device with no registry row through revoke others', fun
 
     expect($count)->toBe(1)
         ->and(coreSessionExists($unknown))->toBeFalse();
+});
+
+// =============================================================================
+// audit emission — a genuine revocation records session.revoked
+// =============================================================================
+
+it('records a session.revoked audit event with scope single on revoke', function() {
+    $sink = new CollectingAuditSink();
+    AuthKit::$plugin->getAudit()->setSinks([$sink]);
+
+    $user = sessionsUser();
+    $token = insertCoreSession((int)$user->id);
+    $uid = insertRegistryRow((int)$user->id, $token);
+
+    Warp::$plugin->getSessions()->revoke($user, $uid);
+
+    $event = $sink->firstOfName(AuthEvent::SESSION_REVOKED);
+
+    expect($event)->not->toBeNull()
+        ->and($event->emitter)->toBe('warp')
+        ->and($event->outcome)->toBe(AuthEvent::OUTCOME_SUCCESS)
+        ->and($event->userId)->toBe((int)$user->id)
+        ->and($event->details)->toBe(['scope' => 'single']);
+});
+
+it('records no audit event revoking an unknown uid', function() {
+    $sink = new CollectingAuditSink();
+    AuthKit::$plugin->getAudit()->setSinks([$sink]);
+
+    Warp::$plugin->getSessions()->revoke(sessionsUser(), StringHelper::UUID());
+
+    expect($sink->events)->toBe([]);
+});
+
+it('records a session.revoked audit event with scope others when it signs out others', function() {
+    $sink = new CollectingAuditSink();
+    AuthKit::$plugin->getAudit()->setSinks([$sink]);
+
+    $user = sessionsUser();
+    $current = insertCoreSession((int)$user->id);
+    $other = insertCoreSession((int)$user->id);
+    insertRegistryRow((int)$user->id, $current);
+    insertRegistryRow((int)$user->id, $other);
+    Craft::$app->getUser()->setIdentity($user);
+    setCurrentToken($current);
+
+    Warp::$plugin->getSessions()->revokeOthers($user);
+
+    $event = $sink->firstOfName(AuthEvent::SESSION_REVOKED);
+
+    expect($event)->not->toBeNull()
+        ->and($event->userId)->toBe((int)$user->id)
+        ->and($event->details)->toBe(['scope' => 'others']);
+});
+
+it('records no audit event when revoke others finds only the current session', function() {
+    $sink = new CollectingAuditSink();
+    AuthKit::$plugin->getAudit()->setSinks([$sink]);
+
+    $user = sessionsUser();
+    $current = insertCoreSession((int)$user->id);
+    insertRegistryRow((int)$user->id, $current);
+    Craft::$app->getUser()->setIdentity($user);
+    setCurrentToken($current);
+
+    expect(Warp::$plugin->getSessions()->revokeOthers($user))->toBe(0)
+        ->and($sink->events)->toBe([]);
 });
 
 // =============================================================================

@@ -19,6 +19,7 @@ use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craft\web\User as WebUser;
+use craftpulse\authkit\audit\AuthEvent;
 use craftpulse\authkit\AuthKit;
 use craftpulse\warp\controllers\OverviewController;
 use craftpulse\warp\models\Login;
@@ -98,6 +99,16 @@ trait PluginTrait
 
                 if ($identity instanceof User) {
                     $this->getLogins()->record($identity, Login::METHOD_PASSKEY);
+
+                    // A passkey login runs through core's endpoint, so it is the
+                    // one login.* event Passwordless::loginUser() never emits —
+                    // record it here as an audit fact through Auth Kit's contract
+                    // (a no-op with no sinks registered).
+                    AuthKit::$plugin->getAudit()->record(new AuthEvent(
+                        name: AuthEvent::LOGIN_PASSKEY,
+                        emitter: 'warp',
+                        userId: (int)$identity->id,
+                    ));
                 }
             },
         );

@@ -13,6 +13,7 @@ namespace craftpulse\warp\controllers;
 use Craft;
 use craft\elements\User;
 use craft\web\Controller;
+use craftpulse\authkit\audit\AuthEvent;
 use craftpulse\authkit\AuthKit;
 use yii\web\Response;
 
@@ -86,7 +87,16 @@ class PasskeysController extends Controller
         }
 
         $uid = (string)$this->request->getRequiredBodyParam('uid');
-        AuthKit::$plugin->getPasskeys()->deletePasskey($this->_currentUser(), $uid);
+        $user = $this->_currentUser();
+        AuthKit::$plugin->getPasskeys()->deletePasskey($user, $uid);
+
+        // A removed passkey is an audit fact. Record it neutrally through Auth
+        // Kit's contract — a no-op with no sinks registered.
+        AuthKit::$plugin->getAudit()->record(new AuthEvent(
+            name: AuthEvent::PASSKEY_DELETED,
+            emitter: 'warp',
+            userId: (int)$user->id,
+        ));
 
         return $this->asSuccess(Craft::t('warp', 'Passkey deleted.'))
             ?? $this->asJson(['success' => true]);
@@ -121,6 +131,14 @@ class PasskeysController extends Controller
             return $this->asFailure(Craft::t('warp', 'Passkey creation failed.'))
                 ?? $this->asJson(['success' => false]);
         }
+
+        // A stored passkey is an audit fact. Record it neutrally through Auth
+        // Kit's contract — a no-op with no sinks registered.
+        AuthKit::$plugin->getAudit()->record(new AuthEvent(
+            name: AuthEvent::PASSKEY_ENROLLED,
+            emitter: 'warp',
+            userId: (int)$this->_currentUser()->id,
+        ));
 
         return $this->asSuccess(Craft::t('warp', 'Passkey created.'))
             ?? $this->asJson(['success' => true]);

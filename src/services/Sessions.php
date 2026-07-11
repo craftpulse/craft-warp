@@ -17,6 +17,8 @@ use craft\db\Table as CraftTable;
 use craft\elements\User;
 use craft\helpers\Db;
 use craft\web\Request as WebRequest;
+use craftpulse\authkit\audit\AuthEvent;
+use craftpulse\authkit\AuthKit;
 use craftpulse\warp\db\Table;
 use craftpulse\warp\helpers\Device;
 use craftpulse\warp\models\SessionInfo;
@@ -258,6 +260,7 @@ class Sessions extends Component
 
         $this->_deleteCraftSession($userId, (string)$row['tokenHash']);
         Db::delete(Table::SESSIONS, ['id' => $row['id']]);
+        $this->_recordRevocation($userId, 'single');
 
         return true;
     }
@@ -300,6 +303,13 @@ class Sessions extends Component
             Db::delete(CraftTable::SESSIONS, ['id' => $row['id']]);
             Db::delete(Table::SESSIONS, ['userId' => $userId, 'tokenHash' => $hash]);
             $revoked++;
+        }
+
+        // Only a genuine revocation is an audit fact — "sign out everywhere else"
+        // that found nothing to sign out (only the current session) records
+        // nothing.
+        if ($revoked > 0) {
+            $this->_recordRevocation($userId, 'others');
         }
 
         return $revoked;
@@ -354,6 +364,27 @@ class Sessions extends Component
         }
 
         return 0;
+    }
+
+    /**
+     * Records a session revocation as an audit fact through Auth Kit's neutral
+     * contract — a no-op with no sinks registered. Only genuine revocations
+     * reach here (the callers gate on a real kill), never a no-op.
+     *
+     * @param int $userId the user whose session was revoked
+     * @param string $scope the revocation scope — `single` or `others`
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _recordRevocation(int $userId, string $scope): void
+    {
+        AuthKit::$plugin->getAudit()->record(new AuthEvent(
+            name: AuthEvent::SESSION_REVOKED,
+            emitter: 'warp',
+            userId: $userId,
+            details: ['scope' => $scope],
+        ));
     }
 
     /**

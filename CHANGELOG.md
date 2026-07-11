@@ -55,6 +55,14 @@
 - An append-only passwordless login log behind the overview, recorded on every
   Warp login path (magic link, code, registration) and on core's passkey-login
   endpoint, pruned after 90 days on Craft's garbage-collection pass.
+- Audit-event emission through Auth Kit 1.2.0's neutral audit contract
+  (`AuthKit::$plugin->getAudit()->record()`, emitter `warp`), success paths only,
+  never edition-gated, a no-op with no sink registered: `login.magic_link` /
+  `login.otp` on an email-flow login, `login.passkey` on a passkey-route login,
+  `registration.fulfilled` on a signup (emitted alone, since it implies the login;
+  no `login.*` event is recorded alongside it, so one signup is one audit fact),
+  `passkey.enrolled` / `passkey.deleted` on credential management, and
+  `session.revoked` with `scope` `single` or `others` on a genuine revocation.
 - Copy-ready front-end templates in `examples/front-end/`: login/signup,
   "check your email", code entry, the account landing, passkey management, and
   session management, with a `warpBase` include-prefix convention, low-specificity
