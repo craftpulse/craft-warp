@@ -19,8 +19,10 @@ namespace craftpulse\warp\services;
  * `@property-read` tag on this trait's docblock for property-style access —
  * never duplicated on the main plugin class.
  *
- * The component list is empty in the scaffold; services (Passwordless,
- * Registration, Logins, Sessions) are registered as their feature phases land.
+ * Later services (Registration, Logins, Sessions) are registered as their
+ * feature phases land.
+ *
+ * @property-read Passwordless $passwordless
  *
  * @author CraftPulse
  * @since 5.0.0
@@ -41,7 +43,25 @@ trait ServicesTrait
     public static function config(): array
     {
         return [
-            'components' => [],
+            'components' => [
+                'passwordless' => ['class' => Passwordless::class],
+            ],
         ];
+    }
+
+    /**
+     * Returns the passwordless service.
+     *
+     * @return Passwordless
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getPasswordless(): Passwordless
+    {
+        $component = $this->get('passwordless');
+        assert($component instanceof Passwordless);
+
+        return $component;
     }
 }
