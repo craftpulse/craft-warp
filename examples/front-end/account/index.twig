@@ -1,0 +1,53 @@
+{# =========================================================================
+   Warp example — signed-in account landing
+   =========================================================================
+   The page a member lands on after signing in. Links out to the two management
+   screens Warp ships examples for: passkeys and sessions. It also hosts the
+   one-time passkey enrollment nudge, so a first-time email-flow sign-in is
+   invited to add a passkey.
+
+   Requires a signed-in user ({% requireLogin %} sends guests to the login page).
+
+   This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
+   your site layout, and restyle. The page URLs below are yours to own.
+
+   Because Craft resolves {% include %} from the templates root, warpBase must
+   point at wherever you place this bundle (empty for a root copy, e.g.
+   'members/' if you nest it under templates/members/).
+   ========================================================================= #}
+
+{% requireLogin %}
+
+{%- set warpBase = '' -%}
+{%- set passkeysUrl = '/members/passkeys' -%}
+{%- set sessionsUrl = '/members/sessions' -%}
+{%- set displayName = currentUser ? (currentUser.friendlyName ?? currentUser.email) : '' -%}
+
+<main class="warp-account" id="main-content" tabindex="-1">
+    <h1 class="warp-account__title">
+        {{ 'Your account'|t('warp') }}
+    </h1>
+
+    <p class="warp-account__greeting">
+        {{ 'Signed in as {name}.'|t('warp', { name: displayName }) }}
+    </p>
+
+    {% include warpBase ~ '_partials/flashes' only %}
+
+    {% include warpBase ~ '_partials/passkey-nudge' with { passkeysUrl: passkeysUrl } only %}
+
+    <nav class="warp-account__nav" aria-label="{{ 'Account management'|t('warp') }}">
+        <ul class="warp-account__links">
+            <li>
+                <a class="warp-link" href="{{ url(passkeysUrl) }}">{{ 'Manage passkeys'|t('warp') }}</a>
+            </li>
+            <li>
+                <a class="warp-link" href="{{ url(sessionsUrl) }}">{{ 'Manage active sessions'|t('warp') }}</a>
+            </li>
+        </ul>
+    </nav>
+
+    <p class="warp-account__signout">
+        <a class="warp-link warp-link--signout" href="{{ url(craft.app.config.general.logoutPath) }}">{{ 'Sign out'|t('warp') }}</a>
+    </p>
+</main>

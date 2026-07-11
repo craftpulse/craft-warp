@@ -67,3 +67,28 @@ it('reports registration open only when both flags are on', function() {
 it('does not flag the nudge for a fresh guest render', function() {
     expect((new WarpVariable())->getShowPasskeyNudge())->toBeFalse();
 });
+
+it('resolves every craft.warp accessor the example templates call through Twig', function() {
+    // Mirrors the exact `craft.warp.*` handles login.twig, otp-verify.twig,
+    // account/passkeys.twig, and the passkey-nudge partial read. Rendering them
+    // through the View (not the PHP getters) guards against a getter rename or
+    // variable de-registration silently breaking the shipped templates.
+    $template = <<<'TWIG'
+        methods:{{ craft.warp.loginMethods|join(',') }}
+        webauthn:{{ craft.warp.webauthnJsUrl }}
+        passkeys:{{ craft.warp.passkeys|length }}
+        haspasskeys:{{ craft.warp.hasPasskeys ? 'yes' : 'no' }}
+        registration:{{ craft.warp.registrationEnabled ? 'yes' : 'no' }}
+        nudge:{{ craft.warp.showPasskeyNudge ? 'yes' : 'no' }}
+        TWIG;
+
+    $out = Craft::$app->getView()->renderString($template);
+
+    expect($out)
+        ->toContain('methods:magic-link,otp')
+        ->toContain('authkit-webauthn.js')
+        ->toContain('passkeys:0')
+        ->toContain('haspasskeys:no')
+        ->toContain('registration:')
+        ->toContain('nudge:no');
+});

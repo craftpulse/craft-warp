@@ -1,0 +1,221 @@
+{# =========================================================================
+   Warp example — manage passkeys
+   =========================================================================
+   Lists the signed-in user's passkeys, lets them enroll a new one (naming it as
+   they go), and delete any of them. Enrollment runs the WebAuthn ceremony in the
+   browser via Auth Kit's reference client (craft.warp.webauthnJsUrl), then posts
+   to Warp's JSON endpoints.
+
+   Posts (JSON, POST, login required, recent-auth gated) to:
+     warp/passkeys/creation-options   -> start enrollment
+     warp/passkeys/verify-creation    -> finish enrollment
+     warp/passkeys/delete             -> remove a passkey
+
+   Recent-auth gate: managing passkeys is sensitive, so it requires a recent
+   sign-in. When the window has lapsed the endpoints answer 403 with
+   {reauthRequired: true}; this page catches that and asks the user to sign in
+   again (a fresh sign-in reopens the window). Passwordless users have no
+   password to "confirm" — signing in again IS the re-authentication.
+
+   Requires a signed-in user ({% requireLogin %} sends guests to the login page).
+
+   This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
+   your site layout, and restyle. The class hooks are low-specificity "warp-"
+   names; every control is a real <button>. Async state uses live regions and
+   moves focus to failures.
+   ========================================================================= #}
+
+{% requireLogin %}
+
+{%- set loginUrl = '/members/login' -%}   {# where a re-auth prompt sends the user #}
+{%- set passkeys = craft.warp.passkeys -%}
+
+<main class="warp-passkeys" id="main-content" tabindex="-1">
+    <h1 class="warp-passkeys__title">{{ 'Your passkeys'|t('warp') }}</h1>
+
+    <p class="warp-passkeys__intro">
+        {{ 'Passkeys let you sign in with your device fingerprint, face, or PIN instead of waiting for an email. Add one below, or remove any you no longer use.'|t('warp') }}
+    </p>
+
+    {# Re-auth prompt. Hidden until an endpoint reports the recent-auth window
+       lapsed, then shown assertively with a way back to a fresh sign-in. #}
+    <div class="warp-passkeys__reauth" id="warp-passkeys-reauth" role="alert" tabindex="-1" hidden>
+        <p class="warp-passkeys__reauth-text">
+            {{ 'For your security, managing passkeys needs a recent sign-in. Please sign in again to continue.'|t('warp') }}
+        </p>
+        <p>
+            <a class="warp-link" href="{{ url(loginUrl) }}">{{ 'Sign in again'|t('warp') }}</a>
+        </p>
+    </div>
+
+    {# Polite status for successful, non-urgent updates. #}
+    <p class="warp-passkeys__status" id="warp-passkeys-status" role="status" hidden></p>
+
+    {# --- Existing passkeys --------------------------------------------------- #}
+    <section class="warp-passkeys__list-section" aria-labelledby="warp-passkeys-list-heading">
+        <h2 class="warp-passkeys__subheading" id="warp-passkeys-list-heading">{{ 'Registered passkeys'|t('warp') }}</h2>
+
+        {% if passkeys|length %}
+            <ul class="warp-passkeys__list">
+                {% for passkey in passkeys %}
+                    {%- set label = passkey.credentialName is not empty ? passkey.credentialName : 'Passkey'|t('warp') -%}
+                    <li class="warp-passkeys__item">
+                        <span class="warp-passkeys__name">{{ label }}</span>
+                        <span class="warp-passkeys__used">
+                            {%- if passkey.dateLastUsed -%}
+                                {{ 'Last used {date}'|t('warp', { date: passkey.dateLastUsed|datetime('short') }) }}
+                            {%- else -%}
+                                {{ 'Not used yet'|t('warp') }}
+                            {%- endif -%}
+                        </span>
+                        <button
+                            class="warp-button warp-button--delete"
+                            type="button"
+                            data-warp-delete
+                            data-uid="{{ passkey.uid }}"
+                            data-name="{{ label }}"
+                            aria-label="{{ 'Delete {name}'|t('warp', { name: label }) }}"
+                        >
+                            {{ 'Delete'|t('warp') }}
+                        </button>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="warp-passkeys__empty">{{ 'You have not added any passkeys yet.'|t('warp') }}</p>
+        {% endif %}
+    </section>
+
+    {# --- Enroll a new passkey ------------------------------------------------ #}
+    <section class="warp-passkeys__enroll" aria-labelledby="warp-passkeys-enroll-heading">
+        <h2 class="warp-passkeys__subheading" id="warp-passkeys-enroll-heading">{{ 'Add a passkey'|t('warp') }}</h2>
+
+        <div class="warp-field">
+            <label class="warp-field__label" for="warp-passkey-name">{{ 'Name this passkey'|t('warp') }}</label>
+            <input
+                class="warp-field__input"
+                id="warp-passkey-name"
+                type="text"
+                maxlength="64"
+                autocomplete="off"
+                aria-describedby="warp-passkey-name-hint"
+                placeholder="{{ 'e.g. My laptop'|t('warp') }}"
+            >
+            <span class="warp-field__hint" id="warp-passkey-name-hint">{{ 'A label so you can recognise this device later. Optional.'|t('warp') }}</span>
+        </div>
+
+        <button class="warp-button warp-button--primary" type="button" id="warp-passkey-enroll">
+            {{ 'Add a passkey'|t('warp') }}
+        </button>
+
+        <p class="warp-passkeys__fallback" id="warp-passkeys-fallback" hidden>
+            {{ 'Passkeys are not available in this browser. Try a device with a fingerprint reader, face unlock, or a PIN.'|t('warp') }}
+        </p>
+        <p class="warp-passkeys__error" id="warp-passkey-enroll-error" role="alert" tabindex="-1" hidden></p>
+    </section>
+
+    <p class="warp-passkeys__actions">
+        <a class="warp-link" href="{{ url('/members') }}">{{ 'Back to your account'|t('warp') }}</a>
+    </p>
+
+    <script src="{{ craft.warp.webauthnJsUrl }}"></script>
+    <script>
+        (function () {
+            var csrfToken = '{{ craft.app.request.csrfToken|e('js') }}';
+            var optionsUrl = '{{ actionUrl('warp/passkeys/creation-options')|e('js') }}';
+            var verifyUrl = '{{ actionUrl('warp/passkeys/verify-creation')|e('js') }}';
+            var deleteUrl = '{{ actionUrl('warp/passkeys/delete')|e('js') }}';
+
+            var enrollButton = document.getElementById('warp-passkey-enroll');
+            var nameInput = document.getElementById('warp-passkey-name');
+            var enrollError = document.getElementById('warp-passkey-enroll-error');
+            var fallback = document.getElementById('warp-passkeys-fallback');
+            var reauth = document.getElementById('warp-passkeys-reauth');
+            var status = document.getElementById('warp-passkeys-status');
+
+            function showReauth() {
+                reauth.hidden = false;
+                reauth.focus();
+            }
+
+            function showError(node, message) {
+                node.textContent = message;
+                node.hidden = false;
+                node.focus();
+            }
+
+            // --- Enroll ---------------------------------------------------------
+            if (!window.AuthKit || !window.AuthKit.supportsWebAuthn()) {
+                enrollButton.disabled = true;
+                fallback.hidden = false;
+            } else {
+                enrollButton.addEventListener('click', function () {
+                    enrollError.hidden = true;
+                    enrollButton.disabled = true;
+
+                    window.AuthKit.enrollPasskey({
+                        optionsUrl: optionsUrl,
+                        verifyUrl: verifyUrl,
+                        csrfToken: csrfToken,
+                        credentialName: nameInput.value || null
+                    }).then(function () {
+                        window.location.reload();
+                    }).catch(function (error) {
+                        if (error.reauthRequired) {
+                            showReauth();
+                        } else {
+                            showError(enrollError, error.message || '{{ 'Could not add a passkey. Please try again.'|t('warp')|e('js') }}');
+                        }
+                        enrollButton.disabled = false;
+                    });
+                });
+            }
+
+            // --- Delete ---------------------------------------------------------
+            var deleteButtons = document.querySelectorAll('[data-warp-delete]');
+            Array.prototype.forEach.call(deleteButtons, function (button) {
+                button.addEventListener('click', function () {
+                    var name = button.getAttribute('data-name');
+                    var confirmed = window.confirm('{{ 'Delete the passkey'|t('warp')|e('js') }} "' + name + '"? {{ 'You can add it again later.'|t('warp')|e('js') }}');
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    button.disabled = true;
+
+                    fetch(deleteUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ uid: button.getAttribute('data-uid') })
+                    }).then(function (response) {
+                        return response.json().then(function (data) {
+                            return { ok: response.ok, status: response.status, data: data };
+                        });
+                    }).then(function (result) {
+                        if (result.ok) {
+                            window.location.reload();
+                            return;
+                        }
+                        if (result.data && result.data.reauthRequired) {
+                            showReauth();
+                        } else {
+                            var message = (result.data && result.data.message) || '{{ 'Could not delete that passkey. Please try again.'|t('warp')|e('js') }}';
+                            status.hidden = true;
+                            showError(enrollError, message);
+                        }
+                        button.disabled = false;
+                    }).catch(function () {
+                        showError(enrollError, '{{ 'Could not delete that passkey. Please try again.'|t('warp')|e('js') }}');
+                        button.disabled = false;
+                    });
+                });
+            });
+        })();
+    </script>
+</main>

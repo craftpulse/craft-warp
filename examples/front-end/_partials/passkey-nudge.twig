@@ -1,0 +1,48 @@
+{# =========================================================================
+   Warp example — passkey enrollment nudge partial
+   =========================================================================
+   Surfaces once, right after a user signs in over an email flow (magic link,
+   code, or a fresh registration) while holding no passkey yet. Reading
+   craft.warp.showPasskeyNudge CLEARS the flag, so the nudge appears exactly once
+   per triggering login: include it on the first signed-in page a user lands on
+   (account/index.twig does). Do not render it more than once per request or the
+   second read will always be false.
+
+   Pass the passkeys management page URL in:
+     {% include '_partials/passkey-nudge' with { passkeysUrl: '/members/passkeys' } only %}
+
+   Copy into your project's templates/ and restyle. Class hooks are
+   low-specificity "warp-" names; the dismiss control is a real <button>.
+   ========================================================================= #}
+
+{%- set showNudge = craft.warp.showPasskeyNudge -%}
+{%- set passkeysUrl = passkeysUrl ?? '/members/passkeys' -%}
+
+{%- if showNudge -%}
+    <section class="warp-nudge" id="warp-passkey-nudge" role="region" aria-label="{{ 'Passkey suggestion'|t('warp') }}">
+        <p class="warp-nudge__text">
+            {{ 'Want a faster, safer sign-in next time? Add a passkey and skip the email step.'|t('warp') }}
+        </p>
+        <p class="warp-nudge__actions">
+            <a class="warp-link" href="{{ url(passkeysUrl) }}">{{ 'Add a passkey'|t('warp') }}</a>
+            <button class="warp-button warp-button--dismiss" type="button" data-warp-nudge-dismiss>
+                {{ 'Not now'|t('warp') }}
+            </button>
+        </p>
+    </section>
+
+    <script>
+        (function () {
+            var nudge = document.getElementById('warp-passkey-nudge');
+            if (!nudge) {
+                return;
+            }
+            var dismiss = nudge.querySelector('[data-warp-nudge-dismiss]');
+            if (dismiss) {
+                dismiss.addEventListener('click', function () {
+                    nudge.parentNode.removeChild(nudge);
+                });
+            }
+        })();
+    </script>
+{%- endif -%}

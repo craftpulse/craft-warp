@@ -1,0 +1,49 @@
+{# =========================================================================
+   Warp example — flash notices partial
+   =========================================================================
+   Renders Warp's controller flashes: a success notice (setSuccessFlash) and an
+   error notice (setFailFlash). Every Warp auth action that redirects a browser
+   sets one of these, so include this near the top of any page a Warp flow can
+   land on (login, link-sent, otp-verify, account pages).
+
+   Copy this into your project's templates/ and restyle. The class hooks are
+   low-specificity "warp-" names carrying no framework styling; make them yours.
+
+   Accessibility:
+   - The error uses role="alert" (assertive) so a screen reader announces it at
+     once; the success uses role="status" (polite).
+   - On load the error is focused so a keyboard or screen-reader user is taken
+     straight to what failed. State is never color-only: each notice carries a
+     text label.
+
+   Usage:
+     {% include '_partials/flashes' only %}
+   ========================================================================= #}
+
+{%- set notice = craft.app.session.getFlash('notice') -%}
+{%- set error = craft.app.session.getFlash('error') -%}
+
+{%- if error -%}
+    <div class="warp-flash warp-flash--error" role="alert" id="warp-flash-error" tabindex="-1">
+        <span class="warp-flash__label">{{ 'Error'|t('warp') }}:</span>
+        <span class="warp-flash__message">{{ error }}</span>
+    </div>
+{%- endif -%}
+
+{%- if notice -%}
+    <div class="warp-flash warp-flash--notice" role="status">
+        <span class="warp-flash__label">{{ 'Notice'|t('warp') }}:</span>
+        <span class="warp-flash__message">{{ notice }}</span>
+    </div>
+{%- endif -%}
+
+{%- if error -%}
+    <script>
+        (function () {
+            var flash = document.getElementById('warp-flash-error');
+            if (flash) {
+                flash.focus();
+            }
+        })();
+    </script>
+{%- endif -%}

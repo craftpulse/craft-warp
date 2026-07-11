@@ -1,0 +1,88 @@
+{# =========================================================================
+   Warp example — enter your sign-in code
+   =========================================================================
+   Shown after the unified request form (login.twig) posts with the OTP channel.
+   The visitor types the numeric code Warp emailed them, together with the email
+   it was sent to, and is signed in.
+
+   Posts to:  warp/auth/verify-code   (POST, anonymous, rate-limited)
+
+   The code is entered alongside the email because the request endpoint does not
+   carry the address across the redirect (that keeps the request enumeration-
+   safe). If you prefer to prefill it, append ?email=... to this page's URL when
+   you build your own redirect and it will populate below.
+
+   The code length shown here (6 digits) matches Warp's default otpDigits
+   setting. If you change that setting, update the maxlength and copy to match.
+
+   Reached via:  the hashed "redirect" the login form posts. This page URL is
+   yours; Warp fixes only the action route.
+
+   This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
+   your site layout, and restyle. Class hooks are low-specificity "warp-" names.
+   ========================================================================= #}
+
+{# Craft resolves {% include %} from the templates root. Leave warpBase empty
+   for a root copy; set it to your subfolder (with trailing slash) if you nest
+   the bundle, e.g. 'members/'. #}
+{%- set warpBase = '' -%}
+{%- set loginUrl = '/members/login' -%}   {# back to the request form — your route #}
+{%- set afterSignInUrl = '/members' -%}   {# where a correct code lands the user #}
+{%- set prefillEmail = craft.app.request.getParam('email') ?? '' -%}
+
+<main class="warp-auth" id="main-content" tabindex="-1">
+    <h1 class="warp-auth__title">{{ 'Enter your sign-in code'|t('warp') }}</h1>
+
+    {% include warpBase ~ '_partials/flashes' only %}
+
+    <p class="warp-auth__intro">
+        {{ 'We emailed you a short numeric code. Enter it below to finish signing in.'|t('warp') }}
+    </p>
+
+    <form class="warp-form" method="post" action="{{ actionUrl('warp/auth/verify-code') }}">
+        {{ csrfInput() }}
+        <input type="hidden" name="returnUrl" value="{{ afterSignInUrl }}">
+
+        <div class="warp-field">
+            <label class="warp-field__label" for="warp-code-email">{{ 'Email address'|t('warp') }}</label>
+            <input
+                class="warp-field__input"
+                id="warp-code-email"
+                type="email"
+                name="email"
+                autocomplete="email"
+                autocapitalize="none"
+                spellcheck="false"
+                value="{{ prefillEmail }}"
+                required
+            >
+        </div>
+
+        <div class="warp-field">
+            <label class="warp-field__label" for="warp-code">{{ 'Sign-in code'|t('warp') }}</label>
+            <input
+                class="warp-field__input"
+                id="warp-code"
+                type="text"
+                name="code"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                pattern="[0-9]*"
+                maxlength="6"
+                aria-describedby="warp-code-hint"
+                required
+                {{ prefillEmail ? 'autofocus' : '' }}
+            >
+            <span class="warp-field__hint" id="warp-code-hint">{{ 'Enter the 6-digit code from your email.'|t('warp') }}</span>
+        </div>
+
+        <button class="warp-button warp-button--primary" type="submit">
+            {{ 'Sign in'|t('warp') }}
+        </button>
+    </form>
+
+    <p class="warp-auth__actions">
+        {{ 'Did not get a code?'|t('warp') }}
+        <a class="warp-link" href="{{ url(loginUrl) }}">{{ 'Request a new one'|t('warp') }}</a>
+    </p>
+</main>

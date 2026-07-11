@@ -1,0 +1,192 @@
+{# =========================================================================
+   Warp example — sign in / sign up (unified passwordless request)
+   =========================================================================
+   One email field drives BOTH sign-in and sign-up: Warp resolves the address
+   server-side and either emails an existing account a sign-in credential or,
+   when registration is open, emails an unknown address a sign-up link. The HTTP
+   response is identical either way, so this page never reveals which addresses
+   are registered. Write your copy to cover both cases (it already does below).
+
+   Posts to:  warp/auth/request      (POST, anonymous, rate-limited)
+   Optional passkey button talks to Craft core's anonymous endpoints:
+              auth/passkey-request-options  +  users/login-with-passkey
+
+   This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
+   your own site layout (which supplies <html lang>, a skip link, header, and
+   footer), and restyle. Every class hook is a low-specificity "warp-" name
+   carrying no framework styling.
+
+   Page URLs below are YOURS to own — Warp fixes only the action routes, never
+   your page routing. Point them at the templates you copy these examples into.
+
+   Accessibility:
+   - Every input has an explicit <label>; the channel choice is a <fieldset> +
+     <legend>; the passkey control is a real <button>.
+   - Async passkey status uses live regions; failures move focus to the message.
+   - No state is color-only — every notice and error carries text.
+   ========================================================================= #}
+
+{# --- Include base. Craft resolves {% include %} from the templates ROOT, not
+       relative to this file. Leave warpBase empty when you copy this bundle to
+       your templates/ root; if you nest it in a subfolder (say
+       templates/members/), set warpBase to that path WITH a trailing slash,
+       e.g. 'members/', so the partial includes still resolve. ---------------- #}
+{%- set warpBase = '' -%}
+
+{# --- Developer-owned page routing. Change these to your own routes. ------- #}
+{%- set linkSentUrl = 'members/link-sent' -%}      {# lands here after a magic-link request #}
+{%- set codeEntryUrl = 'members/verify-code' -%}   {# lands here after an OTP-code request #}
+{%- set afterSignInUrl = '/members' -%}            {# where the emailed link / passkey lands the user #}
+
+{# --- Enabled login methods (a subset of magic-link + otp). ---------------- #}
+{%- set loginMethods = craft.warp.loginMethods -%}
+{%- set hasMagicLink = 'magic-link' in loginMethods -%}
+{%- set hasOtp = 'otp' in loginMethods -%}
+{%- set bothMethods = hasMagicLink and hasOtp -%}
+{%- set defaultChannel = loginMethods|first -%}
+{%- set defaultRedirect = defaultChannel == 'otp' ? codeEntryUrl : linkSentUrl -%}
+
+<main class="warp-auth" id="main-content" tabindex="-1">
+    <h1 class="warp-auth__title">{{ 'Sign in or create an account'|t('warp') }}</h1>
+
+    <p class="warp-auth__intro">
+        {{ 'Enter your email and we will send you a secure way to sign in. No password required. If you do not have an account yet, one will be created for you.'|t('warp') }}
+    </p>
+
+    {% include warpBase ~ '_partials/flashes' only %}
+
+    <form class="warp-form" id="warp-login-form" method="post" action="{{ actionUrl('warp/auth/request') }}">
+        {{ csrfInput() }}
+
+        {# Where the browser goes after submitting this form. Swapped per channel
+           by the script below when both methods are offered. #}
+        {{ redirectInput(defaultRedirect) }}
+
+        {# Where the emailed link should land the visitor once they click it. #}
+        <input type="hidden" name="returnUrl" value="{{ afterSignInUrl }}">
+
+        <div class="warp-field">
+            <label class="warp-field__label" for="warp-email">{{ 'Email address'|t('warp') }}</label>
+            <input
+                class="warp-field__input"
+                id="warp-email"
+                type="email"
+                name="email"
+                autocomplete="email"
+                autocapitalize="none"
+                spellcheck="false"
+                required
+                autofocus
+            >
+        </div>
+
+        {% if bothMethods %}
+            <fieldset class="warp-fieldset">
+                <legend class="warp-fieldset__legend">{{ 'How would you like to sign in?'|t('warp') }}</legend>
+
+                <label class="warp-choice">
+                    <input
+                        class="warp-choice__input"
+                        type="radio"
+                        name="channel"
+                        value="magic-link"
+                        data-warp-redirect="{{ linkSentUrl|hash }}"
+                        {{ defaultChannel == 'magic-link' ? 'checked' : '' }}
+                    >
+                    <span class="warp-choice__label">{{ 'Email me a sign-in link'|t('warp') }}</span>
+                </label>
+
+                <label class="warp-choice">
+                    <input
+                        class="warp-choice__input"
+                        type="radio"
+                        name="channel"
+                        value="otp"
+                        data-warp-redirect="{{ codeEntryUrl|hash }}"
+                        {{ defaultChannel == 'otp' ? 'checked' : '' }}
+                    >
+                    <span class="warp-choice__label">{{ 'Email me a sign-in code'|t('warp') }}</span>
+                </label>
+            </fieldset>
+        {% else %}
+            {# Only one channel is enabled — send it as a fixed value. #}
+            <input type="hidden" name="channel" value="{{ defaultChannel }}">
+        {% endif %}
+
+        <button class="warp-button warp-button--primary" type="submit">
+            {{ hasMagicLink and not hasOtp
+                ? 'Email me a sign-in link'|t('warp')
+                : (hasOtp and not hasMagicLink
+                    ? 'Email me a sign-in code'|t('warp')
+                    : 'Continue'|t('warp')) }}
+        </button>
+    </form>
+
+    {% if bothMethods %}
+        <script>
+            (function () {
+                var form = document.getElementById('warp-login-form');
+                if (!form) {
+                    return;
+                }
+                var redirect = form.querySelector('input[name="redirect"]');
+                var radios = form.querySelectorAll('input[name="channel"]');
+                Array.prototype.forEach.call(radios, function (radio) {
+                    radio.addEventListener('change', function () {
+                        if (radio.checked && redirect && radio.dataset.warpRedirect) {
+                            redirect.value = radio.dataset.warpRedirect;
+                        }
+                    });
+                });
+            })();
+        </script>
+    {% endif %}
+
+    {# --- Passkey sign-in (optional, progressive enhancement). ------------- #}
+    <section class="warp-passkey" aria-labelledby="warp-passkey-heading">
+        <h2 class="warp-passkey__heading" id="warp-passkey-heading">{{ 'Already set up a passkey?'|t('warp') }}</h2>
+
+        <button class="warp-button warp-button--passkey" type="button" id="warp-passkey-login">
+            {{ 'Sign in with a passkey'|t('warp') }}
+        </button>
+
+        {# Live regions must exist in the DOM before status is injected. #}
+        <p class="warp-passkey__fallback" id="warp-passkey-fallback" hidden>
+            {{ 'Passkeys are not available in this browser. Use your email above instead.'|t('warp') }}
+        </p>
+        <p class="warp-passkey__status" id="warp-passkey-status" role="alert" tabindex="-1" hidden></p>
+    </section>
+
+    <script src="{{ craft.warp.webauthnJsUrl }}"></script>
+    <script>
+        (function () {
+            var button = document.getElementById('warp-passkey-login');
+            var fallback = document.getElementById('warp-passkey-fallback');
+            var status = document.getElementById('warp-passkey-status');
+
+            if (!window.AuthKit || !window.AuthKit.supportsWebAuthn()) {
+                button.hidden = true;
+                fallback.hidden = false;
+                return;
+            }
+
+            button.addEventListener('click', function () {
+                status.hidden = true;
+                button.disabled = true;
+
+                window.AuthKit.loginWithPasskey({
+                    optionsUrl: '{{ actionUrl('auth/passkey-request-options')|e('js') }}',
+                    loginUrl: '{{ actionUrl('users/login-with-passkey')|e('js') }}',
+                    csrfToken: '{{ craft.app.request.csrfToken|e('js') }}'
+                }).then(function () {
+                    window.location.href = '{{ afterSignInUrl }}';
+                }).catch(function (error) {
+                    status.textContent = error.message || '{{ 'Passkey sign-in failed. Please try your email instead.'|t('warp')|e('js') }}';
+                    status.hidden = false;
+                    status.focus();
+                    button.disabled = false;
+                });
+            });
+        })();
+    </script>
+</main>

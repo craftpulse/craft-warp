@@ -1,0 +1,39 @@
+{# =========================================================================
+   Warp example — "check your email" confirmation
+   =========================================================================
+   Neutral landing page shown after the unified request form (login.twig) posts
+   with the magic-link channel. Because the request endpoint is enumeration-safe,
+   this page must read the same whether the address belongs to an existing
+   account, a brand-new sign-up, or nothing at all — never confirm or deny that
+   an account exists. The copy below covers all three cases.
+
+   Reached via:  the hashed "redirect" the login form posts. Warp fixes the
+   action route, not this page URL — this template lives wherever you copy it.
+
+   This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
+   your site layout, and restyle. Class hooks are low-specificity "warp-" names.
+   ========================================================================= #}
+
+{# Craft resolves {% include %} from the templates root. Leave warpBase empty
+   for a root copy; set it to your subfolder (with trailing slash) if you nest
+   the bundle, e.g. 'members/'. #}
+{%- set warpBase = '' -%}
+{%- set loginUrl = '/members/login' -%}   {# back to the request form — your route #}
+
+<main class="warp-auth" id="main-content" tabindex="-1">
+    <h1 class="warp-auth__title">{{ 'Check your email'|t('warp') }}</h1>
+
+    {% include warpBase ~ '_partials/flashes' only %}
+
+    <p class="warp-auth__intro">
+        {{ 'If an account or a new registration matches that address, we have sent you an email with a secure sign-in link. Open it on this device and click the link to continue.'|t('warp') }}
+    </p>
+
+    <p class="warp-auth__hint">
+        {{ 'The link expires shortly and can be used once. If it does not arrive within a few minutes, check your spam folder or request a new one.'|t('warp') }}
+    </p>
+
+    <p class="warp-auth__actions">
+        <a class="warp-link" href="{{ url(loginUrl) }}">{{ 'Back to sign in'|t('warp') }}</a>
+    </p>
+</main>

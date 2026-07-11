@@ -1,0 +1,32 @@
+{# =========================================================================
+   Warp example — active sessions (PLACEHOLDER)
+   =========================================================================
+   PLACEHOLDER. Session and device management lands in Warp's Phase 7, which
+   adds the warp/sessions/* endpoints, the craft.warp.sessions variable, and the
+   SessionInfo model this page will render (a "this device" badge, per-row sign
+   out, and "sign out everywhere else"). Until then this file is only the page
+   shell so your routing and navigation have something to point at. It renders no
+   session data on purpose. Do not wire it up yet.
+
+   When Phase 7 ships, this template will list craft.warp.sessions and post to
+   warp/sessions/revoke and warp/sessions/revoke-others (both recent-auth gated).
+
+   Requires a signed-in user ({% requireLogin %} sends guests to the login page).
+
+   This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
+   your site layout, and restyle.
+   ========================================================================= #}
+
+{% requireLogin %}
+
+<main class="warp-sessions" id="main-content" tabindex="-1">
+    <h1 class="warp-sessions__title">{{ 'Active sessions'|t('warp') }}</h1>
+
+    <p class="warp-sessions__intro">
+        {{ 'Managing the devices signed in to your account is coming soon. Check back after this feature ships.'|t('warp') }}
+    </p>
+
+    <p class="warp-sessions__actions">
+        <a class="warp-link" href="{{ url('/members') }}">{{ 'Back to your account'|t('warp') }}</a>
+    </p>
+</main>
