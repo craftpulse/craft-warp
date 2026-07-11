@@ -10,6 +10,9 @@
 
 namespace craftpulse\warp\base;
 
+use craftpulse\authkit\AuthKit;
+use craftpulse\warp\models\Settings;
+
 /**
  * PluginTrait owns Warp's event listeners, URL rule registration, and plugin
  * lifecycle wiring, keeping the main plugin class a thin orchestrator.
@@ -51,13 +54,31 @@ trait PluginTrait
      * Warp is the product that configures them, applying its settings once here
      * rather than scattering configuration across controllers.
      *
-     * Filled in Phase 2 (magic-link + email-OTP wiring).
+     * Skipped gracefully if Auth Kit is somehow not installed.
      *
      * @author CraftPulse
      * @since 5.0.0
      */
     private function _configureAuthKit(): void
     {
+        $authKit = AuthKit::getInstance();
+
+        if ($authKit === null) {
+            return;
+        }
+
+        $settings = $this->getSettings();
+        assert($settings instanceof Settings);
+
+        $tokens = $authKit->getTokens();
+        $tokens->magicLinkRoute = 'warp/auth/verify-link';
+        $tokens->tokenTtl = $settings->tokenTtl;
+        $tokens->otpDigits = $settings->otpDigits;
+        $tokens->otpMaxAttempts = $settings->otpMaxAttempts;
+        $tokens->perEmailLimit = $settings->perEmailLimit;
+        $tokens->perEmailWindow = $settings->perEmailWindow;
+
+        $authKit->getPasskeys()->recentAuthDuration = $settings->recentAuthDuration;
     }
 
     /**

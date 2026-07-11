@@ -10,6 +10,7 @@
 
 namespace craftpulse\warp\models;
 
+use Craft;
 use craft\base\Model;
 
 /**
@@ -18,13 +19,136 @@ use craft\base\Model;
  * configuration UX and pushes the values into Auth Kit at plugin init — see
  * `PluginTrait::_configureAuthKit()`.
  *
- * The model is empty in the scaffold; the tunables (token TTL, OTP digits,
- * per-email throttle, registration, passkey nudge) are added as their feature
- * phases land.
+ * All of these knobs are edited in Warp's own control-panel section and are
+ * project-config tracked, so they sync across environments.
  *
  * @author CraftPulse
  * @since 5.0.0
  */
 class Settings extends Model
 {
+    // Const Properties
+    // =========================================================================
+
+    /**
+     * @var string The magic-link login channel — an emailed, single-use link
+     * carrying an unguessable 32-byte secret.
+     *
+     * @since 5.0.0
+     */
+    public const CHANNEL_MAGIC_LINK = 'magic-link';
+
+    /**
+     * @var string The one-time-code login channel — an emailed short numeric
+     * code the visitor types back into a verify form.
+     *
+     * @since 5.0.0
+     */
+    public const CHANNEL_OTP = 'otp';
+
+    // Public Properties
+    // =========================================================================
+
+    /**
+     * @var array<int, string> The passwordless login channels Warp offers, a
+     * subset of [[CHANNEL_MAGIC_LINK]] and [[CHANNEL_OTP]]. A channel not listed
+     * here is refused at issuance even if requested directly, so disabling one
+     * closes it end to end.
+     *
+     * @since 5.0.0
+     */
+    public array $loginMethods = [self::CHANNEL_MAGIC_LINK, self::CHANNEL_OTP];
+
+    /**
+     * @var int The number of digits in an issued OTP code.
+     *
+     * @since 5.0.0
+     */
+    public int $otpDigits = 6;
+
+    /**
+     * @var int The number of failed OTP attempts before a code is burned.
+     *
+     * @since 5.0.0
+     */
+    public int $otpMaxAttempts = 5;
+
+    /**
+     * @var int The maximum number of tokens issued to one address per
+     * [[perEmailWindow]] seconds.
+     *
+     * @since 5.0.0
+     */
+    public int $perEmailLimit = 5;
+
+    /**
+     * @var int The per-address issuance throttle window, in seconds.
+     *
+     * @since 5.0.0
+     */
+    public int $perEmailWindow = 300;
+
+    /**
+     * @var int The recent-auth window, in seconds — how long a prior sign-in
+     * satisfies the recent-auth gate before a step-up is required.
+     *
+     * @since 5.0.0
+     */
+    public int $recentAuthDuration = 300;
+
+    /**
+     * @var int How long an issued magic link or OTP code stays valid, in seconds.
+     *
+     * @since 5.0.0
+     */
+    public int $tokenTtl = 900;
+
+    // Public Methods
+    // =========================================================================
+
+    /**
+     * Validates that [[loginMethods]] is a non-empty subset of the supported
+     * channels. An empty or out-of-range set would leave the front end with no
+     * usable login path (or an unbacked one), so it fails closed.
+     *
+     * @param string $attribute the attribute under validation
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function validateLoginMethods(string $attribute): void
+    {
+        $value = $this->$attribute;
+
+        if (!is_array($value) || $value === []) {
+            $this->addError($attribute, Craft::t('warp', 'At least one login method must be enabled.'));
+
+            return;
+        }
+
+        $invalid = array_diff($value, [self::CHANNEL_MAGIC_LINK, self::CHANNEL_OTP]);
+
+        if ($invalid !== []) {
+            $this->addError($attribute, Craft::t('warp', 'Login methods must be magic-link, otp, or both.'));
+        }
+    }
+
+    // Protected Methods
+    // =========================================================================
+
+    /**
+     * @inheritdoc
+     * @return array<int, mixed>
+     */
+    protected function defineRules(): array
+    {
+        $rules = parent::defineRules();
+        $rules[] = [['loginMethods'], 'validateLoginMethods', 'skipOnEmpty' => false];
+        $rules[] = [['tokenTtl', 'recentAuthDuration', 'perEmailWindow'], 'integer', 'min' => 60, 'max' => 86400];
+        $rules[] = [['otpDigits'], 'integer', 'min' => 4, 'max' => 10];
+        $rules[] = [['otpMaxAttempts'], 'integer', 'min' => 1, 'max' => 10];
+        $rules[] = [['perEmailLimit'], 'integer', 'min' => 1, 'max' => 100];
+
+        return $rules;
+    }
 }
