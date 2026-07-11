@@ -108,12 +108,19 @@ class Warp extends Plugin
         }
 
         $item['subnav'] = [];
-        $identity = Craft::$app->getUser()->getIdentity();
+        $user = Craft::$app->getUser();
 
-        if ($identity?->can(OverviewController::PERMISSION_VIEW_OVERVIEW)) {
+        if ($user->getIdentity()?->can(OverviewController::PERMISSION_VIEW_OVERVIEW)) {
             $item['subnav']['overview'] = [
                 'label' => Craft::t('warp', 'Overview'),
                 'url' => 'warp',
+            ];
+        }
+
+        if ($user->getIsAdmin()) {
+            $item['subnav']['settings'] = [
+                'label' => Craft::t('warp', 'Settings'),
+                'url' => 'warp/settings',
             ];
         }
 

@@ -153,6 +153,7 @@ trait PluginTrait
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
             static function(RegisterUrlRulesEvent $event): void {
                 $event->rules['warp'] = 'warp/overview/index';
+                $event->rules['warp/settings'] = 'warp/settings/edit';
             },
         );
     }
