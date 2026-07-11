@@ -11,6 +11,7 @@
 namespace craftpulse\warp\controllers;
 
 use Craft;
+use craft\elements\User;
 use craft\filters\IpRateLimitIdentity;
 use craft\helpers\UrlHelper;
 use craft\web\Controller;
@@ -31,10 +32,11 @@ use yii\web\Response;
  * attempt-capped).
  *
  * The same posted email form drives login and registration: [[actionRequest()]]
- * resolves the address and either issues a login credential for an existing
- * account or, when registration is open, a registration link for an unknown one
- * — responding byte-identically in every branch so the endpoint never reveals
- * which addresses are registered. [[actionVerifyRegistration()]] closes the
+ * resolves the address and either issues a login credential for an already-active
+ * account or, when registration is open, a registration link for an address
+ * without one — an unknown address, or a pending account that can still finish
+ * activating through the link — responding byte-identically in every branch so
+ * the endpoint never reveals which addresses are registered. [[actionVerifyRegistration()]] closes the
  * signup loop, mirroring [[actionVerifyLink()]]'s opaque, generic-failure shape.
  *
  * Every endpoint is deliberately opaque. All three verify actions log any
@@ -146,16 +148,18 @@ class AuthController extends Controller
         $channel = $this->_resolveChannel((string)$this->request->getBodyParam('channel', ''));
         $returnUrl = $this->_returnUrl($this->request->getBodyParam('returnUrl'));
 
-        // One form, two outcomes, one response. An unknown address takes the
-        // registration path only when signup is open; every other case — an
-        // existing account of any status (Auth Kit's eligibility rules decide
-        // whether a credential actually issues), or an unknown address with
-        // registration closed — takes the login path, whose timing equalizer
-        // covers the send-nothing branch. Both live paths do the same
-        // token-write + email work, so no branch is distinguishable.
+        // One form, two outcomes, one response. An address with no active
+        // account — unknown or pending — takes the registration path when signup
+        // is open, so a pending holder can finish activating through the signup
+        // link (Auth Kit issues for an unknown or pending address and refuses,
+        // equalized, a suspended or locked one). An already-active account, or
+        // any address with registration closed, takes the login path, whose
+        // timing equalizer covers its send-nothing branch. Both live paths do
+        // the same token-write + email work, so no branch is distinguishable.
         $user = Craft::$app->getUsers()->getUserByUsernameOrEmail($email);
+        $isActive = $user !== null && $user->getStatus() === User::STATUS_ACTIVE;
 
-        if ($user === null && Warp::$plugin->getRegistration()->isEnabled()) {
+        if (!$isActive && Warp::$plugin->getRegistration()->isEnabled()) {
             AuthKit::$plugin->getTokens()->issueRegistration($email, $returnUrl);
         } else {
             Warp::$plugin->getPasswordless()->request($email, $channel, $returnUrl);

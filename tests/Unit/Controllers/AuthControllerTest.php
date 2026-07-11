@@ -89,6 +89,20 @@ function suspendedAuthUser(string $email): User
     return Craft::$app->getUsers()->getUserById((int)$user->id);
 }
 
+function pendingAuthUser(string $email): User
+{
+    $user = new User();
+    $user->username = $email;
+    $user->email = $email;
+    $user->pending = true;
+
+    if (!Craft::$app->getElements()->saveElement($user)) {
+        throw new RuntimeException('Could not save pending auth controller test user.');
+    }
+
+    return Craft::$app->getUsers()->getUserById((int)$user->id);
+}
+
 function makeAuthGroup(): UserGroup
 {
     $unique = strtolower(str_replace('-', '', StringHelper::UUID()));
@@ -289,14 +303,16 @@ it('rejects an OTP verify that is not a POST', function() {
 // request — enumeration safety across the login/registration branches
 // =============================================================================
 
-it('responds byte-identically across existing, unknown, suspended, and registration-off addresses', function() {
+it('responds byte-identically across active, unknown, pending, suspended, and registration-off addresses', function() {
     enablePublicRegistration();
 
     $active = activeAuthUser();
+    $pending = pendingAuthUser('pend-' . str_replace('-', '', StringHelper::UUID()) . '@warp-test.example');
     $suspended = suspendedAuthUser('susp-' . str_replace('-', '', StringHelper::UUID()) . '@warp-test.example');
 
     $existing = $this->postJson('/warp/auth/request', ['email' => $active->email]);
     $unknown = $this->postJson('/warp/auth/request', ['email' => 'ghost-' . StringHelper::UUID() . '@warp-test.example']);
+    $pendingResp = $this->postJson('/warp/auth/request', ['email' => $pending->email]);
     $suspendedResp = $this->postJson('/warp/auth/request', ['email' => $suspended->email]);
 
     Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
@@ -304,10 +320,21 @@ it('responds byte-identically across existing, unknown, suspended, and registrat
 
     expect($unknown->getStatusCode())->toBe($existing->getStatusCode())
         ->and($unknown->content)->toBe($existing->content)
+        ->and($pendingResp->getStatusCode())->toBe($existing->getStatusCode())
+        ->and($pendingResp->content)->toBe($existing->content)
         ->and($suspendedResp->getStatusCode())->toBe($existing->getStatusCode())
         ->and($suspendedResp->content)->toBe($existing->content)
         ->and($registrationOff->getStatusCode())->toBe($existing->getStatusCode())
         ->and($registrationOff->content)->toBe($existing->content);
+});
+
+it('sends no registration email for a suspended address even with registration open', function() {
+    enablePublicRegistration();
+    $suspended = suspendedAuthUser('suspreg-' . str_replace('-', '', StringHelper::UUID()) . '@warp-test.example');
+
+    $this->post('/warp/auth/request', ['email' => $suspended->email]);
+
+    expect(capturedMailer()->sent)->toHaveCount(0);
 });
 
 it('sends no registration email when public registration is off', function() {
@@ -354,6 +381,38 @@ it('completes a full passwordless signup from request through to a logged-in ses
         ->and(Craft::$app->getUser()->getId())->toBe((int)$user->id);
 
     Craft::$app->getUserGroups()->deleteGroupById((int)$group->id);
+});
+
+it('activates a pending account and logs it in through the registration flow', function() {
+    enablePublicRegistration();
+
+    $email = 'pending-' . str_replace('-', '', StringHelper::UUID()) . '@warp-test.example';
+    $pending = pendingAuthUser($email);
+    expect($pending->getStatus())->toBe(User::STATUS_PENDING);
+
+    // The pending address flows through the same request form and is emailed a
+    // signup link exactly as an unknown one would be.
+    $this->post('/warp/auth/request', ['email' => $email, 'returnUrl' => '/members']);
+
+    $mailer = capturedMailer();
+    expect($mailer->sent)->toHaveCount(1)
+        ->and($mailer->lastRecipients())->toBe([$email])
+        ->and($mailer->lastLink())->toContain('warp/auth/verify-registration');
+
+    parse_str((string)parse_url((string)$mailer->lastLink(), PHP_URL_QUERY), $params);
+    $rawToken = (string)($params[Tokens::TOKEN_PARAM] ?? '');
+
+    $response = $this->get('/warp/auth/verify-registration?' . http_build_query([
+        Tokens::TOKEN_PARAM => $rawToken,
+        'returnUrl' => '/members',
+    ]));
+
+    $user = Craft::$app->getUsers()->getUserById((int)$pending->id);
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and((string)$response->getHeaders()->get('location'))->toContain('/members')
+        ->and($user->getStatus())->toBe(User::STATUS_ACTIVE)
+        ->and(Craft::$app->getUser()->getId())->toBe((int)$pending->id);
 });
 
 it('fails generically and logs no one in when a registration link is reused', function() {
