@@ -18,6 +18,7 @@ use craft\web\Request;
 use craftpulse\authkit\AuthKit;
 use craftpulse\authkit\services\Tokens;
 use craftpulse\warp\helpers\Redirect;
+use craftpulse\warp\models\Login;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\Warp;
 use yii\filters\RateLimiter;
@@ -191,7 +192,7 @@ class AuthController extends Controller
             return $this->redirect(UrlHelper::siteUrl());
         }
 
-        if (!Warp::$plugin->getPasswordless()->loginUser($user)) {
+        if (!Warp::$plugin->getPasswordless()->loginUser($user, Login::METHOD_MAGIC_LINK)) {
             Craft::error('Craft refused the magic-link session login.', __METHOD__);
             $this->setFailFlash(Craft::t('warp', 'Sign-in failed. Please try again.'));
 
@@ -228,7 +229,7 @@ class AuthController extends Controller
             return $this->_codeFailureResponse();
         }
 
-        if (!Warp::$plugin->getPasswordless()->loginUser($user)) {
+        if (!Warp::$plugin->getPasswordless()->loginUser($user, Login::METHOD_OTP)) {
             Craft::error('Craft refused the OTP session login.', __METHOD__);
 
             return $this->_codeFailureResponse();
@@ -273,7 +274,7 @@ class AuthController extends Controller
             return $this->_registrationFailureResponse('A registration token could not be fulfilled into a usable account.');
         }
 
-        if (!Warp::$plugin->getPasswordless()->loginUser($user)) {
+        if (!Warp::$plugin->getPasswordless()->loginUser($user, Login::METHOD_REGISTER)) {
             return $this->_registrationFailureResponse('Craft refused the registration session login.');
         }
 

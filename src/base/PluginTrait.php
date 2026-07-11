@@ -10,13 +10,19 @@
 
 namespace craftpulse\warp\base;
 
+use Craft;
+use craft\elements\User;
 use craft\events\RegisterUrlRulesEvent;
+use craft\services\Gc;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
+use craft\web\User as WebUser;
 use craftpulse\authkit\AuthKit;
+use craftpulse\warp\models\Login;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\variables\WarpVariable;
 use yii\base\Event;
+use yii\web\UserEvent;
 
 /**
  * PluginTrait owns Warp's event listeners, URL rule registration, and plugin
@@ -47,8 +53,50 @@ trait PluginTrait
     {
         $this->_registerSiteUrlRules();
         $this->_registerCpUrlRules();
+        $this->_registerLoginLog();
         $this->_registerVariable();
         $this->_configureAuthKit();
+    }
+
+    /**
+     * Wires Warp's passwordless login log: the passkey capture listener and the
+     * garbage-collection prune.
+     *
+     * Passkey logins run through core's own `users/login-with-passkey` endpoint,
+     * never Warp's [[\craftpulse\warp\services\Passwordless]] service, so they
+     * are recorded here off `EVENT_AFTER_LOGIN`. The route guard keeps this from
+     * double-recording Warp's own email flows, whose session login fires the
+     * same event but resolves to a `warp/auth/*` route and is recorded by
+     * `Passwordless::loginUser()` instead.
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _registerLoginLog(): void
+    {
+        Event::on(
+            WebUser::class,
+            WebUser::EVENT_AFTER_LOGIN,
+            function(UserEvent $event): void {
+                if (Craft::$app->requestedRoute !== 'users/login-with-passkey') {
+                    return;
+                }
+
+                $identity = $event->identity;
+
+                if ($identity instanceof User) {
+                    $this->getLogins()->record($identity, Login::METHOD_PASSKEY);
+                }
+            },
+        );
+
+        Event::on(
+            Gc::class,
+            Gc::EVENT_RUN,
+            function(): void {
+                $this->getLogins()->prune();
+            },
+        );
     }
 
     /**

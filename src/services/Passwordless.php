@@ -57,19 +57,20 @@ class Passwordless extends Component
      * session duration.
      *
      * This is the single hook point for every Warp email-flow login: it opens
-     * the session and, on success, flags the passkey-enrollment nudge for a user
-     * who has none. Later phases extend it (login logging, device-session
-     * capture) so those concerns attach in exactly one place. Passkey logins run
-     * through core's own endpoint, never here — so a user who just proved a
-     * passkey is never nudged to enroll one.
+     * the session and, on success, records the sign-in to the login log and
+     * flags the passkey-enrollment nudge for a user who has none. Passkey logins
+     * run through core's own endpoint, never here — so a user who just proved a
+     * passkey is never nudged to enroll one, and their sign-in is logged by the
+     * `EVENT_AFTER_LOGIN` listener in `PluginTrait` instead.
      *
      * @param User $user the user to log in
+     * @param string $method the passwordless method used — a [[Login]] `METHOD_*` constant
      * @return bool whether the session login succeeded
      *
      * @author CraftPulse
      * @since 5.0.0
      */
-    public function loginUser(User $user): bool
+    public function loginUser(User $user, string $method): bool
     {
         $generalConfig = Craft::$app->getConfig()->getGeneral();
 
@@ -77,6 +78,7 @@ class Passwordless extends Component
             return false;
         }
 
+        Warp::$plugin->getLogins()->record($user, $method);
         $this->_flagPasskeyNudge($user);
 
         return true;
