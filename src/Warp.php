@@ -15,6 +15,7 @@ use craft\base\Model;
 use craft\base\Plugin;
 use craft\helpers\UrlHelper;
 use craftpulse\warp\base\PluginTrait;
+use craftpulse\warp\controllers\OverviewController;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\ServicesTrait;
 
@@ -92,6 +93,31 @@ class Warp extends Plugin
         Craft::$app->onInit(function() {
             $this->_attachEventHandlers();
         });
+    }
+
+    /**
+     * @inheritdoc
+     * @return array<string, mixed>|null
+     */
+    public function getCpNavItem(): ?array
+    {
+        $item = parent::getCpNavItem();
+
+        if ($item === null) {
+            return null;
+        }
+
+        $item['subnav'] = [];
+        $identity = Craft::$app->getUser()->getIdentity();
+
+        if ($identity?->can(OverviewController::PERMISSION_VIEW_OVERVIEW)) {
+            $item['subnav']['overview'] = [
+                'label' => Craft::t('warp', 'Overview'),
+                'url' => 'warp',
+            ];
+        }
+
+        return $item;
     }
 
     /**

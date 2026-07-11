@@ -13,11 +13,14 @@ namespace craftpulse\warp\base;
 use Craft;
 use craft\elements\User;
 use craft\events\RegisterUrlRulesEvent;
+use craft\events\RegisterUserPermissionsEvent;
 use craft\services\Gc;
+use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craft\web\User as WebUser;
 use craftpulse\authkit\AuthKit;
+use craftpulse\warp\controllers\OverviewController;
 use craftpulse\warp\models\Login;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\variables\WarpVariable;
@@ -53,6 +56,7 @@ trait PluginTrait
     {
         $this->_registerSiteUrlRules();
         $this->_registerCpUrlRules();
+        $this->_registerUserPermissions();
         $this->_registerLoginLog();
         $this->_registerVariable();
         $this->_configureAuthKit();
@@ -139,13 +143,42 @@ trait PluginTrait
      * Registers Warp's control-panel URL rules — the overview and settings
      * screens.
      *
-     * Filled in Phase 6 (CP settings + overview).
-     *
      * @author CraftPulse
      * @since 5.0.0
      */
     private function _registerCpUrlRules(): void
     {
+        Event::on(
+            UrlManager::class,
+            UrlManager::EVENT_REGISTER_CP_URL_RULES,
+            static function(RegisterUrlRulesEvent $event): void {
+                $event->rules['warp'] = 'warp/overview/index';
+            },
+        );
+    }
+
+    /**
+     * Registers Warp's user permissions under a dedicated "Warp" heading.
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _registerUserPermissions(): void
+    {
+        Event::on(
+            UserPermissions::class,
+            UserPermissions::EVENT_REGISTER_PERMISSIONS,
+            static function(RegisterUserPermissionsEvent $event): void {
+                $event->permissions[] = [
+                    'heading' => Craft::t('warp', 'Warp'),
+                    'permissions' => [
+                        OverviewController::PERMISSION_VIEW_OVERVIEW => [
+                            'label' => Craft::t('warp', 'View the overview'),
+                        ],
+                    ],
+                ];
+            },
+        );
     }
 
     /**

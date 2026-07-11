@@ -1,0 +1,114 @@
+{% extends '_layouts/cp' %}
+
+{% set title = 'Overview'|t('warp') %}
+{% set selectedSubnavItem = 'overview' %}
+
+{% set methodLabels = {
+    'magic-link': 'Magic link'|t('warp'),
+    'otp': 'One-time code'|t('warp'),
+    'passkey': 'Passkey'|t('warp'),
+    'register': 'Registration'|t('warp'),
+} %}
+
+{% set channelLabels = {
+    'magic-link': 'Magic link'|t('warp'),
+    'otp': 'One-time code'|t('warp'),
+} %}
+
+{% block content %}
+    {# =====================================================================
+       Current posture
+       ===================================================================== #}
+    <h2>{{ 'Current posture'|t('warp') }}</h2>
+
+    <div class="warp-callouts">
+        {% if registrationEnabled %}
+            <blockquote class="note tip">
+                {{ 'Passwordless registration is open. Unknown addresses that pass through the request form are sent a sign-up link.'|t('warp') }}
+            </blockquote>
+        {% else %}
+            <blockquote class="note">
+                {{ 'Passwordless registration is closed. The request form degrades to login-only and unknown addresses receive nothing.'|t('warp') }}
+            </blockquote>
+            {% if enableRegistrationSetting and not allowPublicRegistration %}
+                <blockquote class="note warning">
+                    {{ 'Registration is enabled in Warp, but Craft’s own “Allow public registration” setting is off, so registration stays closed. Turn it on under Settings → Users to open sign-up.'|t('warp') }}
+                </blockquote>
+            {% endif %}
+        {% endif %}
+
+        <blockquote class="note">
+            {% if loginMethods|length %}
+                {{ 'Enabled login methods:'|t('warp') }}
+                {% for method in loginMethods %}
+                    <span class="warp-badge">{{ channelLabels[method] ?? method }}</span>
+                {% endfor %}
+            {% else %}
+                {{ 'No login methods are enabled. The front-end login form has no usable path.'|t('warp') }}
+            {% endif %}
+        </blockquote>
+
+        <blockquote class="note">
+            {{ '{count, number} {count, plural, one{member has} other{members have}} enrolled a passkey.'|t('warp', { count: passkeyUserCount }) }}
+        </blockquote>
+    </div>
+
+    <hr>
+
+    {# =====================================================================
+       Recent passwordless sign-ins
+       ===================================================================== #}
+    <h2>{{ 'Recent passwordless sign-ins'|t('warp') }}</h2>
+
+    {% if recentLogins|length %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'User'|t('warp') }}</th>
+                    <th scope="col">{{ 'Method'|t('warp') }}</th>
+                    <th scope="col">{{ 'Device'|t('warp') }}</th>
+                    <th scope="col">{{ 'IP address'|t('warp') }}</th>
+                    <th scope="col">{{ 'When'|t('warp') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for login in recentLogins %}
+                    {% set user = usersById[login.userId] ?? null %}
+                    <tr>
+                        <th scope="row" data-title="{{ 'User'|t('warp') }}">
+                            {% if user %}
+                                <a href="{{ user.cpEditUrl }}">{{ user.email }}</a>
+                            {% else %}
+                                <span class="light">{{ 'Deleted user'|t('warp') }}</span>
+                            {% endif %}
+                        </th>
+                        <td data-title="{{ 'Method'|t('warp') }}">
+                            <span class="warp-badge">{{ methodLabels[login.method] ?? login.method }}</span>
+                        </td>
+                        <td data-title="{{ 'Device'|t('warp') }}">
+                            {% if login.userAgent %}
+                                <span title="{{ login.userAgent }}">{{ login.userAgent|slice(0, 60) }}</span>
+                            {% else %}
+                                <span class="light">{{ 'Unknown device'|t('warp') }}</span>
+                            {% endif %}
+                        </td>
+                        <td data-title="{{ 'IP address'|t('warp') }}">
+                            <code>{{ login.ip ?? '-' }}</code>
+                        </td>
+                        <td data-title="{{ 'When'|t('warp') }}">
+                            {% if login.dateCreated %}
+                                {{ login.dateCreated|datetime('short') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="zilch">
+            <p>{{ 'No passwordless sign-ins recorded yet.'|t('warp') }}</p>
+        </div>
+    {% endif %}
+{% endblock %}
