@@ -116,6 +116,35 @@ it('requires a uid to revoke a session', function() {
 })->throws(yii\web\BadRequestHttpException::class);
 
 // =============================================================================
+// form mode — failures redirect back with a flash, never JSON
+// =============================================================================
+
+it('redirects back with a flash on a form-mode revoke failure', function() {
+    $user = revokeUser();
+    $this->actingAs($user);
+    stampSessionAuth();
+
+    // A plain form POST (not JSON) for an unknown uid must redirect back with the
+    // flash, not answer with JSON asFailure() cannot produce for a form.
+    $response = $this->post('/warp/sessions/revoke', ['uid' => StringHelper::UUID()]);
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and(Craft::$app->getSession()->hasFlash('error'))->toBeTrue();
+});
+
+it('redirects back with a flash when auth is stale on a form-mode revoke', function() {
+    $user = revokeUser();
+    $this->actingAs($user);
+
+    // No recent-auth stamp: the gate fails. In form mode it degrades from the
+    // reauthRequired JSON envelope to a redirect back with the flash.
+    $response = $this->post('/warp/sessions/revoke', ['uid' => StringHelper::UUID()]);
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and(Craft::$app->getSession()->hasFlash('error'))->toBeTrue();
+});
+
+// =============================================================================
 // ownership — a user can only reach their own sessions
 // =============================================================================
 

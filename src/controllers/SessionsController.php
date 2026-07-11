@@ -12,6 +12,7 @@ namespace craftpulse\warp\controllers;
 
 use Craft;
 use craft\elements\User;
+use craft\helpers\UrlHelper;
 use craft\web\Controller;
 use craftpulse\authkit\AuthKit;
 use craftpulse\warp\Warp;
@@ -63,8 +64,18 @@ class SessionsController extends Controller
         $uid = (string)$this->request->getRequiredBodyParam('uid');
 
         if (!Warp::$plugin->getSessions()->revoke($this->_currentUser(), $uid)) {
-            return $this->asFailure(Craft::t('warp', 'That session could not be found.'))
-                ?? $this->asJson(['success' => false]);
+            $message = Craft::t('warp', 'That session could not be found.');
+
+            if ($this->request->getAcceptsJson()) {
+                return $this->asFailure($message) ?? $this->asJson(['success' => false]);
+            }
+
+            // asFailure() only queues the flash and returns null for a non-JSON
+            // request, so a plain form POST needs its own redirect back to
+            // surface it — the controller promises a redirect-with-flash there.
+            $this->setFailFlash($message);
+
+            return $this->redirect($this->request->getReferrer() ?? UrlHelper::siteUrl());
         }
 
         return $this->asSuccess(Craft::t('warp', 'Signed out of that session.'))
@@ -131,10 +142,20 @@ class SessionsController extends Controller
             return null;
         }
 
-        $response = $this->asFailure(
-            Craft::t('warp', 'Please sign in again to manage your sessions.'),
-            ['reauthRequired' => true],
-        ) ?? $this->asJson(['reauthRequired' => true]);
+        $message = Craft::t('warp', 'Please sign in again to manage your sessions.');
+
+        // A plain form POST cannot key off a `reauthRequired` envelope, so it
+        // degrades to a redirect back with the flash — asFailure() would only
+        // queue the flash and return null, leaving the `?? asJson()` fallback to
+        // answer a form with JSON it can't use.
+        if (!$this->request->getAcceptsJson()) {
+            $this->setFailFlash($message);
+
+            return $this->redirect($this->request->getReferrer() ?? UrlHelper::siteUrl());
+        }
+
+        $response = $this->asFailure($message, ['reauthRequired' => true])
+            ?? $this->asJson(['reauthRequired' => true]);
 
         // Override asFailure()'s default 400 — a stale gate is an authorization
         // problem the front end keys off, not a malformed request.
