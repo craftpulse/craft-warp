@@ -1,0 +1,11 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M8 8H152V152H8V8Z" fill="#141414"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M16 0H24H120H128H136H144V8L136 8H128L120 7.99999L24 8H16V0ZM8 16V8H16V16H8ZM8 144H0V136L1.25889e-05 24L0 16H8V24L8 136V144ZM16 152L16 144H8L8 152H16ZM24 152H16V160L24 160L120 160H128H136H144V152H152V144H160L160 136L160 24V16H152V8L144 8V16H152V24V136V144H144V152H136H128H120H24Z" fill="#00FC19"/>
+<rect x="40" y="40" width="80" height="80" fill="none" stroke="#00FC19" stroke-width="8"/>
+<rect x="62" y="62" width="36" height="36" fill="none" stroke="#00FC19" stroke-width="8"/>
+<rect x="74" y="74" width="12" height="12" fill="#00FC19"/>
+<rect x="48" y="48" width="8" height="8" fill="#00FC19"/>
+<rect x="104" y="48" width="8" height="8" fill="#00FC19"/>
+<rect x="48" y="104" width="8" height="8" fill="#00FC19"/>
+<rect x="104" y="104" width="8" height="8" fill="#00FC19"/>
+</svg>

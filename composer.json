@@ -1,0 +1,83 @@
+{
+    "name": "craftpulse/craft-warp",
+    "description": "Passwordless front-end auth for Craft members. Magic links, email codes, and passkeys, built on Auth Kit.",
+    "type": "craft-plugin",
+    "version": "5.0.0",
+    "license": "proprietary",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "passwordless",
+        "magic-link",
+        "otp",
+        "passkeys",
+        "webauthn",
+        "authentication"
+    ],
+    "support": {
+        "email": "support@craft-pulse.com",
+        "issues": "https://github.com/craftpulse/craft-warp/issues",
+        "source": "https://github.com/craftpulse/craft-warp",
+        "docs": "https://github.com/craftpulse/craft-warp/blob/develop-v5/README.md"
+    },
+    "authors": [
+        {
+            "name": "CraftPulse",
+            "homepage": "https://craft-pulse.com"
+        }
+    ],
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../*",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "craftcms/cms": "^5.10.0",
+        "craftpulse/craft-auth-kit": "^1.1.0@dev"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main",
+        "markhuot/craft-pest-core": "^3.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "craftpulse\\warp\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "craftpulse\\warp\\tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "handle": "warp",
+        "name": "Warp",
+        "class": "craftpulse\\warp\\Warp",
+        "documentationUrl": "https://github.com/craftpulse/craft-warp/blob/develop-v5/README.md"
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --ansi --fix",
+        "phpstan": "phpstan --memory-limit=1G",
+        "test": "pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "craftcms/plugin-installer": true,
+            "yiisoft/yii2-composer": true,
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
