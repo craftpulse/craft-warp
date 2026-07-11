@@ -10,8 +10,11 @@
 
 namespace craftpulse\warp\base;
 
+use craft\events\RegisterUrlRulesEvent;
+use craft\web\UrlManager;
 use craftpulse\authkit\AuthKit;
 use craftpulse\warp\models\Settings;
+use yii\base\Event;
 
 /**
  * PluginTrait owns Warp's event listeners, URL rule registration, and plugin
@@ -97,14 +100,22 @@ trait PluginTrait
     /**
      * Registers Warp's site URL rules — the front-end passwordless endpoints.
      *
-     * Filled in Phase 2 (auth request/verify) and extended in later phases
-     * (registration, passkeys, sessions).
+     * Extended in later phases (registration, passkeys, sessions).
      *
      * @author CraftPulse
      * @since 5.0.0
      */
     private function _registerSiteUrlRules(): void
     {
+        Event::on(
+            UrlManager::class,
+            UrlManager::EVENT_REGISTER_SITE_URL_RULES,
+            static function(RegisterUrlRulesEvent $event): void {
+                $event->rules['warp/auth/request'] = 'warp/auth/request';
+                $event->rules['warp/auth/verify-link'] = 'warp/auth/verify-link';
+                $event->rules['warp/auth/verify-code'] = 'warp/auth/verify-code';
+            },
+        );
     }
 
     /**
