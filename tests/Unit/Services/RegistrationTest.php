@@ -13,10 +13,25 @@
  */
 
 use craft\elements\User;
+use craft\helpers\Db;
 use craft\helpers\StringHelper;
 use craft\models\UserGroup;
 use craftpulse\authkit\models\Token;
 use craftpulse\warp\Warp;
+
+/**
+ * Locks a user directly in the database (core has no public lockUser), then
+ * reloads it so `$user->locked` is populated. getStatus() folds the lock into
+ * "active", so this is exactly the account state the explicit lock check guards.
+ */
+function lockRegistrationUser(User $user): User
+{
+    Craft::$app->getDb()->createCommand()
+        ->update('{{%users}}', ['locked' => true, 'lockoutDate' => Db::prepareDateForDb(new DateTime())], ['id' => $user->id])
+        ->execute();
+
+    return Craft::$app->getUsers()->getUserById((int)$user->id);
+}
 
 function registrationToken(string $email): Token
 {
@@ -156,6 +171,28 @@ it('fails closed for a suspended account', function() {
     Craft::$app->getUsers()->suspendUser($user);
 
     expect(Warp::$plugin->getRegistration()->fulfill(registrationToken($email)))->toBeNull();
+});
+
+it('fails closed for a locked active account', function() {
+    // getStatus() folds a lock into "active", so a stale token would otherwise
+    // slip past straight into a session behind the lockout.
+    $email = registrationEmail();
+    lockRegistrationUser(activeRegistrationUser($email));
+
+    expect(Warp::$plugin->getRegistration()->fulfill(registrationToken($email)))->toBeNull();
+});
+
+it('fails closed for a locked pending account instead of activating it', function() {
+    // The pending check runs before the fold, so a locked-pending account still
+    // reports pending — the lock must be honoured before activation.
+    $email = registrationEmail();
+    $pending = lockRegistrationUser(pendingRegistrationUser($email));
+    expect($pending->getStatus())->toBe(User::STATUS_PENDING);
+
+    expect(Warp::$plugin->getRegistration()->fulfill(registrationToken($email)))->toBeNull();
+
+    // The account must remain pending, never activated behind the lock.
+    expect(Craft::$app->getUsers()->getUserById((int)$pending->id)->getStatus())->toBe(User::STATUS_PENDING);
 });
 
 it('fails closed for a token with no payload email', function() {

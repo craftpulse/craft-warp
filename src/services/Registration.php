@@ -58,7 +58,7 @@ class Registration extends Component
      * - no account yet: created active with no password, username set to the
      *   email, assigned to [[Settings::$registrationGroupUid]] (or Craft's
      *   default group when that is unset or dangling);
-     * - a pending account: activated in place;
+     * - a pending account: activated in place, unless it is locked;
      * - an active account: returned unchanged — mailbox possession is the same
      *   proof a magic link accepts;
      * - suspended, locked, or deactivated: null, so a stale token cannot
@@ -86,12 +86,18 @@ class Registration extends Component
 
         $status = $user->getStatus();
 
+        // getStatus() folds a lock into "active", so the lock is checked
+        // explicitly on both live branches — a stale token must not activate or
+        // sign in behind an account lockout. The pending check runs before the
+        // fold, so a locked-pending account still reports pending here.
         if ($status === User::STATUS_PENDING) {
+            if ($user->locked) {
+                return null;
+            }
+
             return $this->_activateUser($user);
         }
 
-        // getStatus() folds a locked account into "active", so the lock is
-        // checked explicitly here — a locked account must fail closed.
         if ($status === User::STATUS_ACTIVE && !$user->locked) {
             return $user;
         }
