@@ -11,7 +11,9 @@
 namespace craftpulse\warp\variables;
 
 use Craft;
+use craft\elements\User;
 use craftpulse\authkit\variables\AuthKitVariable;
+use craftpulse\warp\models\SessionInfo;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\Passwordless;
 use craftpulse\warp\Warp;
@@ -103,6 +105,27 @@ class WarpVariable
     public function getRegistrationEnabled(): bool
     {
         return Warp::$plugin->getRegistration()->isEnabled();
+    }
+
+    /**
+     * Returns the current user's active sessions for the session-management
+     * screen — the current session flagged, each other device named — or an
+     * empty array for a guest.
+     *
+     * @return array<int, SessionInfo>
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getSessions(): array
+    {
+        $user = Craft::$app->getUser()->getIdentity();
+
+        if (!$user instanceof User) {
+            return [];
+        }
+
+        return Warp::$plugin->getSessions()->getSessionsForUser($user);
     }
 
     /**

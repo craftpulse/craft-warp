@@ -1,32 +1,234 @@
 {# =========================================================================
-   Warp example — active sessions (PLACEHOLDER)
+   Warp example — active sessions
    =========================================================================
-   PLACEHOLDER. Session and device management lands in Warp's Phase 7, which
-   adds the warp/sessions/* endpoints, the craft.warp.sessions variable, and the
-   SessionInfo model this page will render (a "this device" badge, per-row sign
-   out, and "sign out everywhere else"). Until then this file is only the page
-   shell so your routing and navigation have something to point at. It renders no
-   session data on purpose. Do not wire it up yet.
+   Lists the devices signed in to the current account and lets the member sign
+   any of them out — one at a time, or "everywhere else" in a single step. Each
+   row is a live Craft session joined to Warp's device registry for a friendly
+   label (craft.warp.sessions); the session making this request wears a "This
+   device" badge and has no sign-out button, since signing out here is what the
+   normal sign-out link is for.
 
-   When Phase 7 ships, this template will list craft.warp.sessions and post to
-   warp/sessions/revoke and warp/sessions/revoke-others (both recent-auth gated).
+   A session created before Warp was installed (or by a path Warp does not
+   capture) shows as "Unknown device" with no per-row button — it has no registry
+   handle to target — but "Sign out everywhere else" still clears it.
+
+   Posts (JSON, POST, login required, recent-auth gated) to:
+     warp/sessions/revoke          -> sign out one session by its uid
+     warp/sessions/revoke-others   -> sign out every session but this one
+
+   Recent-auth gate: signing sessions out is sensitive, so it needs a recent
+   sign-in. When the window has lapsed the endpoints answer 403 with
+   {reauthRequired: true}; this page catches that and asks the user to sign in
+   again (a fresh sign-in reopens the window). Passwordless users have no password
+   to "confirm" — signing in again IS the re-authentication.
 
    Requires a signed-in user ({% requireLogin %} sends guests to the login page).
 
    This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
-   your site layout, and restyle.
+   your site layout, and restyle. The class hooks are low-specificity "warp-"
+   names; every control is a real <button>. Async state uses live regions and
+   moves focus to failures.
+
+   Because Craft resolves {% include %} from the templates root, warpBase must
+   point at wherever you place this bundle (empty for a root copy, e.g.
+   'members/' if you nest it under templates/members/).
    ========================================================================= #}
 
 {% requireLogin %}
+
+{%- set warpBase = '' -%}
+{%- set loginUrl = '/members/login' -%}   {# where a re-auth prompt sends the user #}
+{%- set sessions = craft.warp.sessions -%}
+{%- set otherCount = sessions|filter(s => not s.isCurrent)|length -%}
 
 <main class="warp-sessions" id="main-content" tabindex="-1">
     <h1 class="warp-sessions__title">{{ 'Active sessions'|t('warp') }}</h1>
 
     <p class="warp-sessions__intro">
-        {{ 'Managing the devices signed in to your account is coming soon. Check back after this feature ships.'|t('warp') }}
+        {{ 'These are the devices currently signed in to your account. If you do not recognise one, sign it out.'|t('warp') }}
     </p>
+
+    {% include warpBase ~ '_partials/flashes' only %}
+
+    {# Re-auth prompt. Hidden until an endpoint reports the recent-auth window
+       lapsed, then shown assertively with a way back to a fresh sign-in. #}
+    <div class="warp-sessions__reauth" id="warp-sessions-reauth" role="alert" tabindex="-1" hidden>
+        <p class="warp-sessions__reauth-text">
+            {{ 'For your security, managing sessions needs a recent sign-in. Please sign in again to continue.'|t('warp') }}
+        </p>
+        <p>
+            <a class="warp-link" href="{{ url(loginUrl) }}">{{ 'Sign in again'|t('warp') }}</a>
+        </p>
+    </div>
+
+    {# Polite status for successful, non-urgent updates. #}
+    <p class="warp-sessions__status" id="warp-sessions-status" role="status" hidden></p>
+    <p class="warp-sessions__error" id="warp-sessions-error" role="alert" tabindex="-1" hidden></p>
+
+    {# --- Active sessions ----------------------------------------------------- #}
+    <section class="warp-sessions__list-section" aria-labelledby="warp-sessions-list-heading">
+        <h2 class="warp-sessions__subheading" id="warp-sessions-list-heading">{{ 'Signed-in devices'|t('warp') }}</h2>
+
+        {% if sessions|length %}
+            <ul class="warp-sessions__list">
+                {% for session in sessions %}
+                    <li class="warp-sessions__item{{ session.isCurrent ? ' warp-sessions__item--current' : '' }}">
+                        <span class="warp-sessions__device">{{ session.deviceLabel }}</span>
+
+                        {% if session.isCurrent %}
+                            <span class="warp-sessions__badge">{{ 'This device'|t('warp') }}</span>
+                        {% endif %}
+
+                        <span class="warp-sessions__meta">
+                            {%- if session.lastSeen -%}
+                                {{ 'Last active {date}'|t('warp', { date: session.lastSeen|datetime('short') }) }}
+                            {%- else -%}
+                                {{ 'Last active unknown'|t('warp') }}
+                            {%- endif -%}
+                            {%- if session.ip %} · <span class="warp-sessions__ip">{{ session.ip }}</span>{% endif -%}
+                        </span>
+
+                        {% if session.isCurrent %}
+                            <span class="warp-sessions__note">{{ 'Use “Sign out” to end this session.'|t('warp') }}</span>
+                        {% elseif session.uid %}
+                            <button
+                                class="warp-button warp-button--revoke"
+                                type="button"
+                                data-warp-revoke
+                                data-uid="{{ session.uid }}"
+                                data-name="{{ session.deviceLabel }}"
+                                aria-label="{{ 'Sign out {name}'|t('warp', { name: session.deviceLabel }) }}"
+                            >
+                                {{ 'Sign out'|t('warp') }}
+                            </button>
+                        {% else %}
+                            <span class="warp-sessions__note">{{ 'Sign out everywhere else to end this one.'|t('warp') }}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="warp-sessions__empty">{{ 'No other active sessions were found.'|t('warp') }}</p>
+        {% endif %}
+    </section>
+
+    {# --- Sign out everywhere else -------------------------------------------- #}
+    {% if otherCount > 0 %}
+        <section class="warp-sessions__revoke-others" aria-labelledby="warp-sessions-others-heading">
+            <h2 class="warp-sessions__subheading" id="warp-sessions-others-heading">{{ 'Sign out everywhere else'|t('warp') }}</h2>
+            <p class="warp-sessions__revoke-others-text">
+                {{ 'Sign out of every device except this one. You will stay signed in here.'|t('warp') }}
+            </p>
+            <button class="warp-button warp-button--revoke-others" type="button" id="warp-sessions-revoke-others">
+                {{ 'Sign out everywhere else'|t('warp') }}
+            </button>
+        </section>
+    {% endif %}
 
     <p class="warp-sessions__actions">
         <a class="warp-link" href="{{ url('/members') }}">{{ 'Back to your account'|t('warp') }}</a>
     </p>
+
+    <script>
+        (function () {
+            var csrfToken = '{{ craft.app.request.csrfToken|e('js') }}';
+            var revokeUrl = '{{ actionUrl('warp/sessions/revoke')|e('js') }}';
+            var revokeOthersUrl = '{{ actionUrl('warp/sessions/revoke-others')|e('js') }}';
+
+            var reauth = document.getElementById('warp-sessions-reauth');
+            var status = document.getElementById('warp-sessions-status');
+            var errorNode = document.getElementById('warp-sessions-error');
+
+            function showReauth() {
+                status.hidden = true;
+                errorNode.hidden = true;
+                reauth.hidden = false;
+                reauth.focus();
+            }
+
+            function showError(message) {
+                status.hidden = true;
+                errorNode.textContent = message;
+                errorNode.hidden = false;
+                errorNode.focus();
+            }
+
+            function post(url, body) {
+                return fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(body || {})
+                }).then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, status: response.status, data: data };
+                    });
+                });
+            }
+
+            // --- Sign out one session -------------------------------------------
+            var revokeButtons = document.querySelectorAll('[data-warp-revoke]');
+            Array.prototype.forEach.call(revokeButtons, function (button) {
+                button.addEventListener('click', function () {
+                    var name = button.getAttribute('data-name');
+                    var confirmed = window.confirm('{{ 'Sign out'|t('warp')|e('js') }} "' + name + '"?');
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    button.disabled = true;
+
+                    post(revokeUrl, { uid: button.getAttribute('data-uid') }).then(function (result) {
+                        if (result.ok) {
+                            window.location.reload();
+                            return;
+                        }
+                        if (result.data && result.data.reauthRequired) {
+                            showReauth();
+                        } else {
+                            showError((result.data && result.data.message) || '{{ 'Could not sign that session out. Please try again.'|t('warp')|e('js') }}');
+                        }
+                        button.disabled = false;
+                    }).catch(function () {
+                        showError('{{ 'Could not sign that session out. Please try again.'|t('warp')|e('js') }}');
+                        button.disabled = false;
+                    });
+                });
+            });
+
+            // --- Sign out everywhere else ---------------------------------------
+            var othersButton = document.getElementById('warp-sessions-revoke-others');
+            if (othersButton) {
+                othersButton.addEventListener('click', function () {
+                    var confirmed = window.confirm('{{ 'Sign out of every device except this one?'|t('warp')|e('js') }}');
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    othersButton.disabled = true;
+
+                    post(revokeOthersUrl, {}).then(function (result) {
+                        if (result.ok) {
+                            window.location.reload();
+                            return;
+                        }
+                        if (result.data && result.data.reauthRequired) {
+                            showReauth();
+                        } else {
+                            showError((result.data && result.data.message) || '{{ 'Could not sign your other sessions out. Please try again.'|t('warp')|e('js') }}');
+                        }
+                        othersButton.disabled = false;
+                    }).catch(function () {
+                        showError('{{ 'Could not sign your other sessions out. Please try again.'|t('warp')|e('js') }}');
+                        othersButton.disabled = false;
+                    });
+                });
+            }
+        })();
+    </script>
 </main>

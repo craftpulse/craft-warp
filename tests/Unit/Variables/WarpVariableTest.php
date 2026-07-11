@@ -80,11 +80,16 @@ it('does not flag the nudge for a fresh guest render', function() {
     expect((new WarpVariable())->getShowPasskeyNudge())->toBeFalse();
 });
 
+it('returns no sessions for a guest', function() {
+    expect((new WarpVariable())->getSessions())->toBe([]);
+});
+
 it('resolves every craft.warp accessor the example templates call through Twig', function() {
     // Mirrors the exact `craft.warp.*` handles login.twig, otp-verify.twig,
-    // account/passkeys.twig, and the passkey-nudge partial read. Rendering them
-    // through the View (not the PHP getters) guards against a getter rename or
-    // variable de-registration silently breaking the shipped templates.
+    // account/passkeys.twig, account/sessions.twig, and the passkey-nudge partial
+    // read. Rendering them through the View (not the PHP getters) guards against a
+    // getter rename or variable de-registration silently breaking the shipped
+    // templates.
     $template = <<<'TWIG'
         methods:{{ craft.warp.loginMethods|join(',') }}
         webauthn:{{ craft.warp.webauthnJsUrl }}
@@ -93,6 +98,7 @@ it('resolves every craft.warp accessor the example templates call through Twig',
         registration:{{ craft.warp.registrationEnabled ? 'yes' : 'no' }}
         nudge:{{ craft.warp.showPasskeyNudge ? 'yes' : 'no' }}
         otpdigits:{{ craft.warp.otpDigits }}
+        sessions:{{ craft.warp.sessions|length }}
         TWIG;
 
     $out = Craft::$app->getView()->renderString($template);
@@ -104,5 +110,6 @@ it('resolves every craft.warp accessor the example templates call through Twig',
         ->toContain('haspasskeys:no')
         ->toContain('registration:')
         ->toContain('nudge:no')
-        ->toContain('otpdigits:6');
+        ->toContain('otpdigits:6')
+        ->toContain('sessions:0');
 });

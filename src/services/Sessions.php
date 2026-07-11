@@ -183,13 +183,14 @@ class Sessions extends Component
      */
     public function record(): void
     {
-        $token = $this->_userSession()->getToken();
+        $userSession = $this->_userSession();
+        $token = $userSession->getToken();
 
         if ($token === null) {
             return;
         }
 
-        $user = $this->_userSession()->getIdentity();
+        $user = $userSession->getIdentity();
 
         if (!$user instanceof User) {
             return;
