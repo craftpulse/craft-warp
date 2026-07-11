@@ -34,6 +34,7 @@ it('pushes Warp settings into Auth Kit services', function() {
         ->and($tokens->perEmailLimit)->toBe(7)
         ->and($tokens->perEmailWindow)->toBe(4321)
         ->and($tokens->magicLinkRoute)->toBe('warp/auth/verify-link')
+        ->and($tokens->registrationRoute)->toBe('warp/auth/verify-registration')
         ->and($passkeys->recentAuthDuration)->toBe(1111);
 });
 

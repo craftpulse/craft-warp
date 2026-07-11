@@ -50,6 +50,17 @@ class Settings extends Model
     // =========================================================================
 
     /**
+     * @var bool Whether Warp offers passwordless registration from the unified
+     * request form. Registration additionally requires Craft's own
+     * `allowPublicRegistration` — when either is off the form silently degrades
+     * to login-only and an unknown address gets nothing. See
+     * [[\craftpulse\warp\services\Registration::isEnabled()]].
+     *
+     * @since 5.0.0
+     */
+    public bool $enableRegistration = true;
+
+    /**
      * @var array<int, string> The passwordless login channels Warp offers, a
      * subset of [[CHANNEL_MAGIC_LINK]] and [[CHANNEL_OTP]]. A channel not listed
      * here is refused at issuance even if requested directly, so disabling one
@@ -97,6 +108,16 @@ class Settings extends Model
     public int $recentAuthDuration = 300;
 
     /**
+     * @var string|null The UID of the user group new registrants join, or null
+     * to fall back to Craft's own default user group. Stored as a UID (never a
+     * DB id) so the reference is project-config safe and stable across
+     * environments.
+     *
+     * @since 5.0.0
+     */
+    public ?string $registrationGroupUid = null;
+
+    /**
      * @var int How long an issued magic link or OTP code stays valid, in seconds.
      *
      * @since 5.0.0
@@ -133,6 +154,29 @@ class Settings extends Model
         }
     }
 
+    /**
+     * Validates that [[registrationGroupUid]], when set, references a user group
+     * that still exists. A dangling UID (a group deleted after it was chosen)
+     * fails closed rather than silently dropping new registrants into no group.
+     *
+     * @param string $attribute the attribute under validation
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function validateRegistrationGroupUid(string $attribute): void
+    {
+        $value = $this->$attribute;
+
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        if (Craft::$app->getUserGroups()->getGroupByUid($value) === null) {
+            $this->addError($attribute, Craft::t('warp', 'The selected registration user group no longer exists.'));
+        }
+    }
+
     // Protected Methods
     // =========================================================================
 
@@ -148,6 +192,9 @@ class Settings extends Model
         $rules[] = [['otpDigits'], 'integer', 'min' => 4, 'max' => 10];
         $rules[] = [['otpMaxAttempts'], 'integer', 'min' => 1, 'max' => 10];
         $rules[] = [['perEmailLimit'], 'integer', 'min' => 1, 'max' => 100];
+        $rules[] = [['enableRegistration'], 'boolean'];
+        $rules[] = [['registrationGroupUid'], 'string'];
+        $rules[] = [['registrationGroupUid'], 'validateRegistrationGroupUid'];
 
         return $rules;
     }

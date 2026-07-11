@@ -75,6 +75,7 @@ trait PluginTrait
 
         $tokens = $authKit->getTokens();
         $tokens->magicLinkRoute = 'warp/auth/verify-link';
+        $tokens->registrationRoute = 'warp/auth/verify-registration';
         $tokens->tokenTtl = $settings->tokenTtl;
         $tokens->otpDigits = $settings->otpDigits;
         $tokens->otpMaxAttempts = $settings->otpMaxAttempts;

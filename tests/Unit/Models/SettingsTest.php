@@ -11,6 +11,8 @@
  * @copyright Copyright (c) 2026 CraftPulse
  */
 
+use craft\helpers\StringHelper;
+use craft\models\UserGroup;
 use craftpulse\warp\models\Settings;
 
 it('defaults to secure passwordless tunables', function() {
@@ -22,6 +24,8 @@ it('defaults to secure passwordless tunables', function() {
         ->and($settings->otpMaxAttempts)->toBe(5)
         ->and($settings->perEmailLimit)->toBe(5)
         ->and($settings->perEmailWindow)->toBe(300)
+        ->and($settings->enableRegistration)->toBeTrue()
+        ->and($settings->registrationGroupUid)->toBeNull()
         ->and($settings->loginMethods)->toBe([Settings::CHANNEL_MAGIC_LINK, Settings::CHANNEL_OTP]);
 });
 
@@ -82,4 +86,34 @@ it('rejects an OTP attempt cap outside its bounds', function() {
 it('rejects a per-email limit outside its bounds', function() {
     expect((new Settings(['perEmailLimit' => 0]))->validate())->toBeFalse()
         ->and((new Settings(['perEmailLimit' => 500]))->validate())->toBeFalse();
+});
+
+it('accepts a null registration group UID', function() {
+    $settings = new Settings(['registrationGroupUid' => null]);
+
+    expect($settings->validate())->toBeTrue()
+        ->and($settings->hasErrors('registrationGroupUid'))->toBeFalse();
+});
+
+it('accepts a registration group UID that references an existing group', function() {
+    $unique = strtolower(str_replace('-', '', StringHelper::UUID()));
+    $group = new UserGroup(['name' => "WP {$unique}", 'handle' => "wp{$unique}"]);
+
+    if (!Craft::$app->getUserGroups()->saveGroup($group)) {
+        throw new RuntimeException('Could not save settings test user group.');
+    }
+
+    $settings = new Settings(['registrationGroupUid' => $group->uid]);
+
+    expect($settings->validate())->toBeTrue()
+        ->and($settings->hasErrors('registrationGroupUid'))->toBeFalse();
+
+    Craft::$app->getUserGroups()->deleteGroupById((int)$group->id);
+});
+
+it('rejects a registration group UID with no matching group', function() {
+    $settings = new Settings(['registrationGroupUid' => StringHelper::UUID()]);
+
+    expect($settings->validate())->toBeFalse()
+        ->and($settings->hasErrors('registrationGroupUid'))->toBeTrue();
 });
