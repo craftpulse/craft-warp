@@ -134,7 +134,25 @@ then **Email**, then **System Messages**:
 
 Edit the subject and body per site. Because these belong to Auth Kit, the same
 copy is shared by any other Auth Kit consumer on the install; that is by design,
-one token store, one set of messages.
+one token store, one set of messages. The new-location alert
+(`warp_new_location`, see the [configuration reference](configuration.md#location-awareness))
+is edited in the same place.
+
+These are all standard Craft system messages, so everything that applies to
+core's own emails (account activation, password reset) applies here:
+
+- **Copy** is edited per site and language under **Settings** > **Email** >
+  **System Messages**, Markdown supported. Each message receives Twig
+  variables you can use in the subject and body: the magic-link message gets
+  `{{ link }}` and `{{ user }}`, the one-time code gets `{{ code }}` and
+  `{{ user }}`, the signup link gets `{{ link }}` and `{{ email }}`, and the
+  new-location alert gets `{{ user }}`, `{{ city }}`, `{{ country }}`,
+  `{{ location }}`, and `{{ sessionsUrl }}`.
+- **Visual styling** comes from Craft's own email template setting
+  (**Settings** > **Email** > **HTML Email Template**): point it at a site
+  Twig template and every system email, Warp's included, renders its parsed
+  body inside your branded HTML wrapper. No Warp configuration is involved,
+  and the plain-text alternative Craft generates stays intact.
 
 ## Registration prerequisites
 
