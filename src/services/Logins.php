@@ -13,6 +13,7 @@ namespace craftpulse\warp\services;
 use Carbon\Carbon;
 use Craft;
 use craft\db\Query;
+use craft\db\Table as CraftTable;
 use craft\elements\User;
 use craft\helpers\Db;
 use craft\web\Request as WebRequest;
@@ -83,6 +84,68 @@ class Logins extends Component
             ->all();
 
         return array_map([$this, '_toModel'], $rows);
+    }
+
+    /**
+     * Returns one page of login-log rows for the control-panel overview's
+     * paginated table, joined to each user's email and username for display and
+     * search.
+     *
+     * The result is the raw data the [[\craftpulse\warp\controllers\OverviewController]]
+     * shapes into the VueAdminTable payload — the query (join, search, sort,
+     * pagination) is owned here; the presentation is owned there. Search matches
+     * the user's email or username; sorting is limited to the whitelisted columns
+     * the table exposes, defaulting to newest first.
+     *
+     * @param int $page the 1-based page number
+     * @param int $limit the page size
+     * @param string|null $search a term to match against user email or username
+     * @param string|null $sortField the column to sort by — `email`, `method`, or `when`
+     * @param int $sortDir the sort direction, a `SORT_*` constant
+     * @return array{total: int, rows: array<int, array<string, mixed>>}
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getTableData(int $page, int $limit, ?string $search = null, ?string $sortField = null, int $sortDir = SORT_DESC): array
+    {
+        $query = (new Query())
+            ->from(['l' => Table::LOGINS])
+            ->leftJoin(['u' => CraftTable::USERS], '[[u.id]] = [[l.userId]]');
+
+        if ($search !== null && trim($search) !== '') {
+            $term = trim($search);
+            $query->andWhere(['or',
+                ['like', 'u.email', $term],
+                ['like', 'u.username', $term],
+            ]);
+        }
+
+        $total = (int)(clone $query)->count('[[l.id]]');
+
+        $sortColumn = match ($sortField) {
+            'email' => 'u.email',
+            'method' => 'l.method',
+            default => 'l.dateCreated',
+        };
+
+        $rows = $query
+            ->select([
+                'id' => 'l.id',
+                'userId' => 'l.userId',
+                'method' => 'l.method',
+                'userAgent' => 'l.userAgent',
+                'ip' => 'l.ip',
+                'dateCreated' => 'l.dateCreated',
+                'email' => 'u.email',
+                'username' => 'u.username',
+            ])
+            ->orderBy([$sortColumn => $sortDir, 'l.id' => SORT_DESC])
+            ->offset(($page - 1) * $limit)
+            ->limit($limit)
+            ->all();
+
+        return ['total' => $total, 'rows' => $rows];
     }
 
     /**

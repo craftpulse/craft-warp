@@ -86,6 +86,39 @@ it('returns the most recent logins first within the limit', function() {
         ->and($recent[1]->userId)->toBe((int)$second->id);
 });
 
+it('paginates, searches, and sorts the table data newest first', function() {
+    $alice = loginLogUser();
+    $bob = loginLogUser();
+
+    Warp::$plugin->getLogins()->record($alice, Login::METHOD_MAGIC_LINK);
+    Warp::$plugin->getLogins()->record($bob, Login::METHOD_OTP);
+
+    // Default sort is newest first, so the just-recorded rows lead the page
+    // regardless of any older rows already in the shared playground table.
+    $all = Warp::$plugin->getLogins()->getTableData(1, 20);
+
+    expect($all['total'])->toBeGreaterThanOrEqual(2)
+        ->and((int)$all['rows'][0]['userId'])->toBe((int)$bob->id)
+        ->and($all['rows'][0]['email'])->toBe($bob->email);
+
+    // Search narrows to the single user whose unique email matches.
+    $found = Warp::$plugin->getLogins()->getTableData(1, 20, $alice->email);
+
+    expect($found['total'])->toBe(1)
+        ->and($found['rows'][0]['email'])->toBe($alice->email);
+});
+
+it('bounds a page to the requested limit', function() {
+    foreach (range(1, 3) as $i) {
+        Warp::$plugin->getLogins()->record(loginLogUser(), Login::METHOD_OTP);
+    }
+
+    $page = Warp::$plugin->getLogins()->getTableData(1, 2);
+
+    expect($page['rows'])->toHaveCount(2)
+        ->and($page['total'])->toBeGreaterThanOrEqual(3);
+});
+
 it('prunes rows past the retention window when garbage collection runs', function() {
     $stale = loginLogUser();
     $fresh = loginLogUser();

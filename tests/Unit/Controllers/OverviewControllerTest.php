@@ -14,6 +14,8 @@ use craft\elements\User;
 use craft\helpers\StringHelper;
 use craft\helpers\UrlHelper;
 use craftpulse\warp\controllers\OverviewController;
+use craftpulse\warp\models\Login;
+use craftpulse\warp\Warp;
 
 function overviewUser(array $permissions = []): User
 {
@@ -77,4 +79,31 @@ it('rejects a user without the overview permission', function() {
     $user = overviewUser(['accessCp', 'accessPlugin-warp']);
 
     $this->actingAs($user)->get(UrlHelper::cpUrl('warp'));
+})->throws(yii\web\ForbiddenHttpException::class);
+
+it('returns the recent sign-ins as a table-data payload for a permitted user', function() {
+    $user = overviewUser(['accessCp', 'accessPlugin-warp', OverviewController::PERMISSION_VIEW_OVERVIEW]);
+    Warp::$plugin->getLogins()->record($user, Login::METHOD_OTP);
+
+    $response = $this->actingAs($user)
+        ->http('get', UrlHelper::cpUrl('actions/warp/overview/table-data'))
+        ->addHeader('Accept', 'application/json')
+        ->send();
+
+    $json = $response->getJsonContent();
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($json['pagination'])->toBeArray()
+        ->and($json['data'])->not->toBeEmpty()
+        ->and($json['data'][0]['title'])->toBe($user->email)
+        ->and($json['data'][0]['method'])->toBe('One-time code');
+});
+
+it('rejects the table-data endpoint for a user without the overview permission', function() {
+    $user = overviewUser(['accessCp', 'accessPlugin-warp']);
+
+    $this->actingAs($user)
+        ->http('get', UrlHelper::cpUrl('actions/warp/overview/table-data'))
+        ->addHeader('Accept', 'application/json')
+        ->send();
 })->throws(yii\web\ForbiddenHttpException::class);

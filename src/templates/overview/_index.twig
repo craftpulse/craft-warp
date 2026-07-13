@@ -3,55 +3,70 @@
 {% set title = 'Overview'|t('warp') %}
 {% set selectedSubnavItem = 'overview' %}
 
-{% set methodLabels = {
-    'magic-link': 'Magic link'|t('warp'),
-    'otp': 'One-time code'|t('warp'),
-    'passkey': 'Passkey'|t('warp'),
-    'register': 'Registration'|t('warp'),
-} %}
-
 {% set channelLabels = {
     'magic-link': 'Magic link'|t('warp'),
     'otp': 'One-time code'|t('warp'),
 } %}
 
+{% do view.registerAssetBundle('craft\\web\\assets\\admintable\\AdminTableAsset') %}
+
 {% block content %}
     {# =====================================================================
        Current posture
        ===================================================================== #}
-    <h2>{{ 'Current posture'|t('warp') }}</h2>
+    <div class="warp-stats">
+        <div class="warp-stat">
+            <div class="warp-stat__label">{{ 'Registration'|t('warp') }}</div>
+            <div class="warp-stat__value">
+                {% if registrationEnabled %}
+                    {{ 'Open'|t('warp') }}
+                {% else %}
+                    {{ 'Closed'|t('warp') }}
+                {% endif %}
+            </div>
+            <div class="warp-stat__meta">
+                {% if registrationEnabled %}
+                    {{ 'Unknown addresses are sent a sign-up link.'|t('warp') }}
+                {% else %}
+                    {{ 'The request form degrades to login-only.'|t('warp') }}
+                {% endif %}
+            </div>
+        </div>
 
-    <div class="warp-callouts">
-        {% if registrationEnabled %}
-            <blockquote class="note tip">
-                {{ 'Passwordless registration is open. Unknown addresses that pass through the request form are sent a sign-up link.'|t('warp') }}
-            </blockquote>
-        {% else %}
-            <blockquote class="note">
-                {{ 'Passwordless registration is closed. The request form degrades to login-only and unknown addresses receive nothing.'|t('warp') }}
-            </blockquote>
-            {% if enableRegistrationSetting and not allowPublicRegistration %}
-                <blockquote class="note warning">
-                    {{ 'Registration is enabled in Warp, but Craft’s own “Allow public registration” setting is off, so registration stays closed. Turn it on under Settings → Users to open sign-up.'|t('warp') }}
-                </blockquote>
-            {% endif %}
-        {% endif %}
+        <div class="warp-stat">
+            <div class="warp-stat__label">{{ 'Enabled login methods'|t('warp') }}</div>
+            <div class="warp-stat__value">
+                {% if loginMethods|length %}
+                    {% for method in loginMethods %}
+                        <span class="warp-badge">{{ channelLabels[method] ?? method }}</span>
+                    {% endfor %}
+                {% else %}
+                    <span class="warp-stat__value--warning">{{ 'None'|t('warp') }}</span>
+                {% endif %}
+            </div>
+            <div class="warp-stat__meta">
+                {% if loginMethods|length %}
+                    {{ 'The channels the front-end request form offers.'|t('warp') }}
+                {% else %}
+                    {{ 'The front-end login form has no usable path.'|t('warp') }}
+                {% endif %}
+            </div>
+        </div>
 
-        <blockquote class="note">
-            {% if loginMethods|length %}
-                {{ 'Enabled login methods:'|t('warp') }}
-                {% for method in loginMethods %}
-                    <span class="warp-badge">{{ channelLabels[method] ?? method }}</span>
-                {% endfor %}
-            {% else %}
-                {{ 'No login methods are enabled. The front-end login form has no usable path.'|t('warp') }}
-            {% endif %}
-        </blockquote>
-
-        <blockquote class="note">
-            {{ '{count, number} {count, plural, one{member has} other{members have}} enrolled a passkey.'|t('warp', { count: passkeyUserCount }) }}
-        </blockquote>
+        <div class="warp-stat">
+            <div class="warp-stat__label">{{ 'Passkey adoption'|t('warp') }}</div>
+            <div class="warp-stat__value">{{ passkeyUserCount|number }}</div>
+            <div class="warp-stat__meta">
+                {{ '{count, plural, one{member has} other{members have}} enrolled a passkey.'|t('warp', { count: passkeyUserCount }) }}
+            </div>
+        </div>
     </div>
+
+    {% if enableRegistrationSetting and not allowPublicRegistration %}
+        <blockquote class="note warning">
+            {{ 'Registration is enabled in Warp, but Craft’s own “Allow public registration” setting is off, so registration stays closed. Turn it on under Settings, Users to open sign-up.'|t('warp') }}
+        </blockquote>
+    {% endif %}
 
     <hr>
 
@@ -60,55 +75,87 @@
        ===================================================================== #}
     <h2>{{ 'Recent passwordless sign-ins'|t('warp') }}</h2>
 
-    {% if recentLogins|length %}
-        <table class="data fullwidth">
-            <thead>
-                <tr>
-                    <th scope="col">{{ 'User'|t('warp') }}</th>
-                    <th scope="col">{{ 'Method'|t('warp') }}</th>
-                    <th scope="col">{{ 'Device'|t('warp') }}</th>
-                    <th scope="col">{{ 'IP address'|t('warp') }}</th>
-                    <th scope="col">{{ 'When'|t('warp') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for login in recentLogins %}
-                    {% set user = usersById[login.userId] ?? null %}
-                    <tr>
-                        <th scope="row" data-title="{{ 'User'|t('warp') }}">
-                            {% if user %}
-                                <a href="{{ user.cpEditUrl }}">{{ user.email }}</a>
-                            {% else %}
-                                <span class="light">{{ 'Deleted user'|t('warp') }}</span>
-                            {% endif %}
-                        </th>
-                        <td data-title="{{ 'Method'|t('warp') }}">
-                            <span class="warp-badge">{{ methodLabels[login.method] ?? login.method }}</span>
-                        </td>
-                        <td data-title="{{ 'Device'|t('warp') }}">
-                            {% if login.userAgent %}
-                                <span title="{{ login.userAgent }}">{{ login.deviceLabel }}</span>
-                            {% else %}
-                                <span class="light">{{ login.deviceLabel }}</span>
-                            {% endif %}
-                        </td>
-                        <td data-title="{{ 'IP address'|t('warp') }}">
-                            <code>{{ login.ip ?? '-' }}</code>
-                        </td>
-                        <td data-title="{{ 'When'|t('warp') }}">
-                            {% if login.dateCreated %}
-                                {{ login.dateCreated|datetime('short') }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <div class="zilch">
-            <p>{{ 'No passwordless sign-ins recorded yet.'|t('warp') }}</p>
-        </div>
-    {% endif %}
+    <div id="warp-overview-table"></div>
+
+    {% css %}
+        .warp-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .warp-stat {
+            padding: 16px 18px;
+            border: 1px solid var(--hairline-color);
+            border-radius: var(--large-border-radius, 8px);
+            background: var(--white, #fff);
+        }
+        .warp-stat__label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--medium-text-color);
+            margin-bottom: 6px;
+        }
+        .warp-stat__value {
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 1.2;
+            color: var(--text-color);
+        }
+        .warp-stat__value--warning { color: var(--error-color); }
+        .warp-stat__meta {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--medium-text-color);
+        }
+        .warp-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            margin: 2px 4px 2px 0;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.5;
+            border-radius: 10px;
+            background: var(--gray-100);
+            color: var(--text-color);
+        }
+        .warp-badge--new {
+            background: var(--yellow-100, #fdf3d4);
+            color: var(--yellow-800, #74600b);
+        }
+    {% endcss %}
+
+    {% js %}
+        (() => {
+            const newLocationLabel = Craft.t('warp', 'New location');
+            const columns = [
+                { name: '__slot:title', title: Craft.t('warp', 'User'), sortField: 'email' },
+                { name: 'method', title: Craft.t('warp', 'Method'), sortField: 'method' },
+                { name: 'device', title: Craft.t('warp', 'Device') },
+                { name: 'ip', title: Craft.t('warp', 'IP address') },
+                { name: 'location', title: Craft.t('warp', 'Location') },
+                {
+                    name: 'newLocation',
+                    title: Craft.t('warp', 'New location'),
+                    callback: function(value) {
+                        return value
+                            ? '<span class="warp-badge warp-badge--new">' + newLocationLabel + '</span>'
+                            : '';
+                    },
+                },
+                { name: 'when', title: Craft.t('warp', 'When'), sortField: 'when' },
+            ];
+
+            new Craft.VueAdminTable({
+                columns: columns,
+                container: '#warp-overview-table',
+                tableDataEndpoint: 'warp/overview/table-data',
+                search: true,
+                searchPlaceholder: Craft.t('warp', 'Search by email or username'),
+                perPage: 20,
+                emptyMessage: Craft.t('warp', 'No passwordless sign-ins recorded yet.'),
+            });
+        })();
+    {% endjs %}
 {% endblock %}
