@@ -23,11 +23,15 @@
         {{ redirectInput('warp/settings') }}
     {% endif %}
 
-    {% namespace 'settings' %}
-        {# =================================================================
-           Login methods
-           ================================================================= #}
-        <div id="warp-login-methods">
+    {# The pane divs live OUTSIDE the settings namespace: Craft's tab JS
+       resolves each tab's href as a selector, and a namespaced pane id
+       (settings-warp-...) would never match the #warp-... anchors. #}
+
+    {# =================================================================
+       Login methods
+       ================================================================= #}
+    <div id="warp-login-methods">
+        {% namespace 'settings' %}
             {% if settings.getErrors('loginMethods') %}
                 {{ forms.errorList(settings.getErrors('loginMethods')) }}
             {% endif %}
@@ -76,12 +80,14 @@
                 errors: settings.getErrors('notifyOnNewLocation'),
                 disabled: readOnly,
             }) }}
-        </div>
+        {% endnamespace %}
+    </div>
 
-        {# =================================================================
-           Tokens & codes
-           ================================================================= #}
-        <div id="warp-tokens-codes" class="hidden">
+    {# =================================================================
+       Tokens & codes
+       ================================================================= #}
+    <div id="warp-tokens-codes" class="hidden">
+        {% namespace 'settings' %}
             {{ forms.autosuggestField({
                 label: 'Sign-in link / code lifetime'|t('warp'),
                 instructions: 'How long an issued magic link or one-time code stays valid, in seconds.'|t('warp') ~
@@ -154,12 +160,14 @@
                 errors: settings.getErrors('recentAuthDuration'),
                 disabled: readOnly,
             }) }}
-        </div>
+        {% endnamespace %}
+    </div>
 
-        {# =================================================================
-           Registration
-           ================================================================= #}
-        <div id="warp-registration" class="hidden">
+    {# =================================================================
+       Registration
+       ================================================================= #}
+    <div id="warp-registration" class="hidden">
+        {% namespace 'settings' %}
             {% if settings.enableRegistration and not allowPublicRegistration %}
                 <div class="readable">
                     <blockquote class="note warning">
@@ -195,6 +203,6 @@
                 errors: settings.getErrors('registrationGroupUid'),
                 disabled: readOnly,
             }) }}
-        </div>
-    {% endnamespace %}
+        {% endnamespace %}
+    </div>
 {% endblock %}
