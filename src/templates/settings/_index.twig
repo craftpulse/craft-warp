@@ -163,8 +163,7 @@
        Registration
        ================================================================= #}
     <div id="warp-registration" class="hidden">
-            {% set registrationCallout = settings.enableRegistration and not allowPublicRegistration %}
-        {% if registrationCallout %}
+            {% if settings.enableRegistration and not allowPublicRegistration %}
                 <div class="readable">
                     <blockquote class="note warning">
                         <p>
@@ -174,6 +173,7 @@
                         </p>
                     </blockquote>
                 </div>
+                <hr>
             {% endif %}
 
             {{ forms.lightswitchField({
@@ -185,7 +185,6 @@
                 on: settings.enableRegistration,
                 errors: settings.getErrors('enableRegistration'),
                 disabled: readOnly,
-                first: not registrationCallout,
             }) }}
 
             {{ forms.selectField({
