@@ -36,7 +36,7 @@
 {# --- Developer-owned page routing. Change these to your own routes. ------- #}
 {%- set linkSentUrl = 'members/link-sent' -%}      {# lands here after a magic-link request #}
 {%- set codeEntryUrl = 'members/verify-code' -%}   {# lands here after an OTP-code request #}
-{%- set afterSignInUrl = '/members' -%}            {# where the emailed link / passkey lands the user #}
+{%- set afterSignInUrl = craft.app.request.getParam('returnUrl') ?? '/members' -%}   {# a ?returnUrl= sends the member back where re-auth interrupted them; the endpoint re-validates it as same-site #}
 
 {# --- Enabled login methods (a subset of magic-link + otp). ---------------- #}
 {%- set loginMethods = craft.warp.loginMethods -%}

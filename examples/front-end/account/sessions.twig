@@ -57,7 +57,7 @@
             {{ 'For your security, managing sessions needs a recent sign-in. Please sign in again to continue.'|t('warp') }}
         </p>
         <p>
-            <a class="warp-link" href="{{ url(loginUrl) }}">{{ 'Sign in again'|t('warp') }}</a>
+            <a class="warp-link" href="{{ url(loginUrl, { returnUrl: '/' ~ craft.app.request.pathInfo }) }}">{{ 'Sign in again'|t('warp') }}</a>
         </p>
     </div>
 
