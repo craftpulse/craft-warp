@@ -73,12 +73,17 @@ class SettingsController extends Controller
      */
     public function actionEdit(): Response
     {
+        $pluginName = Warp::$plugin->name;
+        $title = Craft::t('warp', 'Settings');
+
         return $this->renderTemplate('warp/settings/_index', [
-            'title' => Craft::t('warp', 'Settings'),
+            'pluginName' => $pluginName,
+            'title' => $title,
+            'docTitle' => "{$pluginName} - {$title}",
             'settings' => Warp::$plugin->getSettings(),
             'readOnly' => !Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
             'crumbs' => [
-                ['label' => Craft::t('warp', 'Warp'), 'url' => UrlHelper::cpUrl('warp')],
+                ['label' => $pluginName, 'url' => UrlHelper::cpUrl('warp')],
             ],
         ]);
     }
