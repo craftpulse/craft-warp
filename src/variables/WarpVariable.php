@@ -17,6 +17,8 @@ use craftpulse\warp\controllers\AuthController;
 use craftpulse\warp\models\SessionInfo;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\Passwordless;
+use craftpulse\warp\twig\tags\OtpFormTag;
+use craftpulse\warp\twig\tags\OtpInputTag;
 use craftpulse\warp\Warp;
 
 /**
@@ -180,6 +182,43 @@ class WarpVariable
     public function getWebauthnJsUrl(): string
     {
         return $this->_authKitVariable()->webauthnJsUrl();
+    }
+
+    /**
+     * Returns the fluent builder for the complete one-time-code verify form —
+     * `craft.warp.otpForm({ returnUrl: url('members/account') }).render()`
+     * renders the post to `warp/auth/verify-code` with CSRF, the carried email
+     * prefill (or a visible email input), the segmented code input, and the
+     * submit button.
+     *
+     * @param array<string, mixed> $params builder options; each key matches a
+     * chainable setter on [[OtpFormTag]]
+     * @return OtpFormTag
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function otpForm(array $params = []): OtpFormTag
+    {
+        return new OtpFormTag($params);
+    }
+
+    /**
+     * Returns the fluent builder for the segmented one-time-code input alone —
+     * `craft.warp.otpInput().render()` — for a page composing its own form
+     * around it. One square per digit, sized to the `otpDigits` setting,
+     * paste-aware, degrading to a plain input with no JavaScript.
+     *
+     * @param array<string, mixed> $params builder options; each key matches a
+     * chainable setter on [[OtpInputTag]]
+     * @return OtpInputTag
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function otpInput(array $params = []): OtpInputTag
+    {
+        return new OtpInputTag($params);
     }
 
     // Private Methods

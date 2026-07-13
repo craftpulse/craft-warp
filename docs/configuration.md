@@ -41,9 +41,11 @@ Read the resolved value in code through the typed getters (`getTokenTtl()`,
 
 - **`tokenTtl`** is how long an issued magic link or one-time code stays valid.
   Pushed onto Auth Kit's token store.
-- **`otpDigits`** is the length of an issued numeric code. The example code-entry
-  template reads this through `craft.warp.otpDigits`, so its input length and copy
-  track the setting automatically.
+- **`otpDigits`** is the length of an issued numeric code. The
+  `craft.warp.otpForm()` and `craft.warp.otpInput()` render builders (and the
+  example code-entry template built on them) read it automatically, so the
+  segmented input renders exactly one square per configured digit; custom
+  markup can read it through `craft.warp.otpDigits`.
 - **`otpMaxAttempts`** is how many wrong guesses a single code tolerates before it
   is burned. This is per-code; the controller adds a separate per-IP rate limit on
   the verify endpoint on top of it.

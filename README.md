@@ -17,7 +17,10 @@ routes, controllers, templates, and a control-panel section.
 - **Magic-link login.** A single-use, enumeration-safe, rate-limited link emailed
   to an existing member, clicked to sign in.
 - **Email one-time codes.** A short numeric code, attempt-capped and superseded
-  on re-issue, for members who would rather type a code than click a link.
+  on re-issue, for members who would rather type a code than click a link. The
+  code-entry form ships as a render builder
+  (`craft.warp.otpForm({...}).render()`) whose input is one paste-aware square
+  per digit, sized to the configured code length.
 - **Passkeys.** Enroll, name, and delete WebAuthn credentials from a front-end
   account screen, and sign in with a passkey through core's own anonymous
   endpoints. A show-once nudge invites a first-time email login to add one.
@@ -68,13 +71,20 @@ Kit's services at boot.
 Warp ships the back end (routes, controllers, services) and a set of copy-in
 front-end templates. Wiring up a member area is three steps:
 
-1. **Copy the example templates.** Copy `example-templates/members/` into your
-   project as `templates/members/`. The bundle covers login, the "check your
-   email" and code-entry pages, the account landing, passkey management, and
-   session management, all extending its own layout
-   (`members/_private/layouts`), so every URL under `/members` renders a
-   complete, styled page immediately. Each file's header explains what it
-   posts to.
+1. **Install the example templates.** Run
+
+   ```sh
+   php craft warp/example-templates
+   ```
+
+   which copies the bundle into your `templates/` directory (it prompts for a
+   folder name, `members` by default, and rewrites the bundle's internal paths
+   if you pick another). The bundle covers login, the "check your email" and
+   code-entry pages, the account landing, passkey management, and session
+   management, all extending its own layout (`members/_private/layouts`), so
+   every URL under `/members` renders a complete, styled page immediately.
+   Each file's header explains what it posts to. (Copying
+   `example-templates/members/` by hand works too.)
 
 2. **Point Craft's login path at it.** Set the `loginPath` general config
    setting to `members/login` so guests and failed verifications land on the

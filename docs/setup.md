@@ -21,9 +21,22 @@ Warp ships two halves:
 So the pages a member visits are templates you own; the endpoints those
 templates post to are Warp's.
 
-## Copying the example templates
+## Installing the example templates
 
-Copy `example-templates/members/` into your project as `templates/members/`.
+The quickest way in is the console command:
+
+```sh
+php craft warp/example-templates
+```
+
+It prompts for a folder name (default `members`) and copies the bundle into
+your `templates/` directory. Choosing a different folder name rewrites the
+bundle's internal `members/...` template paths and URLs to match, so the copy
+works wherever it lands. An existing folder is only replaced when you pass
+`--overwrite`, and `--folder-name=members` skips the prompt for scripted
+setups. Copying `example-templates/members/` into `templates/` by hand works
+just as well.
+
 The bundle is:
 
 ```
@@ -73,6 +86,31 @@ Two behaviors worth knowing:
   unknown, or garbage: the example copy already does this. Do not add "we
   could not find that account" messaging, which would defeat the enumeration
   safety the endpoint is built for.
+
+### The OTP form builder
+
+The code-entry page renders its whole form through a fluent builder, the same
+shape Password Policy ships for its password forms:
+
+```twig
+{{ craft.warp.otpForm({
+    returnUrl: url('members/account'),
+    requestUrl: url('members/login'),
+}).render() }}
+```
+
+That one call outputs the post to `warp/auth/verify-code` with CSRF, the
+session-carried email prefill (or a visible email input on a direct visit),
+the segmented code input, its hint, and the submit button. The input renders
+as one square per digit, sized to the `otpDigits` setting, with auto-advance,
+backspace, arrow keys, and paste distributing a full code across the squares;
+with no JavaScript it degrades to a plain input, so the form always submits.
+
+Composing your own form instead? `craft.warp.otpInput().render()` gives you
+just the segmented input (options: `digits`, `name`, `id`, `label`,
+`autofocus`, `inputAttrs`). Both builders auto-register a small JS and
+neutral CSS asset; override the `warp-otp__*` and `warp-otp-form__*` classes
+to restyle.
 
 One core setting completes the wiring: point Craft's `loginPath` general config
 setting at the copied login page (for example `->loginPath('members/login')`).

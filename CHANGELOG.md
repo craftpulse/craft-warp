@@ -75,6 +75,20 @@
   `passkeys`, `webauthnJsUrl` (delegated to Auth Kit), `registrationEnabled`,
   `loginMethods`, `otpDigits`, `requestedEmail` (the session-carried code-entry
   prefill), `sessions`, and `showPasskeyNudge`.
+- Fluent OTP render builders in the Password Policy builder shape:
+  `craft.warp.otpForm({...}).render()` outputs the complete code-verify form
+  (post to `warp/auth/verify-code` with CSRF, the carried email prefill or a
+  visible email input, the segmented code input, hint, and submit), and
+  `craft.warp.otpInput({...}).render()` the segmented input alone. The input
+  renders one paste-aware square per digit, sized to the `otpDigits` setting
+  (auto-advance, backspace, arrow keys, paste distribution), served by an
+  auto-registered vanilla JS and neutral CSS asset, and degrades to a plain
+  input with no JavaScript so the form always submits.
+- A `warp/example-templates` console command (Commerce-style) that copies the
+  example member area into the project's `templates/` directory, prompting for
+  a folder name and rewriting the bundle's internal `members/...` references
+  when a different name is chosen; `--folder-name` and `--overwrite` cover
+  scripted setups.
 - An append-only passwordless login log behind the overview, recorded on every
   Warp login path (magic link, code, registration) and on core's passkey-login
   endpoint, pruned after 90 days on Craft's garbage-collection pass.
