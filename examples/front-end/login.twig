@@ -50,7 +50,12 @@
     <h1 class="warp-auth__title">{{ 'Sign in or create an account'|t('warp') }}</h1>
 
     <p class="warp-auth__intro">
-        {{ 'Enter your email and we will send you a secure way to sign in. No password required. If you do not have an account yet, one will be created for you.'|t('warp') }}
+        {{ 'Enter your email and we will send you a secure way to sign in. No password required.'|t('warp') }}
+    </p>
+
+    <p class="warp-auth__intro warp-auth__signup">
+        <strong>{{ 'New here?'|t('warp') }}</strong>
+        {{ 'The same form signs you up: we will email you a link that creates your account.'|t('warp') }}
     </p>
 
     {% include warpBase ~ '_partials/flashes' only %}

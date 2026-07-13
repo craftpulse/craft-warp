@@ -34,6 +34,35 @@
 
     {% include warpBase ~ '_partials/flashes' only %}
 
+    {# A passwordless signup collects only the email; the name is asked for
+       here, once the member is verified and signed in, so the login form never
+       has to differ between new and existing members (which would leak which
+       addresses hold accounts). Posts to core's own users/save-user, which
+       lets a member edit their own basic profile. #}
+    {% if currentUser and not currentUser.fullName %}
+        <section class="warp-nudge warp-profile" aria-label="{{ 'Complete your profile'|t('warp') }}">
+            <p class="warp-nudge__text">{{ 'Finish setting up your account: what should we call you?'|t('warp') }}</p>
+            <form class="warp-form" method="post" accept-charset="UTF-8">
+                {{ csrfInput() }}
+                {{ actionInput('users/save-user') }}
+                {{ hiddenInput('userId', currentUser.id) }}
+                {{ redirectInput(craft.app.request.pathInfo) }}
+                <div class="warp-field">
+                    <label class="warp-field__label" for="warp-full-name">{{ 'Your name'|t('warp') }}</label>
+                    <input
+                        class="warp-field__input"
+                        id="warp-full-name"
+                        type="text"
+                        name="fullName"
+                        autocomplete="name"
+                        required
+                    >
+                </div>
+                <button class="warp-button warp-button--primary" type="submit">{{ 'Save'|t('warp') }}</button>
+            </form>
+        </section>
+    {% endif %}
+
     {% include warpBase ~ '_partials/passkey-nudge' with { passkeysUrl: passkeysUrl } only %}
 
     <nav class="warp-account__nav" aria-label="{{ 'Account management'|t('warp') }}">
