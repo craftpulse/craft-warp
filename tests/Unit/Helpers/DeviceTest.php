@@ -66,3 +66,40 @@ it('labels a known browser with no recognisable OS by browser alone', function()
 it('labels a known OS with no recognisable browser by OS alone', function() {
     expect(Device::label('Mozilla/5.0 (Windows NT 10.0)'))->toBe('Windows');
 });
+
+it('classifies the coarse device type for a user-agent', function(string $userAgent, string $expected) {
+    expect(Device::type($userAgent))->toBe($expected);
+})->with([
+    'desktop macOS' => [
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Device::TYPE_DESKTOP,
+    ],
+    'desktop Windows' => [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+        Device::TYPE_DESKTOP,
+    ],
+    'mobile iPhone' => [
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        Device::TYPE_MOBILE,
+    ],
+    'mobile Android phone' => [
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        Device::TYPE_MOBILE,
+    ],
+    'tablet iPad' => [
+        'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/604.1',
+        Device::TYPE_TABLET,
+    ],
+    'tablet Android' => [
+        'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Device::TYPE_TABLET,
+    ],
+]);
+
+it('classifies a missing or unrecognisable user-agent as unknown', function(?string $userAgent) {
+    expect(Device::type($userAgent))->toBe(Device::TYPE_UNKNOWN);
+})->with([
+    'null' => [null],
+    'empty' => [''],
+    'unrecognisable' => ['curl/8.4.0'],
+]);

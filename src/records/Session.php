@@ -30,6 +30,8 @@ use craftpulse\warp\db\Table;
  * @property string $tokenHash
  * @property string|null $userAgent
  * @property string|null $ip
+ * @property string|null $city
+ * @property string|null $country
  * @property string $dateCreated
  * @property string $dateUpdated
  * @property string $uid

@@ -74,6 +74,13 @@ class Install extends Migration
                 'method' => $this->string()->notNull(),
                 'userAgent' => $this->string(255),
                 'ip' => $this->string(45),
+                // Coarse location resolved from the IP when a geo database is
+                // present; both stay null with no database. ISO 3166-1 alpha-2.
+                'city' => $this->string(255),
+                'country' => $this->char(2),
+                // Whether this login's location is one the user had never signed
+                // in from before. A first-ever login is never "new" (no baseline).
+                'isNewLocation' => $this->boolean()->notNull()->defaultValue(false),
                 'dateCreated' => $this->dateTime()->notNull(),
                 'dateUpdated' => $this->dateTime()->notNull(),
                 'uid' => $this->uid(),
@@ -87,6 +94,10 @@ class Install extends Migration
                 'tokenHash' => $this->char(64)->notNull(),
                 'userAgent' => $this->string(255),
                 'ip' => $this->string(45),
+                // Coarse location captured at session registration, for the
+                // member's device cards; both stay null with no geo database.
+                'city' => $this->string(255),
+                'country' => $this->char(2),
                 'dateCreated' => $this->dateTime()->notNull(),
                 'dateUpdated' => $this->dateTime()->notNull(),
                 'uid' => $this->uid(),

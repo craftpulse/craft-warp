@@ -23,6 +23,7 @@ use craftpulse\warp\db\Table;
 use craftpulse\warp\helpers\Device;
 use craftpulse\warp\models\SessionInfo;
 use craftpulse\warp\records\Session as SessionRecord;
+use craftpulse\warp\Warp;
 use Throwable;
 use yii\base\Component;
 
@@ -94,7 +95,7 @@ class Sessions extends Component
 
         /** @var array<string, array<string, mixed>> $registry */
         $registry = (new Query())
-            ->select(['uid', 'tokenHash', 'userAgent', 'ip'])
+            ->select(['uid', 'tokenHash', 'userAgent', 'ip', 'city'])
             ->from(Table::SESSIONS)
             ->where(['userId' => $userId])
             ->indexBy('tokenHash')
@@ -217,11 +218,15 @@ class Sessions extends Component
                 return;
             }
 
+            $location = Warp::$plugin->getGeo()->lookup($ip);
+
             $record = new SessionRecord();
             $record->userId = (int)$user->id;
             $record->tokenHash = $tokenHash;
             $record->userAgent = $userAgent !== null ? mb_substr($userAgent, 0, self::USER_AGENT_MAX_LENGTH) : null;
             $record->ip = $ip;
+            $record->city = $location['city'];
+            $record->country = $location['country'];
             $record->save(false);
         } catch (Throwable $e) {
             Craft::warning("Could not record the session for user {$user->id}: {$e->getMessage()}", __METHOD__);
@@ -405,12 +410,16 @@ class Sessions extends Component
         $match = $registry[$hash] ?? null;
         $lastSeen = $row['dateUpdated'] ?? null;
 
+        $userAgent = $match !== null && $match['userAgent'] !== null ? (string)$match['userAgent'] : null;
+
         $info = new SessionInfo();
         $info->uid = $match !== null ? (string)$match['uid'] : null;
         $info->ip = $match !== null && $match['ip'] !== null ? (string)$match['ip'] : null;
+        $info->city = $match !== null && $match['city'] !== null ? (string)$match['city'] : null;
         $info->deviceLabel = $match !== null
-            ? Device::label($match['userAgent'] !== null ? (string)$match['userAgent'] : null)
+            ? Device::label($userAgent)
             : Craft::t('warp', 'Unknown device');
+        $info->deviceType = Device::type($userAgent);
         $info->lastSeen = is_string($lastSeen) ? Carbon::parse($lastSeen) : null;
         $info->isCurrent = $currentHash !== null && hash_equals($currentHash, $hash);
 

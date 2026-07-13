@@ -26,11 +26,17 @@ routes, controllers, templates, and a control-panel section.
   link; verifying it creates an active, password-less account in a configured
   group. The HTTP response is identical to the login branch, so the form never
   reveals which addresses are registered.
-- **Session and device management.** Members see their active sessions with a
-  friendly device label, sign any one of them out, or sign out everywhere else
-  in a single step.
-- **Control-panel section.** A settings screen for the passwordless tunables and
-  an overview of recent passwordless sign-ins and passkey adoption.
+- **Session and device management.** Members see their active sessions as device
+  cards with a device-type icon, a friendly label, and expandable last-active, IP,
+  and location detail; they can sign any one of them out, or sign out everywhere
+  else in a single step.
+- **Location awareness (optional).** With a city MMDB installed, sign-ins record a
+  coarse city and country, the control panel badges a sign-in from a location the
+  member has never used before, and Warp can email the member a new-location
+  alert. Everything degrades silently with no database present.
+- **Control-panel section.** A tabbed settings screen for the passwordless
+  tunables (with environment-variable support and hover info popovers) and an
+  overview with posture stat tiles above a paginated, searchable sign-ins table.
 - **Copy-ready front-end templates.** Every screen ships as a restyleable example
   in `examples/front-end/`, carrying no framework classes, only low-specificity
   hooks.

@@ -11,6 +11,7 @@
 namespace craftpulse\warp\models;
 
 use craft\base\Model;
+use craftpulse\warp\helpers\Device;
 use DateTime;
 
 /**
@@ -36,6 +37,14 @@ class SessionInfo extends Model
     // =========================================================================
 
     /**
+     * @var string|null The city the session was registered from, or null when no
+     * geo database is present or the session predates geo capture.
+     *
+     * @since 5.0.0
+     */
+    public ?string $city = null;
+
+    /**
      * @var string A coarse, human-friendly device label like "Chrome on macOS",
      * derived from the captured user-agent by
      * [[\craftpulse\warp\helpers\Device::label()]]. "Unknown device" when the
@@ -44,6 +53,15 @@ class SessionInfo extends Model
      * @since 5.0.0
      */
     public string $deviceLabel = '';
+
+    /**
+     * @var string The coarse device class — one of the
+     * [[\craftpulse\warp\helpers\Device]] `TYPE_*` constants — driving the
+     * device-type icon on each session card.
+     *
+     * @since 5.0.0
+     */
+    public string $deviceType = Device::TYPE_UNKNOWN;
 
     /**
      * @var bool Whether this is the session making the current request — the one

@@ -18,8 +18,29 @@ use craft\helpers\StringHelper;
 use craftpulse\warp\db\Table;
 use craftpulse\warp\models\Login;
 use craftpulse\warp\records\Login as LoginRecord;
+use craftpulse\warp\services\Geo;
 use craftpulse\warp\services\Logins;
+use craftpulse\warp\tests\Support\CollectingMailer;
 use craftpulse\warp\Warp;
+
+/**
+ * Returns a Geo test double that resolves every IP to a fixed location, so
+ * new-location detection can be exercised without a real MMDB.
+ */
+function fixedGeo(?string $city, ?string $country): Geo
+{
+    return new class($city, $country) extends Geo {
+        public function __construct(private readonly ?string $_city, private readonly ?string $_country)
+        {
+            parent::__construct();
+        }
+
+        public function lookup(?string $ip): array
+        {
+            return ['city' => $this->_city, 'country' => $this->_country];
+        }
+    };
+}
 
 function loginLogUser(): User
 {
@@ -117,6 +138,109 @@ it('bounds a page to the requested limit', function() {
 
     expect($page['rows'])->toHaveCount(2)
         ->and($page['total'])->toBeGreaterThanOrEqual(3);
+});
+
+it('never flags a first-ever login as new, nor a repeat from the same place', function() {
+    $user = loginLogUser();
+    Warp::$plugin->set('geo', fixedGeo('Brussels', 'BE'));
+    $originalMailer = Craft::$app->getMailer();
+    Craft::$app->set('mailer', new CollectingMailer());
+
+    try {
+        Warp::$plugin->getLogins()->record($user, Login::METHOD_OTP);
+        $first = LoginRecord::find()->where(['userId' => $user->id])->orderBy(['id' => SORT_DESC])->one();
+
+        expect((bool)$first->isNewLocation)->toBeFalse()
+            ->and($first->country)->toBe('BE')
+            ->and($first->city)->toBe('Brussels');
+
+        Warp::$plugin->getLogins()->record($user, Login::METHOD_OTP);
+        $second = LoginRecord::find()->where(['userId' => $user->id])->orderBy(['id' => SORT_DESC])->one();
+
+        expect((bool)$second->isNewLocation)->toBeFalse();
+    } finally {
+        Craft::$app->set('mailer', $originalMailer);
+        Warp::$plugin->set('geo', ['class' => Geo::class]);
+    }
+});
+
+it('flags a new location and alerts the member once a baseline exists', function() {
+    $user = loginLogUser();
+
+    // A baseline sign-in from Paris makes a later sign-in from elsewhere new.
+    $baseline = new LoginRecord();
+    $baseline->userId = (int)$user->id;
+    $baseline->method = Login::METHOD_OTP;
+    $baseline->country = 'FR';
+    $baseline->city = 'Paris';
+    $baseline->save(false);
+
+    Warp::$plugin->set('geo', fixedGeo('Tokyo', 'JP'));
+    $mailer = new CollectingMailer();
+    $originalMailer = Craft::$app->getMailer();
+    Craft::$app->set('mailer', $mailer);
+
+    try {
+        Warp::$plugin->getLogins()->record($user, Login::METHOD_MAGIC_LINK);
+        $row = LoginRecord::find()->where(['userId' => $user->id, 'country' => 'JP'])->one();
+
+        expect((bool)$row->isNewLocation)->toBeTrue()
+            ->and($mailer->sent)->toHaveCount(1)
+            ->and($mailer->lastRecipients())->toBe([$user->email]);
+    } finally {
+        Craft::$app->set('mailer', $originalMailer);
+        Warp::$plugin->set('geo', ['class' => Geo::class]);
+    }
+});
+
+it('does not detect or alert without a geo database', function() {
+    $user = loginLogUser();
+    $mailer = new CollectingMailer();
+    $originalMailer = Craft::$app->getMailer();
+    Craft::$app->set('mailer', $mailer);
+
+    try {
+        Warp::$plugin->getLogins()->record($user, Login::METHOD_OTP);
+        Warp::$plugin->getLogins()->record($user, Login::METHOD_OTP);
+        $row = LoginRecord::find()->where(['userId' => $user->id])->orderBy(['id' => SORT_DESC])->one();
+
+        expect((bool)$row->isNewLocation)->toBeFalse()
+            ->and($row->country)->toBeNull()
+            ->and($mailer->sent)->toHaveCount(0);
+    } finally {
+        Craft::$app->set('mailer', $originalMailer);
+    }
+});
+
+it('respects the notifyOnNewLocation setting', function() {
+    $user = loginLogUser();
+
+    $baseline = new LoginRecord();
+    $baseline->userId = (int)$user->id;
+    $baseline->method = Login::METHOD_OTP;
+    $baseline->country = 'FR';
+    $baseline->city = 'Paris';
+    $baseline->save(false);
+
+    Warp::$plugin->set('geo', fixedGeo('Tokyo', 'JP'));
+    $mailer = new CollectingMailer();
+    $originalMailer = Craft::$app->getMailer();
+    Craft::$app->set('mailer', $mailer);
+    $originalNotify = Warp::$plugin->getSettings()->notifyOnNewLocation;
+    Warp::$plugin->getSettings()->notifyOnNewLocation = false;
+
+    try {
+        Warp::$plugin->getLogins()->record($user, Login::METHOD_MAGIC_LINK);
+        $row = LoginRecord::find()->where(['userId' => $user->id, 'country' => 'JP'])->one();
+
+        // The location is still flagged; only the email is suppressed.
+        expect((bool)$row->isNewLocation)->toBeTrue()
+            ->and($mailer->sent)->toHaveCount(0);
+    } finally {
+        Warp::$plugin->getSettings()->notifyOnNewLocation = $originalNotify;
+        Craft::$app->set('mailer', $originalMailer);
+        Warp::$plugin->set('geo', ['class' => Geo::class]);
+    }
 });
 
 it('prunes rows past the retention window when garbage collection runs', function() {

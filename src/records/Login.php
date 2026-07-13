@@ -22,6 +22,9 @@ use craftpulse\warp\db\Table;
  * @property string $method
  * @property string|null $userAgent
  * @property string|null $ip
+ * @property string|null $city
+ * @property string|null $country
+ * @property bool $isNewLocation
  * @property string $dateCreated
  * @property string $dateUpdated
  * @property string $uid

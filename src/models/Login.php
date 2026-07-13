@@ -66,6 +66,22 @@ class Login extends Model
     // =========================================================================
 
     /**
+     * @var string|null The city the sign-in was resolved to, or null when no geo
+     * database is present or the IP could not be located.
+     *
+     * @since 5.0.0
+     */
+    public ?string $city = null;
+
+    /**
+     * @var string|null The ISO 3166-1 alpha-2 country the sign-in was resolved
+     * to, or null when no geo database is present or the IP could not be located.
+     *
+     * @since 5.0.0
+     */
+    public ?string $country = null;
+
+    /**
      * @var DateTime|null When the sign-in was recorded.
      *
      * @since 5.0.0
@@ -86,6 +102,15 @@ class Login extends Model
      * @since 5.0.0
      */
     public ?string $ip = null;
+
+    /**
+     * @var bool Whether this sign-in came from a location (country and city) the
+     * user had never successfully signed in from before. A user's first-ever
+     * sign-in is never new — there is no baseline to compare against.
+     *
+     * @since 5.0.0
+     */
+    public bool $isNewLocation = false;
 
     /**
      * @var string The passwordless method the sign-in used — one of the

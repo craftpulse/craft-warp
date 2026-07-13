@@ -22,13 +22,22 @@ set would leave the front end with no usable login path.
 
 ### Tokens and codes
 
-| Setting | Type | Default | Range |
-|---|---|---|---|
-| `tokenTtl` | int (seconds) | `900` | 60 to 86400 |
-| `otpDigits` | int | `6` | 4 to 10 |
-| `otpMaxAttempts` | int | `5` | 1 to 10 |
-| `perEmailLimit` | int | `5` | 1 to 100 |
-| `perEmailWindow` | int (seconds) | `300` | 1 to 100 for the limit, 60 to 86400 for the window |
+| Setting | Type | Default | Range | Env var |
+|---|---|---|---|---|
+| `tokenTtl` | int or string (seconds) | `900` | 60 to 86400 | yes |
+| `otpDigits` | int or string | `6` | 4 to 10 | yes |
+| `otpMaxAttempts` | int or string | `5` | 1 to 10 | yes |
+| `perEmailLimit` | int or string | `5` | 1 to 100 | yes |
+| `perEmailWindow` | int or string (seconds) | `300` | 60 to 86400 | yes |
+
+Each of these six numeric tunables (including `recentAuthDuration` below) accepts
+either a literal value or an environment-variable reference such as
+`$WARP_TOKEN_TTL`, entered in the control panel through an env-aware field.
+Validation resolves the value first and range-checks the result, so a literal and
+an env var are held to the same bounds and an env var that resolves to a
+non-number (an undefined or misspelled variable) fails with a clear message.
+Read the resolved value in code through the typed getters (`getTokenTtl()`,
+`getOtpDigits()`, and so on), never the raw property.
 
 - **`tokenTtl`** is how long an issued magic link or one-time code stays valid.
   Pushed onto Auth Kit's token store.
@@ -48,7 +57,7 @@ set would leave the front end with no usable login path.
 
 | Setting | Type | Default | Range |
 |---|---|---|---|
-| `recentAuthDuration` | int (seconds) | `300` | 60 to 86400 |
+| `recentAuthDuration` | int or string (seconds) | `300` | 60 to 86400 |
 
 How long a prior sign-in satisfies the recent-auth gate before a sensitive
 action (managing passkeys, revoking sessions) requires a step-up. The step-up for
@@ -85,6 +94,55 @@ Whether to show the one-time "add a passkey" nudge after a member signs in over
 an email flow while holding no passkey. Surfaced once per triggering login through
 `craft.warp.showPasskeyNudge`, which clears the flag as it reads it. Off means the
 nudge is never flagged.
+
+### Location awareness
+
+| Setting | Type | Default |
+|---|---|---|
+| `notifyOnNewLocation` | bool | `true` |
+
+Whether to email a member when they sign in from a country and city they have
+never signed in from before. Detection requires a geo database (see below): with
+none installed no location is ever resolved, so nothing is flagged and no alert
+is sent. A member's first-ever sign-in never counts as new, because there is no
+baseline to compare against. The alert copy is an editable system message
+(**Settings** > **System Messages**, key `warp_new_location`).
+
+## Geo database (MMDB)
+
+Location awareness is optional and degrades silently. With no database installed,
+logins record no city or country, the overview's Location column shows a dash, no
+sign-in is ever flagged as a new location, and no alert email is sent. Installing
+a database lights all of that up with no further configuration.
+
+Warp reads a city-level MaxMind-format database (`.mmdb`) from
+`storage/warp/geo/city.mmdb`. Both the flat ip-location-db record shape and the
+nested MaxMind GeoIP2/GeoLite2 shape are understood, so either can be dropped in.
+
+The supported way to populate it is the console command, which downloads the
+database from a configurable URL and installs it atomically:
+
+```sh
+php craft warp/geo/refresh
+```
+
+Run it on deploy or on a schedule. The download URL is the `geoDatabaseUrl`
+setting; it defaults to the openly licensed, keyless ip-location-db city database
+and is not surfaced in the control panel. Point it at a different,
+licence-appropriate database (for example a MaxMind GeoLite2-City URL with your
+account key) by setting it in `config/warp.php`, where it also accepts an
+environment-variable reference:
+
+```php
+<?php
+return [
+    'geoDatabaseUrl' => getenv('WARP_GEO_DATABASE_URL'),
+];
+```
+
+The IP is read only to derive the coarse city and country; it is not persisted by
+the geo lookup itself. This is deliberately coarse location, never fingerprinting,
+and the label never influences authorization.
 
 ## Values that are not settings
 

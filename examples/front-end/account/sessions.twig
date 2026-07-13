@@ -1,16 +1,21 @@
 {# =========================================================================
    Warp example — active sessions
    =========================================================================
-   Lists the devices signed in to the current account and lets the member sign
-   any of them out — one at a time, or "everywhere else" in a single step. Each
-   row is a live Craft session joined to Warp's device registry for a friendly
-   label (craft.warp.sessions); the session making this request wears a "This
-   device" badge and has no sign-out button, since signing out here is what the
-   normal sign-out link is for.
+   Lists the devices signed in to the current account as cards and lets the
+   member sign any of them out — one at a time, or "everywhere else" in a single
+   step. Each card is a live Craft session joined to Warp's device registry for a
+   friendly label and a device-type icon (craft.warp.sessions); the session
+   making this request wears a "Current device" pill and has no sign-out button,
+   since signing out here is what the normal sign-out link is for.
+
+   Each card carries an expandable details section (native <details>/<summary>)
+   with the last-active time, the IP, and — when a geo database resolved one —
+   the city the session signed in from. With no geo database those location
+   lines simply do not appear.
 
    A session created before Warp was installed (or by a path Warp does not
-   capture) shows as "Unknown device" with no per-row button — it has no registry
-   handle to target — but "Sign out everywhere else" still clears it.
+   capture) shows as "Unknown device" with no per-card button — it has no
+   registry handle to target — but "Sign out everywhere else" still clears it.
 
    Posts (JSON, POST, login required) to:
      warp/sessions/revoke          -> sign out one session by its uid
@@ -39,6 +44,14 @@
 {%- set sessions = craft.warp.sessions -%}
 {%- set otherCount = sessions|filter(s => not s.isCurrent)|length -%}
 
+{# Inline, currentColor device-type icons keyed by SessionInfo.deviceType. #}
+{%- set warpDeviceIcons = {
+    desktop: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+    mobile: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+    tablet: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+    unknown: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>',
+} -%}
+
 <main class="warp-sessions" id="main-content" tabindex="-1">
     <h1 class="warp-sessions__title">{{ 'Active sessions'|t('warp') }}</h1>
 
@@ -59,38 +72,66 @@
         {% if sessions|length %}
             <ul class="warp-sessions__list">
                 {% for session in sessions %}
-                    <li class="warp-sessions__item{{ session.isCurrent ? ' warp-sessions__item--current' : '' }}">
-                        <span class="warp-sessions__device">{{ session.deviceLabel }}</span>
-
-                        {% if session.isCurrent %}
-                            <span class="warp-sessions__badge">{{ 'This device'|t('warp') }}</span>
-                        {% endif %}
-
-                        <span class="warp-sessions__meta">
-                            {%- if session.lastSeen -%}
-                                {{ 'Last active {date}'|t('warp', { date: session.lastSeen|datetime('short') }) }}
-                            {%- else -%}
-                                {{ 'Last active unknown'|t('warp') }}
-                            {%- endif -%}
-                            {%- if session.ip %} · <span class="warp-sessions__ip">{{ session.ip }}</span>{% endif -%}
+                    <li class="warp-session-card warp-session-card--{{ session.deviceType }}{{ session.isCurrent ? ' warp-session-card--current' : '' }}">
+                        <span class="warp-session-card__icon" aria-hidden="true">
+                            {{ (warpDeviceIcons[session.deviceType] ?? warpDeviceIcons.unknown)|raw }}
                         </span>
 
-                        {% if session.isCurrent %}
-                            <span class="warp-sessions__note">{{ 'Use “Sign out” to end this session.'|t('warp') }}</span>
-                        {% elseif session.uid %}
-                            <button
-                                class="warp-button warp-button--revoke"
-                                type="button"
-                                data-warp-revoke
-                                data-uid="{{ session.uid }}"
-                                data-name="{{ session.deviceLabel }}"
-                                aria-label="{{ 'Sign out {name}'|t('warp', { name: session.deviceLabel }) }}"
-                            >
-                                {{ 'Sign out'|t('warp') }}
-                            </button>
-                        {% else %}
-                            <span class="warp-sessions__note">{{ 'Sign out everywhere else to end this one.'|t('warp') }}</span>
-                        {% endif %}
+                        <div class="warp-session-card__body">
+                            <div class="warp-session-card__heading">
+                                <span class="warp-session-card__device">{{ session.deviceLabel }}</span>
+                                {% if session.isCurrent %}
+                                    <span class="warp-session-card__pill">{{ 'Current device'|t('warp') }}</span>
+                                {% endif %}
+                            </div>
+
+                            <details class="warp-session-card__details">
+                                <summary class="warp-session-card__summary">{{ 'Details'|t('warp') }}</summary>
+                                <dl class="warp-session-card__meta">
+                                    <div class="warp-session-card__meta-row">
+                                        <dt>{{ 'Last active'|t('warp') }}</dt>
+                                        <dd>
+                                            {%- if session.lastSeen -%}
+                                                {{ session.lastSeen|datetime('short') }}
+                                            {%- else -%}
+                                                {{ 'Unknown'|t('warp') }}
+                                            {%- endif -%}
+                                        </dd>
+                                    </div>
+                                    {% if session.ip %}
+                                        <div class="warp-session-card__meta-row">
+                                            <dt>{{ 'IP address'|t('warp') }}</dt>
+                                            <dd class="warp-session-card__ip">{{ session.ip }}</dd>
+                                        </div>
+                                    {% endif %}
+                                    {% if session.city %}
+                                        <div class="warp-session-card__meta-row">
+                                            <dt>{{ 'Location'|t('warp') }}</dt>
+                                            <dd>{{ session.city }}</dd>
+                                        </div>
+                                    {% endif %}
+                                </dl>
+                            </details>
+                        </div>
+
+                        <div class="warp-session-card__action">
+                            {% if session.isCurrent %}
+                                <span class="warp-session-card__note">{{ 'Use “Sign out” to end this session.'|t('warp') }}</span>
+                            {% elseif session.uid %}
+                                <button
+                                    class="warp-button warp-button--revoke"
+                                    type="button"
+                                    data-warp-revoke
+                                    data-uid="{{ session.uid }}"
+                                    data-name="{{ session.deviceLabel }}"
+                                    aria-label="{{ 'Sign out {name}'|t('warp', { name: session.deviceLabel }) }}"
+                                >
+                                    {{ 'Sign out'|t('warp') }}
+                                </button>
+                            {% else %}
+                                <span class="warp-session-card__note">{{ 'Sign out everywhere else to end this one.'|t('warp') }}</span>
+                            {% endif %}
+                        </div>
                     </li>
                 {% endfor %}
             </ul>
@@ -101,15 +142,14 @@
 
     {# --- Sign out everywhere else -------------------------------------------- #}
     {% if otherCount > 0 %}
-        <section class="warp-sessions__revoke-others" aria-labelledby="warp-sessions-others-heading">
-            <h2 class="warp-sessions__subheading" id="warp-sessions-others-heading">{{ 'Sign out everywhere else'|t('warp') }}</h2>
+        <footer class="warp-sessions__footer">
             <p class="warp-sessions__revoke-others-text">
                 {{ 'Sign out of every device except this one. You will stay signed in here.'|t('warp') }}
             </p>
             <button class="warp-button warp-button--revoke-others" type="button" id="warp-sessions-revoke-others">
                 {{ 'Sign out everywhere else'|t('warp') }}
             </button>
-        </section>
+        </footer>
     {% endif %}
 
     <p class="warp-sessions__actions">

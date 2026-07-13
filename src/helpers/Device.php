@@ -32,6 +32,37 @@ use Craft;
  */
 abstract class Device
 {
+    // Const Properties
+    // =========================================================================
+
+    /**
+     * @var string A conventional desktop or laptop computer.
+     *
+     * @since 5.0.0
+     */
+    public const TYPE_DESKTOP = 'desktop';
+
+    /**
+     * @var string A phone or other handheld device.
+     *
+     * @since 5.0.0
+     */
+    public const TYPE_MOBILE = 'mobile';
+
+    /**
+     * @var string A tablet.
+     *
+     * @since 5.0.0
+     */
+    public const TYPE_TABLET = 'tablet';
+
+    /**
+     * @var string An unrecognised or missing device.
+     *
+     * @since 5.0.0
+     */
+    public const TYPE_UNKNOWN = 'unknown';
+
     // Public Methods
     // =========================================================================
 
@@ -62,6 +93,40 @@ abstract class Device
         }
 
         return $browser ?? $os ?? $unknown;
+    }
+
+    /**
+     * Returns the coarse device class for a user-agent — one of the `TYPE_*`
+     * constants — so the session cards can show a device-type icon. Deliberately
+     * shallow substring matching, never fingerprinting: a tablet with no obvious
+     * marker may read as a desktop, and that is fine.
+     *
+     * @param string|null $userAgent the raw user-agent, or null when none was captured
+     * @return string one of [[TYPE_DESKTOP]], [[TYPE_MOBILE]], [[TYPE_TABLET]], or [[TYPE_UNKNOWN]]
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public static function type(?string $userAgent): string
+    {
+        if ($userAgent === null || trim($userAgent) === '') {
+            return self::TYPE_UNKNOWN;
+        }
+
+        return match (true) {
+            str_contains($userAgent, 'iPad'), str_contains($userAgent, 'Tablet') => self::TYPE_TABLET,
+            str_contains($userAgent, 'Android') && !str_contains($userAgent, 'Mobile') => self::TYPE_TABLET,
+            str_contains($userAgent, 'iPhone'),
+            str_contains($userAgent, 'iPod'),
+            str_contains($userAgent, 'Mobile'),
+            str_contains($userAgent, 'Android') => self::TYPE_MOBILE,
+            str_contains($userAgent, 'Windows'),
+            str_contains($userAgent, 'Macintosh'),
+            str_contains($userAgent, 'Mac OS X'),
+            str_contains($userAgent, 'CrOS'),
+            str_contains($userAgent, 'Linux') => self::TYPE_DESKTOP,
+            default => self::TYPE_UNKNOWN,
+        };
     }
 
     // Private Methods

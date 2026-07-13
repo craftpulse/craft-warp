@@ -72,6 +72,18 @@ class Settings extends Model
     public bool $enablePasskeyNudge = true;
 
     /**
+     * @var string The URL a fresh city MMDB is downloaded from by the geo refresh
+     * command. Accepts a literal URL or an environment-variable reference; resolve
+     * it through [[getGeoDatabaseUrl()]]. This setting is not surfaced in the
+     * control panel — set it in `config/warp.php` when you need to point at a
+     * different, licence-appropriate database. Defaults to the openly licensed,
+     * keyless ip-location-db city database.
+     *
+     * @since 5.0.0
+     */
+    public string $geoDatabaseUrl = 'https://cdn.jsdelivr.net/npm/@ip-location-db/geo-whois-asn-city-mmdb/geo-whois-asn-city.mmdb';
+
+    /**
      * @var array<int, string> The passwordless login channels Warp offers, a
      * subset of [[CHANNEL_MAGIC_LINK]] and [[CHANNEL_OTP]]. A channel not listed
      * here is refused at issuance even if requested directly, so disabling one
@@ -80,6 +92,16 @@ class Settings extends Model
      * @since 5.0.0
      */
     public array $loginMethods = [self::CHANNEL_MAGIC_LINK, self::CHANNEL_OTP];
+
+    /**
+     * @var bool Whether to email a member when they sign in from a location
+     * (country and city) they have never signed in from before. Requires a geo
+     * database to be present — with none, no location is resolved, so nothing is
+     * ever flagged and no alert is sent.
+     *
+     * @since 5.0.0
+     */
+    public bool $notifyOnNewLocation = true;
 
     /**
      * @var int|string The number of digits in an issued OTP code. Accepts a
@@ -148,6 +170,19 @@ class Settings extends Model
 
     // Public Methods
     // =========================================================================
+
+    /**
+     * Returns the resolved URL a fresh city MMDB is downloaded from.
+     *
+     * @return string
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getGeoDatabaseUrl(): string
+    {
+        return (string)App::parseEnv($this->geoDatabaseUrl);
+    }
 
     /**
      * Returns the resolved number of digits in an issued OTP code.
@@ -333,7 +368,8 @@ class Settings extends Model
         $rules[] = [['otpDigits'], 'validateResolvedInt', 'params' => ['min' => 4, 'max' => 10], 'skipOnEmpty' => false];
         $rules[] = [['otpMaxAttempts'], 'validateResolvedInt', 'params' => ['min' => 1, 'max' => 10], 'skipOnEmpty' => false];
         $rules[] = [['perEmailLimit'], 'validateResolvedInt', 'params' => ['min' => 1, 'max' => 100], 'skipOnEmpty' => false];
-        $rules[] = [['enableRegistration', 'enablePasskeyNudge'], 'boolean'];
+        $rules[] = [['enableRegistration', 'enablePasskeyNudge', 'notifyOnNewLocation'], 'boolean'];
+        $rules[] = [['geoDatabaseUrl'], 'string'];
         $rules[] = [['registrationGroupUid'], 'string'];
         $rules[] = [['registrationGroupUid'], 'validateRegistrationGroupUid'];
 

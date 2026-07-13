@@ -16,10 +16,13 @@ use craft\db\Query;
 use craft\db\Table as CraftTable;
 use craft\elements\User;
 use craft\helpers\Db;
+use craft\helpers\UrlHelper;
 use craft\web\Request as WebRequest;
 use craftpulse\warp\db\Table;
 use craftpulse\warp\models\Login;
+use craftpulse\warp\models\Settings;
 use craftpulse\warp\records\Login as LoginRecord;
+use craftpulse\warp\Warp;
 use Throwable;
 use yii\base\Component;
 
@@ -55,6 +58,15 @@ class Logins extends Component
     public const PRUNE_MAX_AGE_DAYS = 90;
 
     /**
+     * @var string The system-message key for the new-location alert email. Warp
+     * registers this message in `PluginTrait::_registerSystemMessages()`; this
+     * service composes from it. Declared here as the single source of truth.
+     *
+     * @since 5.0.0
+     */
+    public const MESSAGE_KEY_NEW_LOCATION = 'warp_new_location';
+
+    /**
      * @var int The maximum stored length of a captured user-agent string.
      *
      * @since 5.0.0
@@ -77,7 +89,7 @@ class Logins extends Component
     public function getRecent(int $limit = 50): array
     {
         $rows = (new Query())
-            ->select(['id', 'userId', 'method', 'userAgent', 'ip', 'dateCreated'])
+            ->select(['id', 'userId', 'method', 'userAgent', 'ip', 'city', 'country', 'isNewLocation', 'dateCreated'])
             ->from(Table::LOGINS)
             ->orderBy(['dateCreated' => SORT_DESC, 'id' => SORT_DESC])
             ->limit($limit)
@@ -136,6 +148,9 @@ class Logins extends Component
                 'method' => 'l.method',
                 'userAgent' => 'l.userAgent',
                 'ip' => 'l.ip',
+                'city' => 'l.city',
+                'country' => 'l.country',
+                'isNewLocation' => 'l.isNewLocation',
                 'dateCreated' => 'l.dateCreated',
                 'email' => 'u.email',
                 'username' => 'u.username',
@@ -194,12 +209,23 @@ class Logins extends Component
         // A bookkeeping failure must never block a login already completed, so
         // the insert is wrapped: any failure is logged and swallowed.
         try {
+            $userId = (int)$user->id;
+            $location = Warp::$plugin->getGeo()->lookup($ip);
+            $isNewLocation = $this->_isNewLocation($userId, $location['country'], $location['city']);
+
             $record = new LoginRecord();
-            $record->userId = (int)$user->id;
+            $record->userId = $userId;
             $record->method = $method;
             $record->userAgent = $userAgent !== null ? mb_substr($userAgent, 0, self::USER_AGENT_MAX_LENGTH) : null;
             $record->ip = $ip;
+            $record->city = $location['city'];
+            $record->country = $location['country'];
+            $record->isNewLocation = $isNewLocation;
             $record->save(false);
+
+            if ($isNewLocation && $this->_settings()->notifyOnNewLocation) {
+                $this->_notifyNewLocation($user, $location['city'], $location['country']);
+            }
         } catch (Throwable $e) {
             Craft::warning("Could not record the login for user {$user->id}: {$e->getMessage()}", __METHOD__);
         }
@@ -207,6 +233,88 @@ class Logins extends Component
 
     // Private Methods
     // =========================================================================
+
+    /**
+     * Determines whether a login's resolved location is one the user had never
+     * successfully signed in from before.
+     *
+     * A user's first-ever login is never new — there is no baseline to compare
+     * against — and no location (no geo database, or an IP that could not be
+     * placed) is never new either. Otherwise a location is new when no prior
+     * login row for the user shares this exact country and city.
+     *
+     * @param int $userId the user signing in
+     * @param string|null $country the resolved country, or null
+     * @param string|null $city the resolved city, or null
+     * @return bool
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _isNewLocation(int $userId, ?string $country, ?string $city): bool
+    {
+        if ($country === null) {
+            return false;
+        }
+
+        $hadPriorLogin = (new Query())
+            ->from(Table::LOGINS)
+            ->where(['userId' => $userId])
+            ->exists();
+
+        if (!$hadPriorLogin) {
+            return false;
+        }
+
+        $seenThisLocation = (new Query())
+            ->from(Table::LOGINS)
+            ->where(['userId' => $userId, 'country' => $country, 'city' => $city])
+            ->exists();
+
+        return !$seenThisLocation;
+    }
+
+    /**
+     * Emails a member that their account was signed in to from a new location.
+     *
+     * Best-effort and self-contained: a missing address or a delivery failure is
+     * logged and swallowed so it can never disturb the login it reports on. The
+     * message body and subject are editable through Craft's system messages.
+     *
+     * @param User $user the member to alert
+     * @param string|null $city the resolved city, or null
+     * @param string|null $country the resolved country, or null
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _notifyNewLocation(User $user, ?string $city, ?string $country): void
+    {
+        if ($user->email === null || $user->email === '') {
+            return;
+        }
+
+        $location = match (true) {
+            $city !== null && $country !== null => "$city, $country",
+            $country !== null => $country,
+            default => (string)$city,
+        };
+
+        try {
+            Craft::$app->getMailer()
+                ->composeFromKey(self::MESSAGE_KEY_NEW_LOCATION, [
+                    'user' => $user,
+                    'city' => (string)$city,
+                    'country' => (string)$country,
+                    'location' => $location,
+                    'sessionsUrl' => UrlHelper::siteUrl(),
+                ])
+                ->setTo($user)
+                ->send();
+        } catch (Throwable $e) {
+            Craft::error("Could not send the new-location alert for user {$user->id}: {$e->getMessage()}", __METHOD__);
+        }
+    }
 
     /**
      * Maps a raw login-log row to a [[Login]] model.
@@ -227,7 +335,26 @@ class Logins extends Component
             'method' => (string)$row['method'],
             'userAgent' => $row['userAgent'] !== null ? (string)$row['userAgent'] : null,
             'ip' => $row['ip'] !== null ? (string)$row['ip'] : null,
+            'city' => $row['city'] !== null ? (string)$row['city'] : null,
+            'country' => $row['country'] !== null ? (string)$row['country'] : null,
+            'isNewLocation' => (bool)$row['isNewLocation'],
             'dateCreated' => is_string($dateCreated) ? Carbon::parse($dateCreated) : null,
         ]);
+    }
+
+    /**
+     * Returns Warp's settings model.
+     *
+     * @return Settings
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _settings(): Settings
+    {
+        $settings = Warp::$plugin->getSettings();
+        assert($settings instanceof Settings);
+
+        return $settings;
     }
 }

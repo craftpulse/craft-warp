@@ -65,6 +65,17 @@
                 errors: settings.getErrors('enablePasskeyNudge'),
                 disabled: readOnly,
             }) }}
+
+            {{ forms.lightswitchField({
+                label: 'Alert on sign-in from a new location'|t('warp'),
+                instructions: 'Email a member when they sign in from a country and city they have never signed in from before.'|t('warp') ~
+                    ' <span class="info">' ~ 'Requires a geo database to be installed (see the plugin documentation). With none present no location is resolved, so nothing is flagged and no alert is sent. A member’s first-ever sign-in never counts as new.'|t('warp') ~ '</span>',
+                id: 'notifyOnNewLocation',
+                name: 'notifyOnNewLocation',
+                on: settings.notifyOnNewLocation,
+                errors: settings.getErrors('notifyOnNewLocation'),
+                disabled: readOnly,
+            }) }}
         </div>
 
         {# =================================================================
@@ -150,9 +161,15 @@
            ================================================================= #}
         <div id="warp-registration" class="hidden">
             {% if settings.enableRegistration and not allowPublicRegistration %}
-                <blockquote class="note warning">
-                    {{ 'Registration is enabled here, but Craft’s own “Allow public registration” setting is off, so registration stays closed. Turn it on under Settings, Users to open sign-up.'|t('warp') }}
-                </blockquote>
+                <div class="readable">
+                    <blockquote class="note warning">
+                        <p>
+                            {{ 'Registration is enabled here, but Craft’s own “Allow public registration” setting is off, so registration stays closed.'|t('warp') }}
+                            <a href="{{ cpUrl('settings/users') }}">{{ 'Turn it on under Settings → Users'|t('warp') }}</a>
+                            {{ 'to open sign-up.'|t('warp') }}
+                        </p>
+                    </blockquote>
+                </div>
             {% endif %}
 
             {{ forms.lightswitchField({

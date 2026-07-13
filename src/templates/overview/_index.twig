@@ -63,9 +63,15 @@
     </div>
 
     {% if enableRegistrationSetting and not allowPublicRegistration %}
-        <blockquote class="note warning">
-            {{ 'Registration is enabled in Warp, but Craft’s own “Allow public registration” setting is off, so registration stays closed. Turn it on under Settings, Users to open sign-up.'|t('warp') }}
-        </blockquote>
+        <div class="readable">
+            <blockquote class="note warning">
+                <p>
+                    {{ 'Registration is enabled in Warp, but Craft’s own “Allow public registration” setting is off, so registration stays closed.'|t('warp') }}
+                    <a href="{{ cpUrl('settings/users') }}">{{ 'Turn it on under Settings → Users'|t('warp') }}</a>
+                    {{ 'to open sign-up.'|t('warp') }}
+                </p>
+            </blockquote>
+        </div>
     {% endif %}
 
     <hr>

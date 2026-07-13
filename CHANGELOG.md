@@ -36,19 +36,35 @@
   `craft.warp.showPasskeyNudge`. Toggled by the `enablePasskeyNudge` setting.
 - Session and device management (`warp/sessions/revoke`,
   `warp/sessions/revoke-others`): a lean Warp-owned registry captures a hashed
-  session token plus a truncated user-agent and IP on login, joins core's live
-  session rows for a friendly device label, and deletes the authoritative core
-  session row on revoke. Every delete is scoped to the requesting member, so a
-  posted uid can never reach another account's session; both actions are
-  recent-auth gated. Sessions with no registry match render as "Unknown device"
-  and remain revocable through "sign out everywhere else".
+  session token plus a truncated user-agent, IP, and (with a geo database) city
+  and country on login, joins core's live session rows for a friendly device
+  label, and deletes the authoritative core session row on revoke. Every delete is
+  scoped to the requesting member, so a posted uid can never reach another
+  account's session. The member-facing screen renders each session as a device
+  card with a device-type icon, a "Current device" pill, and expandable
+  last-active, IP, and location detail. Sessions with no registry match render as
+  "Unknown device" and remain revocable through "sign out everywhere else".
 - A control-panel overview screen (gated on the `warp:viewOverview` permission)
-  summarizing recent passwordless sign-ins, passkey adoption, and the current
-  registration and login-method posture.
-- A control-panel settings section inside Warp's own nav (not the global plugin
-  settings screen), covering login methods, token and code tunables, registration
-  with a user-group picker, and the passkey nudge. Admin-gated, read-only under
-  `allowAdminChanges: false` with a fail-closed save, and project-config tracked.
+  leading with posture stat tiles (registration, enabled login methods, passkey
+  adoption) above a paginated, searchable table of recent passwordless sign-ins
+  (VueAdminTable in API mode, newest first, searchable by user email or username).
+- A tabbed control-panel settings section inside Warp's own nav (not the global
+  plugin settings screen): Login methods (two independent lightswitches, the
+  passkey nudge, and the new-location alert), Tokens & codes (the numeric tunables,
+  each accepting a literal or an environment-variable reference), and Registration
+  (the enable switch and a user-group picker). Deeper field guidance rides in the
+  hover info popover Craft renders from an `info` span. Gated on the
+  `warp:manageSettings` permission, read-only under `allowAdminChanges: false` with
+  a fail-closed save, and project-config tracked.
+- Optional location awareness backed by a city MMDB read from
+  `storage/warp/geo/city.mmdb` (both the ip-location-db and MaxMind record shapes
+  are understood, populated by the `warp/geo/refresh` console command from a
+  `geoDatabaseUrl` set in `config/warp.php`). Each login resolves a coarse city and
+  country; a sign-in from a country and city the member has never used before is
+  flagged (`isNewLocation`), badged in the overview, and — when
+  `notifyOnNewLocation` is on — emailed to the member through the editable
+  `warp_new_location` system message. A member's first-ever login is never new, and
+  everything degrades silently with no database present.
 - A `craft.warp` Twig variable exposing the front-end surface: `hasPasskeys`,
   `passkeys`, `webauthnJsUrl` (delegated to Auth Kit), `registrationEnabled`,
   `loginMethods`, `otpDigits`, `sessions`, and `showPasskeyNudge`.

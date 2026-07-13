@@ -19,6 +19,7 @@ namespace craftpulse\warp\services;
  * `@property-read` tag on this trait's docblock for property-style access —
  * never duplicated on the main plugin class.
  *
+ * @property-read Geo $geo
  * @property-read Logins $logins
  * @property-read Passwordless $passwordless
  * @property-read Registration $registration
@@ -44,12 +45,29 @@ trait ServicesTrait
     {
         return [
             'components' => [
+                'geo' => ['class' => Geo::class],
                 'logins' => ['class' => Logins::class],
                 'passwordless' => ['class' => Passwordless::class],
                 'registration' => ['class' => Registration::class],
                 'sessions' => ['class' => Sessions::class],
             ],
         ];
+    }
+
+    /**
+     * Returns the geo service.
+     *
+     * @return Geo
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getGeo(): Geo
+    {
+        $component = $this->get('geo');
+        assert($component instanceof Geo);
+
+        return $component;
     }
 
     /**

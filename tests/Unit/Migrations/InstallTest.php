@@ -23,6 +23,8 @@ it('creates the session registry table with its device columns', function() {
         'tokenHash',
         'userAgent',
         'ip',
+        'city',
+        'country',
         'dateCreated',
         'dateUpdated',
         'uid',
@@ -38,8 +40,21 @@ it('stores the token hash as a fixed 64-character column', function() {
         ->and($tokenHash->allowNull)->toBeFalse();
 });
 
-it('keeps the login log table alongside the session registry', function() {
+it('keeps the login log table alongside the session registry with its geo columns', function() {
     $schema = Craft::$app->getDb()->getTableSchema(Table::LOGINS);
 
     expect($schema)->not->toBeNull();
+    expect(array_keys($schema->columns))->toContain(
+        'id',
+        'userId',
+        'method',
+        'userAgent',
+        'ip',
+        'city',
+        'country',
+        'isNewLocation',
+        'dateCreated',
+        'dateUpdated',
+        'uid',
+    );
 });

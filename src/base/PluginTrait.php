@@ -12,9 +12,12 @@ namespace craftpulse\warp\base;
 
 use Craft;
 use craft\elements\User;
+use craft\events\RegisterEmailMessagesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
+use craft\models\SystemMessage;
 use craft\services\Gc;
+use craft\services\SystemMessages;
 use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
@@ -25,6 +28,7 @@ use craftpulse\warp\controllers\OverviewController;
 use craftpulse\warp\controllers\SettingsController;
 use craftpulse\warp\models\Login;
 use craftpulse\warp\models\Settings;
+use craftpulse\warp\services\Logins;
 use craftpulse\warp\variables\WarpVariable;
 use yii\base\Event;
 use yii\web\UserEvent;
@@ -61,6 +65,7 @@ trait PluginTrait
         $this->_registerUserPermissions();
         $this->_registerLoginLog();
         $this->_registerSessionRegistry();
+        $this->_registerSystemMessages();
         $this->_registerVariable();
         $this->_configureAuthKit();
     }
@@ -272,6 +277,33 @@ trait PluginTrait
                 $event->rules['warp/passkeys/delete'] = 'warp/passkeys/delete';
                 $event->rules['warp/sessions/revoke'] = 'warp/sessions/revoke';
                 $event->rules['warp/sessions/revoke-others'] = 'warp/sessions/revoke-others';
+            },
+        );
+    }
+
+    /**
+     * Registers Warp's own editable system message — the new-location alert.
+     *
+     * Auth Kit registers the login and registration emails; this is Warp's alone.
+     * Subject and body are Twig, rendered by [[\craftpulse\warp\services\Logins]]
+     * with a `location` string, the `user`, and a `sessionsUrl` the copy links to
+     * so a member can review and sign out other devices.
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _registerSystemMessages(): void
+    {
+        Event::on(
+            SystemMessages::class,
+            SystemMessages::EVENT_REGISTER_MESSAGES,
+            static function(RegisterEmailMessagesEvent $event): void {
+                $event->messages[] = new SystemMessage([
+                    'key' => Logins::MESSAGE_KEY_NEW_LOCATION,
+                    'heading' => Craft::t('warp', 'When a member signs in from a new location:'),
+                    'subject' => Craft::t('warp', 'New sign-in to your account'),
+                    'body' => Craft::t('warp', "Hi {{ user.friendlyName }},\n\nWe noticed a new sign-in to your account from {{ location }}.\n\nIf this was you, no action is needed. If it was not, sign out your other devices and review your passkeys here:\n\n{{ sessionsUrl }}"),
+                ]);
             },
         );
     }
