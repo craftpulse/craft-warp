@@ -19,6 +19,7 @@ use craft\helpers\Db;
 use craft\helpers\UrlHelper;
 use craft\web\Request as WebRequest;
 use craftpulse\warp\db\Table;
+use craftpulse\warp\helpers\Ip;
 use craftpulse\warp\models\Login;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\records\Login as LoginRecord;
@@ -216,7 +217,9 @@ class Logins extends Component
             $record->userId = $userId;
             $record->method = $method;
             $record->userAgent = $userAgent !== null ? mb_substr($userAgent, 0, self::USER_AGENT_MAX_LENGTH) : null;
-            $record->ip = $ip;
+            // The geo lookup above ran on the full address; only the stored
+            // copy is coarsened when anonymization is enabled.
+            $record->ip = $this->_settings()->anonymizeIp ? Ip::anonymize($ip) : $ip;
             $record->city = $location['city'];
             $record->country = $location['country'];
             $record->isNewLocation = $isNewLocation;

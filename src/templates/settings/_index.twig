@@ -79,6 +79,17 @@
                 errors: settings.getErrors('notifyOnNewLocation'),
                 disabled: readOnly,
             }) }}
+
+            {{ forms.lightswitchField({
+                label: 'Anonymize stored IP addresses'|t('warp'),
+                instructions: 'Zero the end of each IP address before it is stored with the login log and session registry.'|t('warp') ~
+                    ' <span class="info">' ~ 'The final octet of an IPv4 address is zeroed and an IPv6 address keeps only its network prefix, so a stored address covers a whole neighbourhood rather than one connection. City-level location still resolves: the lookup runs before the address is anonymized. Applies to new sign-ins only; rows already stored keep their captured address until pruned.'|t('warp') ~ '</span>',
+                id: 'anonymizeIp',
+                name: 'settings[anonymizeIp]',
+                on: settings.anonymizeIp,
+                errors: settings.getErrors('anonymizeIp'),
+                disabled: readOnly,
+            }) }}
     </div>
 
     {# =================================================================

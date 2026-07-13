@@ -51,6 +51,19 @@ class Settings extends Model
     // =========================================================================
 
     /**
+     * @var bool Whether stored IP addresses are anonymized. When enabled, the
+     * final octet of an IPv4 address (the final 80 bits of an IPv6 address) is
+     * zeroed through [[\craftpulse\warp\helpers\Ip::anonymize()]] before a
+     * login-log or session-registry row is written. Geo lookups still run on
+     * the full address first, so city-level location is unaffected. Applies to
+     * new rows only; rows already stored keep their captured address until
+     * pruned.
+     *
+     * @since 5.0.0
+     */
+    public bool $anonymizeIp = false;
+
+    /**
      * @var bool Whether Warp offers passwordless registration from the unified
      * request form. Registration additionally requires Craft's own
      * `allowPublicRegistration` — when either is off the form silently degrades
@@ -368,7 +381,7 @@ class Settings extends Model
         $rules[] = [['otpDigits'], 'validateResolvedInt', 'params' => ['min' => 4, 'max' => 10], 'skipOnEmpty' => false];
         $rules[] = [['otpMaxAttempts'], 'validateResolvedInt', 'params' => ['min' => 1, 'max' => 10], 'skipOnEmpty' => false];
         $rules[] = [['perEmailLimit'], 'validateResolvedInt', 'params' => ['min' => 1, 'max' => 100], 'skipOnEmpty' => false];
-        $rules[] = [['enableRegistration', 'enablePasskeyNudge', 'notifyOnNewLocation'], 'boolean'];
+        $rules[] = [['anonymizeIp', 'enableRegistration', 'enablePasskeyNudge', 'notifyOnNewLocation'], 'boolean'];
         $rules[] = [['geoDatabaseUrl'], 'string'];
         $rules[] = [['registrationGroupUid'], 'string'];
         $rules[] = [['registrationGroupUid'], 'validateRegistrationGroupUid'];

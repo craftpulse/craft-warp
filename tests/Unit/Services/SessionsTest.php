@@ -121,6 +121,36 @@ it('records the current session against its device on login', function() {
         ->and($record->userAgent)->toContain('Chrome');
 });
 
+it('anonymizes the stored IP when the setting is on', function() {
+    $user = sessionsUser();
+    $token = insertCoreSession((int)$user->id);
+    Craft::$app->getUser()->setIdentity($user);
+    setCurrentToken($token);
+    $originalAnonymize = Warp::$plugin->getSettings()->anonymizeIp;
+    Warp::$plugin->getSettings()->anonymizeIp = true;
+
+    // craft-pest identifies the fake request via an X-Forwarded-For header,
+    // and getUserIP() memoizes its first answer — plant a known address in
+    // that header and reset the memo on both sides.
+    $request = Craft::$app->getRequest();
+    $ipProperty = new ReflectionProperty(craft\web\Request::class, '_ipAddress');
+    $ipProperty->setValue($request, null);
+    $originalForwardedFor = $request->getHeaders()->get('X-Forwarded-For');
+    $request->getHeaders()->set('X-Forwarded-For', '203.0.113.45');
+
+    try {
+        Warp::$plugin->getSessions()->record();
+    } finally {
+        Warp::$plugin->getSettings()->anonymizeIp = $originalAnonymize;
+        $request->getHeaders()->set('X-Forwarded-For', $originalForwardedFor);
+        $ipProperty->setValue($request, null);
+    }
+
+    $record = SessionRecord::findOne(['tokenHash' => hash('sha256', $token)]);
+
+    expect($record->ip)->toBe('203.0.113.0');
+});
+
 it('does not record twice for the same session token', function() {
     $user = sessionsUser();
     $token = insertCoreSession((int)$user->id);

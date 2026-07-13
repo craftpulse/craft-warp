@@ -243,6 +243,37 @@ it('respects the notifyOnNewLocation setting', function() {
     }
 });
 
+it('anonymizes the stored IP when the setting is on, without disturbing geo', function() {
+    $user = loginLogUser();
+    Warp::$plugin->set('geo', fixedGeo('Brussels', 'BE'));
+    $originalAnonymize = Warp::$plugin->getSettings()->anonymizeIp;
+    Warp::$plugin->getSettings()->anonymizeIp = true;
+
+    // craft-pest identifies the fake request via an X-Forwarded-For header,
+    // and getUserIP() memoizes its first answer — plant a known address in
+    // that header and reset the memo on both sides.
+    $request = Craft::$app->getRequest();
+    $ipProperty = new ReflectionProperty(craft\web\Request::class, '_ipAddress');
+    $ipProperty->setValue($request, null);
+    $originalForwardedFor = $request->getHeaders()->get('X-Forwarded-For');
+    $request->getHeaders()->set('X-Forwarded-For', '203.0.113.45');
+
+    try {
+        Warp::$plugin->getLogins()->record($user, Login::METHOD_OTP);
+    } finally {
+        Warp::$plugin->getSettings()->anonymizeIp = $originalAnonymize;
+        Warp::$plugin->set('geo', ['class' => Geo::class]);
+        $request->getHeaders()->set('X-Forwarded-For', $originalForwardedFor);
+        $ipProperty->setValue($request, null);
+    }
+
+    $record = LoginRecord::findOne(['userId' => $user->id]);
+
+    expect($record->ip)->toBe('203.0.113.0')
+        ->and($record->city)->toBe('Brussels')
+        ->and($record->country)->toBe('BE');
+});
+
 it('prunes rows past the retention window when garbage collection runs', function() {
     $stale = loginLogUser();
     $fresh = loginLogUser();

@@ -21,7 +21,9 @@ use craftpulse\authkit\audit\AuthEvent;
 use craftpulse\authkit\AuthKit;
 use craftpulse\warp\db\Table;
 use craftpulse\warp\helpers\Device;
+use craftpulse\warp\helpers\Ip;
 use craftpulse\warp\models\SessionInfo;
+use craftpulse\warp\models\Settings;
 use craftpulse\warp\records\Session as SessionRecord;
 use craftpulse\warp\Warp;
 use Throwable;
@@ -224,7 +226,9 @@ class Sessions extends Component
             $record->userId = (int)$user->id;
             $record->tokenHash = $tokenHash;
             $record->userAgent = $userAgent !== null ? mb_substr($userAgent, 0, self::USER_AGENT_MAX_LENGTH) : null;
-            $record->ip = $ip;
+            // The geo lookup above ran on the full address; only the stored
+            // copy is coarsened when anonymization is enabled.
+            $record->ip = $this->_settings()->anonymizeIp ? Ip::anonymize($ip) : $ip;
             $record->city = $location['city'];
             $record->country = $location['country'];
             $record->save(false);
@@ -390,6 +394,22 @@ class Sessions extends Component
             userId: $userId,
             details: ['scope' => $scope],
         ));
+    }
+
+    /**
+     * Returns Warp's settings model.
+     *
+     * @return Settings
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _settings(): Settings
+    {
+        $settings = Warp::$plugin->getSettings();
+        assert($settings instanceof Settings);
+
+        return $settings;
     }
 
     /**
