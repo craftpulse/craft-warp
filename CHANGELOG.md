@@ -1,8 +1,8 @@
 # Release Notes for Warp
 
-## 5.0.0 - Unreleased
+## 5.0.0-beta.1 - 2026-07-13
 
-> Initial release.
+> Initial beta release.
 
 ### Added
 - Passwordless login for front-end members over two channels, built on Auth
