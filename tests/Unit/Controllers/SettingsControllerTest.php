@@ -41,11 +41,14 @@ afterEach(function() {
     }
 });
 
-it('renders the settings screen inside the Warp section', function() {
+it('renders the settings screen inside the Warp section with hover info popovers', function() {
     $this->actingAs(settingsAdmin())
         ->get(UrlHelper::cpUrl('warp/settings'))
         ->assertOk()
-        ->assertSee('Login methods');
+        ->assertSee('Login methods')
+        // The deeper guidance rides inside the field instructions as an `info`
+        // span, which Craft's CP renders as the hover popover icon.
+        ->assertSee('class="info"');
 })->skip($cortexNavIsBroken, 'a CP plugin crashes getCpNavItem() in the sidebar');
 
 it('redirects the global plugin-settings entry into the Warp section', function() {
