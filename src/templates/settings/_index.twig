@@ -163,7 +163,8 @@
        Registration
        ================================================================= #}
     <div id="warp-registration" class="hidden">
-            {% if settings.enableRegistration and not allowPublicRegistration %}
+            {% set registrationCallout = settings.enableRegistration and not allowPublicRegistration %}
+        {% if registrationCallout %}
                 <div class="readable">
                     <blockquote class="note warning">
                         <p>
@@ -184,7 +185,7 @@
                 on: settings.enableRegistration,
                 errors: settings.getErrors('enableRegistration'),
                 disabled: readOnly,
-                first: true,
+                first: not registrationCallout,
             }) }}
 
             {{ forms.selectField({
