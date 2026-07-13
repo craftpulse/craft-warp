@@ -16,6 +16,7 @@ use craft\base\Plugin;
 use craft\helpers\UrlHelper;
 use craftpulse\warp\base\PluginTrait;
 use craftpulse\warp\controllers\OverviewController;
+use craftpulse\warp\controllers\SettingsController;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\ServicesTrait;
 
@@ -117,7 +118,7 @@ class Warp extends Plugin
             ];
         }
 
-        if ($user->getIsAdmin()) {
+        if ($user->getIdentity()?->can(SettingsController::PERMISSION_MANAGE_SETTINGS)) {
             $item['subnav']['settings'] = [
                 'label' => Craft::t('warp', 'Settings'),
                 'url' => 'warp/settings',

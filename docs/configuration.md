@@ -109,16 +109,19 @@ Warp registers one permission under a **Warp** heading:
 The overview subnav item and the `warp/overview` route are both gated on this
 permission, so a control-panel user with the plugin section but not this
 permission sees no overview and gets a 403 if they navigate to it directly. The
-settings screen is separately gated on admin access.
+settings screen is separately gated on the `warp:manageSettings` permission:
+who may be on the screen is a permission decision, while `allowAdminChanges`
+decides only whether writes are possible. A user holding neither permission
+gets no Warp nav item at all. (Admins implicitly hold every permission.)
 
 ## Read-only mode (`allowAdminChanges`)
 
 Warp follows Craft's standard production posture. When `allowAdminChanges` is
 `false` in `config/general.php`:
 
-- The settings screen **still renders**, so an admin can read the current
-  configuration, but every field is disabled (the template is passed
-  `readOnly = true`).
+- The settings screen **still renders** for anyone holding
+  `warp:manageSettings`, so the current configuration stays readable, but every
+  field is disabled (the template is passed `readOnly = true`).
 - The save action **fails closed**: it re-checks `allowAdminChanges` and throws a
   403 before writing anything, so a crafted POST cannot bypass the read-only
   screen.

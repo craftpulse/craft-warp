@@ -24,21 +24,32 @@ use yii\web\Response;
  * control-panel section, so they keep the Warp breadcrumb and the `Settings`
  * subnav item rather than bouncing out to the global plugin-settings screen.
  *
- * Access requires an admin. The edit screen stays viewable when
- * `allowAdminChanges` is disabled (the standard production posture); the save
- * action re-checks it and fails closed.
+ * Access is gated by [[PERMISSION_MANAGE_SETTINGS]]: the permission decides who
+ * may be on the screen, while `allowAdminChanges` decides only whether writes
+ * are possible. With admin changes disabled (the standard production posture)
+ * the screen renders read-only and the save action fails closed.
  *
  * @author CraftPulse
  * @since 5.0.0
  */
 class SettingsController extends Controller
 {
+    // Const Properties
+    // =========================================================================
+
+    /**
+     * @var string The permission that grants access to Warp's settings screen.
+     *
+     * @since 5.0.0
+     */
+    public const PERMISSION_MANAGE_SETTINGS = 'warp:manageSettings';
+
     // Public Methods
     // =========================================================================
 
     /**
      * @inheritdoc
-     * @throws ForbiddenHttpException if the user is not an admin
+     * @throws ForbiddenHttpException if the user lacks the manage-settings permission
      */
     public function beforeAction($action): bool
     {
@@ -47,7 +58,7 @@ class SettingsController extends Controller
         }
 
         $this->requireCpRequest();
-        $this->requireAdmin(false);
+        $this->requirePermission(self::PERMISSION_MANAGE_SETTINGS);
 
         return true;
     }

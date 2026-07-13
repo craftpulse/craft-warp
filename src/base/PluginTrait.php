@@ -22,6 +22,7 @@ use craft\web\User as WebUser;
 use craftpulse\authkit\audit\AuthEvent;
 use craftpulse\authkit\AuthKit;
 use craftpulse\warp\controllers\OverviewController;
+use craftpulse\warp\controllers\SettingsController;
 use craftpulse\warp\models\Login;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\variables\WarpVariable;
@@ -239,6 +240,9 @@ trait PluginTrait
                     'permissions' => [
                         OverviewController::PERMISSION_VIEW_OVERVIEW => [
                             'label' => Craft::t('warp', 'View the overview'),
+                        ],
+                        SettingsController::PERMISSION_MANAGE_SETTINGS => [
+                            'label' => Craft::t('warp', 'Manage plugin settings'),
                         ],
                     ],
                 ];

@@ -10,6 +10,7 @@
  */
 
 use craft\elements\User;
+use craftpulse\warp\controllers\SettingsController;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\Warp;
 
@@ -43,4 +44,19 @@ it('shows the CP nav item with both subnav entries to an admin', function() {
 
     expect($item)->not->toBeNull()
         ->and($item['subnav'])->toHaveKeys(['overview', 'settings']);
+});
+
+it('shows only the settings subnav to a non-admin holding manage-settings', function() {
+    $user = activeAuthUser();
+    Craft::$app->getUserPermissions()->saveUserPermissions(
+        (int)$user->id,
+        [SettingsController::PERMISSION_MANAGE_SETTINGS],
+    );
+    $this->actingAs($user);
+
+    $item = Warp::getInstance()->getCpNavItem();
+
+    expect($item)->not->toBeNull()
+        ->and($item['subnav'])->toHaveKey('settings')
+        ->and($item['subnav'])->not->toHaveKey('overview');
 });
