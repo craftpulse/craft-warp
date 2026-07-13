@@ -198,7 +198,12 @@
                 }).then(function () {
                     window.location.href = '{{ afterSignInUrl }}';
                 }).catch(function (error) {
-                    status.textContent = error.message || '{{ 'Passkey sign-in failed. Please try your email instead.'|t('warp')|e('js') }}';
+                    // A cancelled or timed-out browser ceremony throws a DOMException
+                    // whose message is written for developers, not members.
+                    var ceremonyFailed = error && (error.name === 'NotAllowedError' || error.name === 'AbortError');
+                    status.textContent = ceremonyFailed
+                        ? '{{ 'Passkey sign-in was cancelled or timed out. Try again, or use your email above instead.'|t('warp')|e('js') }}'
+                        : (error.message || '{{ 'Passkey sign-in failed. Please try your email instead.'|t('warp')|e('js') }}');
                     status.hidden = false;
                     status.focus();
                     button.disabled = false;

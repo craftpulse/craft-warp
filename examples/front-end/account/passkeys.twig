@@ -174,6 +174,8 @@
                     }).catch(function (error) {
                         if (error.reauthRequired) {
                             showReauth();
+                        } else if (error && (error.name === 'NotAllowedError' || error.name === 'AbortError')) {
+                            showError(enrollError, '{{ 'The passkey step was cancelled or timed out. Please try again.'|t('warp')|e('js') }}');
                         } else {
                             showError(enrollError, error.message || '{{ 'Could not add a passkey. Please try again.'|t('warp')|e('js') }}');
                         }
