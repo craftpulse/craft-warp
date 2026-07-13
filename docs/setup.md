@@ -149,10 +149,51 @@ core's own emails (account activation, password reset) applies here:
   new-location alert gets `{{ user }}`, `{{ city }}`, `{{ country }}`,
   `{{ location }}`, and `{{ sessionsUrl }}`.
 - **Visual styling** comes from Craft's own email template setting
-  (**Settings** > **Email** > **HTML Email Template**): point it at a site
-  Twig template and every system email, Warp's included, renders its parsed
-  body inside your branded HTML wrapper. No Warp configuration is involved,
-  and the plain-text alternative Craft generates stays intact.
+  (**Settings** > **Email** > **HTML Email Template**, project-config
+  tracked; requires Craft Pro). Point it at a site Twig template and every
+  system email, Warp's included, renders inside your branded HTML wrapper. No
+  Warp configuration is involved, and the plain-text alternative Craft
+  generates stays intact. Without a custom template (or on Craft Solo),
+  emails use Craft's plain default wrapper.
+
+### Styling the emails
+
+The wrapper is an ordinary site Twig template. It receives `body`, the
+message's parsed Markdown as ready-to-print HTML, plus the same variables the
+message body gets (`user`, `link`, `code`, and so on), in case the wrapper
+wants them. A minimal `templates/_emails/wrapper.twig`:
+
+```twig
+<!DOCTYPE html>
+<html lang="{{ craft.app.language }}">
+<head>
+    <meta charset="utf-8">
+</head>
+<body style="margin: 0; padding: 0; background: #f3f4f6;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center" style="padding: 32px 16px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+                       style="background: #ffffff; border-radius: 8px; padding: 32px; font-family: sans-serif; color: #111827;">
+                    <tr><td>
+                        {# Your logo/header here #}
+                        {{ body }}
+                        {# Your footer here #}
+                    </td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+```
+
+Set **HTML Email Template** to `_emails/wrapper` and send a test from the
+same screen (**Settings** > **Email** > **Test**); a passwordless sign-in
+request from the front end then arrives styled. See
+[Craft's mail documentation](https://craftcms.com/docs/5.x/system/mail.html)
+for the full mail-settings reference, including per-environment overrides via
+`config/app.php`.
 
 ## Registration prerequisites
 
