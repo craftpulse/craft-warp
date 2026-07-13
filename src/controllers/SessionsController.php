@@ -14,7 +14,6 @@ use Craft;
 use craft\elements\User;
 use craft\helpers\UrlHelper;
 use craft\web\Controller;
-use craftpulse\authkit\AuthKit;
 use craftpulse\warp\Warp;
 use yii\web\Response;
 
@@ -24,11 +23,11 @@ use yii\web\Response;
  *
  * Both actions are POST-only, require a login (guests are rejected by the
  * non-anonymous default), and answer either JSON or a redirect-with-flash so the
- * page can post over fetch or a plain form. Killing a session is sensitive, so
- * both pass the recent-auth gate — the passwordless replacement for
- * `requireElevatedSession()` — and a stale session gets the friendly
- * `reauthRequired` envelope the front end keys off, exactly as
- * [[PasskeysController]] does.
+ * page can post over fetch or a plain form. Unlike passkey management, session
+ * revocation is deliberately NOT behind the recent-auth gate: it is a defensive,
+ * reversible action (the worst outcome is a sign-out), and a member spotting a
+ * suspicious device must be able to kill it immediately, however old their own
+ * session is. Credential management keeps the step-up; cleanup does not.
  *
  * The controller stays thin: ownership scoping, the authoritative kill, and the
  * registry bookkeeping all live in [[\craftpulse\warp\services\Sessions]], which
@@ -56,10 +55,6 @@ class SessionsController extends Controller
     public function actionRevoke(): Response
     {
         $this->requirePostRequest();
-
-        if (($reauth = $this->_guardRecentAuth()) !== null) {
-            return $reauth;
-        }
 
         $uid = (string)$this->request->getRequiredBodyParam('uid');
 
@@ -96,10 +91,6 @@ class SessionsController extends Controller
     {
         $this->requirePostRequest();
 
-        if (($reauth = $this->_guardRecentAuth()) !== null) {
-            return $reauth;
-        }
-
         $count = Warp::$plugin->getSessions()->revokeOthers($this->_currentUser());
 
         return $this->asSuccess(Craft::t('warp', 'Signed out of your other sessions.'), ['count' => $count])
@@ -124,43 +115,5 @@ class SessionsController extends Controller
         assert($user instanceof User);
 
         return $user;
-    }
-
-    /**
-     * Returns a re-authentication response when the recent-auth gate is not
-     * satisfied, or null when it is. Passwordless users re-authenticate by
-     * logging in again — the front end keys off `reauthRequired`.
-     *
-     * @return Response|null
-     *
-     * @author CraftPulse
-     * @since 5.0.0
-     */
-    private function _guardRecentAuth(): ?Response
-    {
-        if (AuthKit::$plugin->getPasskeys()->hasRecentAuth()) {
-            return null;
-        }
-
-        $message = Craft::t('warp', 'Please sign in again to manage your sessions.');
-
-        // A plain form POST cannot key off a `reauthRequired` envelope, so it
-        // degrades to a redirect back with the flash — asFailure() would only
-        // queue the flash and return null, leaving the `?? asJson()` fallback to
-        // answer a form with JSON it can't use.
-        if (!$this->request->getAcceptsJson()) {
-            $this->setFailFlash($message);
-
-            return $this->redirect($this->request->getReferrer() ?? UrlHelper::siteUrl());
-        }
-
-        $response = $this->asFailure($message, ['reauthRequired' => true])
-            ?? $this->asJson(['reauthRequired' => true]);
-
-        // Override asFailure()'s default 400 — a stale gate is an authorization
-        // problem the front end keys off, not a malformed request.
-        $response->setStatusCode(403);
-
-        return $response;
     }
 }

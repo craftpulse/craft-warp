@@ -12,15 +12,14 @@
    capture) shows as "Unknown device" with no per-row button — it has no registry
    handle to target — but "Sign out everywhere else" still clears it.
 
-   Posts (JSON, POST, login required, recent-auth gated) to:
+   Posts (JSON, POST, login required) to:
      warp/sessions/revoke          -> sign out one session by its uid
      warp/sessions/revoke-others   -> sign out every session but this one
 
-   Recent-auth gate: signing sessions out is sensitive, so it needs a recent
-   sign-in. When the window has lapsed the endpoints answer 403 with
-   {reauthRequired: true}; this page catches that and asks the user to sign in
-   again (a fresh sign-in reopens the window). Passwordless users have no password
-   to "confirm" — signing in again IS the re-authentication.
+   No recent-auth gate here, deliberately: revoking a session is a defensive,
+   reversible action, and a member spotting a suspicious device must be able to
+   kill it at once, however old their own sign-in is. Passkey management (a
+   credential change) keeps the recent-auth step-up; cleanup does not.
 
    Requires a signed-in user ({% requireLogin %} sends guests to the login page).
 
@@ -37,7 +36,6 @@
 {% requireLogin %}
 
 {%- set warpBase = '' -%}
-{%- set loginUrl = '/members/login' -%}   {# where a re-auth prompt sends the user #}
 {%- set sessions = craft.warp.sessions -%}
 {%- set otherCount = sessions|filter(s => not s.isCurrent)|length -%}
 
@@ -49,17 +47,6 @@
     </p>
 
     {% include warpBase ~ '_partials/flashes' only %}
-
-    {# Re-auth prompt. Hidden until an endpoint reports the recent-auth window
-       lapsed, then shown assertively with a way back to a fresh sign-in. #}
-    <div class="warp-sessions__reauth" id="warp-sessions-reauth" role="alert" tabindex="-1" hidden>
-        <p class="warp-sessions__reauth-text">
-            {{ 'For your security, managing sessions needs a recent sign-in. Please sign in again to continue.'|t('warp') }}
-        </p>
-        <p>
-            <a class="warp-link" href="{{ url(loginUrl, { returnUrl: '/' ~ craft.app.request.pathInfo }) }}">{{ 'Sign in again'|t('warp') }}</a>
-        </p>
-    </div>
 
     {# Polite status for successful, non-urgent updates. #}
     <p class="warp-sessions__status" id="warp-sessions-status" role="status" hidden></p>
@@ -135,16 +122,8 @@
             var revokeUrl = '{{ actionUrl('warp/sessions/revoke')|e('js') }}';
             var revokeOthersUrl = '{{ actionUrl('warp/sessions/revoke-others')|e('js') }}';
 
-            var reauth = document.getElementById('warp-sessions-reauth');
             var status = document.getElementById('warp-sessions-status');
             var errorNode = document.getElementById('warp-sessions-error');
-
-            function showReauth() {
-                status.hidden = true;
-                errorNode.hidden = true;
-                reauth.hidden = false;
-                reauth.focus();
-            }
 
             function showError(message) {
                 status.hidden = true;
@@ -188,11 +167,7 @@
                             window.location.reload();
                             return;
                         }
-                        if (result.data && result.data.reauthRequired) {
-                            showReauth();
-                        } else {
-                            showError((result.data && result.data.message) || '{{ 'Could not sign that session out. Please try again.'|t('warp')|e('js') }}');
-                        }
+                        showError((result.data && result.data.message) || '{{ 'Could not sign that session out. Please try again.'|t('warp')|e('js') }}');
                         button.disabled = false;
                     }).catch(function () {
                         showError('{{ 'Could not sign that session out. Please try again.'|t('warp')|e('js') }}');
@@ -217,11 +192,7 @@
                             window.location.reload();
                             return;
                         }
-                        if (result.data && result.data.reauthRequired) {
-                            showReauth();
-                        } else {
-                            showError((result.data && result.data.message) || '{{ 'Could not sign your other sessions out. Please try again.'|t('warp')|e('js') }}');
-                        }
+                        showError((result.data && result.data.message) || '{{ 'Could not sign your other sessions out. Please try again.'|t('warp')|e('js') }}');
                         othersButton.disabled = false;
                     }).catch(function () {
                         showError('{{ 'Could not sign your other sessions out. Please try again.'|t('warp')|e('js') }}');

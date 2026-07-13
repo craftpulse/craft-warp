@@ -89,22 +89,28 @@ it('rejects a guest signing out other sessions', function() {
     $this->postJson('/warp/sessions/revoke-others');
 })->throws(yii\web\ForbiddenHttpException::class);
 
-it('fails closed with reauthRequired when auth is stale on revoke', function() {
+it('revokes a session without any recent-auth stamp', function() {
+    // Session revocation is deliberately ungated: a member spotting a
+    // suspicious device must be able to kill it however old their session is.
     $user = revokeUser();
+    $token = coreSessionFor((int)$user->id);
+    $uid = registryRowFor((int)$user->id, $token);
 
-    $response = $this->actingAs($user)->postJson('/warp/sessions/revoke', ['uid' => StringHelper::UUID()]);
+    $response = $this->actingAs($user)->postJson('/warp/sessions/revoke', ['uid' => $uid]);
 
-    expect($response->getStatusCode())->toBe(403)
-        ->and($response->getJsonContent()['reauthRequired'])->toBeTrue();
+    expect($response->getStatusCode())->toBe(200)
+        ->and(coreSessionAlive($token))->toBeFalse();
 });
 
-it('fails closed with reauthRequired when auth is stale on revoke-others', function() {
+it('revokes other sessions without any recent-auth stamp', function() {
     $user = revokeUser();
+    $token = coreSessionFor((int)$user->id);
+    registryRowFor((int)$user->id, $token);
 
     $response = $this->actingAs($user)->postJson('/warp/sessions/revoke-others');
 
-    expect($response->getStatusCode())->toBe(403)
-        ->and($response->getJsonContent()['reauthRequired'])->toBeTrue();
+    expect($response->getStatusCode())->toBe(200)
+        ->and(coreSessionAlive($token))->toBeFalse();
 });
 
 it('requires a uid to revoke a session', function() {
@@ -132,16 +138,17 @@ it('redirects back with a flash on a form-mode revoke failure', function() {
         ->and(Craft::$app->getSession()->hasFlash('error'))->toBeTrue();
 });
 
-it('redirects back with a flash when auth is stale on a form-mode revoke', function() {
+it('revokes in form mode without any recent-auth stamp', function() {
     $user = revokeUser();
+    $token = coreSessionFor((int)$user->id);
+    $uid = registryRowFor((int)$user->id, $token);
     $this->actingAs($user);
 
-    // No recent-auth stamp: the gate fails. In form mode it degrades from the
-    // reauthRequired JSON envelope to a redirect back with the flash.
-    $response = $this->post('/warp/sessions/revoke', ['uid' => StringHelper::UUID()]);
+    // No recent-auth stamp: the revoke must proceed anyway (no gate on cleanup).
+    $response = $this->post('/warp/sessions/revoke', ['uid' => $uid]);
 
     expect($response->getStatusCode())->toBe(302)
-        ->and(Craft::$app->getSession()->hasFlash('error'))->toBeTrue();
+        ->and(coreSessionAlive($token))->toBeFalse();
 });
 
 // =============================================================================
