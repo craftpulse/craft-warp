@@ -193,14 +193,14 @@ class AuthController extends Controller
             Craft::warning('A magic-link verification failed or was reused.', __METHOD__);
             $this->setFailFlash(Craft::t('warp', 'This sign-in link is invalid or has expired. Please request a new one.'));
 
-            return $this->redirect(UrlHelper::siteUrl());
+            return $this->redirect($this->_failureLandingUrl());
         }
 
         if (!Warp::$plugin->getPasswordless()->loginUser($user, Login::METHOD_MAGIC_LINK)) {
             Craft::error('Craft refused the magic-link session login.', __METHOD__);
             $this->setFailFlash(Craft::t('warp', 'Sign-in failed. Please try again.'));
 
-            return $this->redirect(UrlHelper::siteUrl());
+            return $this->redirect($this->_failureLandingUrl());
         }
 
         $returnUrl = $this->_returnUrl($this->request->getQueryParam('returnUrl'));
@@ -309,7 +309,7 @@ class AuthController extends Controller
 
         $this->setFailFlash($message);
 
-        return $this->redirect($this->request->getReferrer() ?? UrlHelper::siteUrl());
+        return $this->redirect($this->request->getReferrer() ?? $this->_failureLandingUrl());
     }
 
     /**
@@ -329,7 +329,31 @@ class AuthController extends Controller
         Craft::warning($logMessage, __METHOD__);
         $this->setFailFlash(Craft::t('warp', 'This sign-in link is invalid or has expired. Please request a new one.'));
 
-        return $this->redirect(UrlHelper::siteUrl());
+        return $this->redirect($this->_failureLandingUrl());
+    }
+
+    /**
+     * Resolves the front-end page a failed verification redirects to: the
+     * site's `loginPath` general config value when it resolves to a path, or
+     * the site root when login paths are disabled (`loginPath: false` or
+     * headless installs). A failed link must land somewhere the fail flash
+     * actually renders and a fresh credential can be requested, and the login
+     * page is the one URL core already asks every site to name.
+     *
+     * @return string
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _failureLandingUrl(): string
+    {
+        $loginPath = Craft::$app->getConfig()->getGeneral()->getLoginPath();
+
+        if (!is_string($loginPath) || $loginPath === '') {
+            return UrlHelper::siteUrl();
+        }
+
+        return UrlHelper::siteUrl($loginPath);
     }
 
     /**

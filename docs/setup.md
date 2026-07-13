@@ -87,6 +87,14 @@ Two page URLs carry a specific job:
   the example copy already does this. Do not add "we could not find that account"
   messaging, which would defeat the enumeration safety the endpoint is built for.
 
+One core setting completes the wiring: point Craft's `loginPath` general config
+setting at your copied login page (for example `->loginPath('members/login')`).
+A failed verification (an expired or reused link, a dead registration link)
+redirects there so its "invalid or expired" flash renders on a page that shows
+flashes and offers a fresh request form. Without it, failures land on Craft's
+default `/login` path; if `loginPath` is disabled entirely (`false` or headless),
+they fall back to the site root.
+
 ## Customizing the emails
 
 Warp sends through Auth Kit's three editable system messages. Their default copy

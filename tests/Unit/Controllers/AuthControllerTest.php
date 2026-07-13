@@ -230,6 +230,38 @@ it('fails opaquely on an expired magic-link token', function() {
         ->and(Craft::$app->getUser()->getIsGuest())->toBeTrue();
 });
 
+it('lands a failed magic-link verify on the loginPath page so the flash renders', function() {
+    $generalConfig = Craft::$app->getConfig()->getGeneral();
+    $originalLoginPath = $generalConfig->loginPath;
+    $generalConfig->loginPath = 'members/login';
+
+    try {
+        $response = $this->get('/warp/auth/verify-link?mlToken=never-issued');
+
+        expect($response->getStatusCode())->toBe(302)
+            ->and((string)$response->getHeaders()->get('location'))->toContain('members/login')
+            ->and(Craft::$app->getUser()->getIsGuest())->toBeTrue();
+    } finally {
+        $generalConfig->loginPath = $originalLoginPath;
+    }
+});
+
+it('falls back to the site root on a failed magic-link verify when loginPath is disabled', function() {
+    $generalConfig = Craft::$app->getConfig()->getGeneral();
+    $originalLoginPath = $generalConfig->loginPath;
+    $generalConfig->loginPath = false;
+
+    try {
+        $response = $this->get('/warp/auth/verify-link?mlToken=never-issued');
+
+        expect($response->getStatusCode())->toBe(302)
+            ->and((string)$response->getHeaders()->get('location'))->not->toContain('login')
+            ->and(Craft::$app->getUser()->getIsGuest())->toBeTrue();
+    } finally {
+        $generalConfig->loginPath = $originalLoginPath;
+    }
+});
+
 it('drops an unsafe returnUrl on magic-link verify instead of redirecting offsite', function() {
     $user = activeAuthUser();
     seedMagicLink((int)$user->id, 'offsite-raw-token');
