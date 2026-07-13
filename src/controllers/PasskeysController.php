@@ -125,7 +125,15 @@ class PasskeysController extends Controller
 
         $credentials = (string)$this->request->getRequiredBodyParam('credentials');
         $credentialName = $this->request->getBodyParam('credentialName');
-        $credentialName = is_string($credentialName) ? $credentialName : null;
+        $credentialName = is_string($credentialName) ? trim($credentialName) : null;
+
+        // A passkey must be named. Without one, core falls back to a generic
+        // "Secure credential" label, and a list of those is indistinguishable
+        // on the management screen.
+        if ($credentialName === null || $credentialName === '') {
+            return $this->asFailure(Craft::t('warp', 'Please name this passkey.'))
+                ?? $this->asJson(['success' => false]);
+        }
 
         if (!AuthKit::$plugin->getPasskeys()->verifyCreation($credentials, $credentialName)) {
             return $this->asFailure(Craft::t('warp', 'Passkey creation failed.'))

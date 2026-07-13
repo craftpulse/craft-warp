@@ -100,8 +100,9 @@
                 autocomplete="off"
                 aria-describedby="warp-passkey-name-hint"
                 placeholder="{{ 'e.g. My laptop'|t('warp') }}"
+                required
             >
-            <span class="warp-field__hint" id="warp-passkey-name-hint">{{ 'A label so you can recognise this device later. Optional.'|t('warp') }}</span>
+            <span class="warp-field__hint" id="warp-passkey-name-hint">{{ 'A label so you can recognise this device later, for example "Work laptop" or "My phone".'|t('warp') }}</span>
         </div>
 
         <button class="warp-button warp-button--primary" type="button" id="warp-passkey-enroll">
@@ -151,13 +152,23 @@
             } else {
                 enrollButton.addEventListener('click', function () {
                     enrollError.hidden = true;
+
+                    // Require the name before the authenticator ceremony starts,
+                    // so nobody biometric-confirms a passkey that then fails to save.
+                    var credentialName = nameInput.value.trim();
+                    if (!credentialName) {
+                        showError(enrollError, '{{ 'Please name this passkey first.'|t('warp')|e('js') }}');
+                        nameInput.focus();
+                        return;
+                    }
+
                     enrollButton.disabled = true;
 
                     window.AuthKit.enrollPasskey({
                         optionsUrl: optionsUrl,
                         verifyUrl: verifyUrl,
                         csrfToken: csrfToken,
-                        credentialName: nameInput.value || null
+                        credentialName: credentialName
                     }).then(function () {
                         window.location.reload();
                     }).catch(function (error) {

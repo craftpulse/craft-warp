@@ -170,7 +170,10 @@ it('records a passkey.enrolled audit event on a successful verify-creation', fun
     $user = passkeyUser();
     $this->actingAs($user);
 
-    $response = $this->postJson('/warp/passkeys/verify-creation', ['credentials' => '{}']);
+    $response = $this->postJson('/warp/passkeys/verify-creation', [
+        'credentials' => '{}',
+        'credentialName' => 'Test device',
+    ]);
 
     expect($response->getStatusCode())->toBe(200);
 
@@ -180,6 +183,38 @@ it('records a passkey.enrolled audit event on a successful verify-creation', fun
         ->and($event->emitter)->toBe('warp')
         ->and($event->outcome)->toBe(AuthEvent::OUTCOME_SUCCESS)
         ->and($event->userId)->toBe((int)$user->id);
+});
+
+it('refuses an unnamed passkey on verify-creation', function() {
+    AuthKit::getInstance()->set('passkeys', new class() extends Passkeys {
+        /**
+         * @inheritdoc
+         */
+        public function hasRecentAuth(?int $within = null): bool
+        {
+            return true;
+        }
+
+        /**
+         * @inheritdoc
+         */
+        public function verifyCreation(string $credentials, ?string $credentialName = null): bool
+        {
+            return true;
+        }
+    });
+
+    $user = passkeyUser();
+    $this->actingAs($user);
+
+    $missing = $this->postJson('/warp/passkeys/verify-creation', ['credentials' => '{}']);
+    $blank = $this->postJson('/warp/passkeys/verify-creation', [
+        'credentials' => '{}',
+        'credentialName' => '   ',
+    ]);
+
+    expect($missing->getStatusCode())->toBe(400)
+        ->and($blank->getStatusCode())->toBe(400);
 });
 
 it('records no audit event when verify-creation fails', function() {
