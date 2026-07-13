@@ -12,14 +12,20 @@
  * @copyright Copyright (c) 2026 CraftPulse
  */
 
+use craftpulse\warp\controllers\AuthController;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\Passwordless;
 use craftpulse\warp\variables\WarpVariable;
 use craftpulse\warp\Warp;
 
 beforeEach(function() {
+    // The playground is a shared install, so the registration switch must be
+    // restored to whatever it was, not to Craft's default.
+    $this->originalAllowPublicRegistration = (bool)Craft::$app->getProjectConfig()->get('users.allowPublicRegistration');
     Craft::$app->getUser()->setIdentity(null);
     Craft::$app->getSession()->remove(Passwordless::SESSION_PASSKEY_NUDGE_KEY);
+    // Other files' request-flow tests leave the session-carried prefill behind.
+    Craft::$app->getSession()->remove(AuthController::SESSION_REQUESTED_EMAIL);
     Warp::$plugin->getSettings()->loginMethods = [Settings::CHANNEL_MAGIC_LINK, Settings::CHANNEL_OTP];
     Warp::$plugin->getSettings()->enableRegistration = true;
 });
@@ -27,9 +33,10 @@ beforeEach(function() {
 afterEach(function() {
     Craft::$app->getUser()->setIdentity(null);
     Craft::$app->getSession()->remove(Passwordless::SESSION_PASSKEY_NUDGE_KEY);
+    Craft::$app->getSession()->remove(AuthController::SESSION_REQUESTED_EMAIL);
     Warp::$plugin->getSettings()->loginMethods = [Settings::CHANNEL_MAGIC_LINK, Settings::CHANNEL_OTP];
     Warp::$plugin->getSettings()->enableRegistration = true;
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
+    setAllowPublicRegistration($this->originalAllowPublicRegistration);
 });
 
 it('registers craft.warp and renders its passkey check for a guest', function() {
@@ -66,14 +73,31 @@ it('reports the enabled login methods from settings', function() {
 });
 
 it('reports registration open only when both flags are on', function() {
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
+    setAllowPublicRegistration(false);
     expect((new WarpVariable())->getRegistrationEnabled())->toBeFalse();
 
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', true);
+    setAllowPublicRegistration(true);
     expect((new WarpVariable())->getRegistrationEnabled())->toBeTrue();
 
     Warp::$plugin->getSettings()->enableRegistration = false;
     expect((new WarpVariable())->getRegistrationEnabled())->toBeFalse();
+});
+
+it('exposes the session-carried requested email and null when none is held', function() {
+    $session = Craft::$app->getSession();
+    $session->remove(AuthController::SESSION_REQUESTED_EMAIL);
+
+    try {
+        expect((new WarpVariable())->getRequestedEmail())->toBeNull();
+
+        $session->set(AuthController::SESSION_REQUESTED_EMAIL, 'member@example.com');
+
+        // Reading does not clear: the prefill must survive a wrong-code reload.
+        expect((new WarpVariable())->getRequestedEmail())->toBe('member@example.com')
+            ->and((new WarpVariable())->getRequestedEmail())->toBe('member@example.com');
+    } finally {
+        $session->remove(AuthController::SESSION_REQUESTED_EMAIL);
+    }
 });
 
 it('does not flag the nudge for a fresh guest render', function() {
@@ -99,6 +123,7 @@ it('resolves every craft.warp accessor the example templates call through Twig',
         nudge:{{ craft.warp.showPasskeyNudge ? 'yes' : 'no' }}
         otpdigits:{{ craft.warp.otpDigits }}
         sessions:{{ craft.warp.sessions|length }}
+        requested:{{ craft.warp.requestedEmail ?? 'none' }}
         TWIG;
 
     $out = Craft::$app->getView()->renderString($template);
@@ -111,5 +136,6 @@ it('resolves every craft.warp accessor the example templates call through Twig',
         ->toContain('registration:')
         ->toContain('nudge:no')
         ->toContain('otpdigits:6')
-        ->toContain('sessions:0');
+        ->toContain('sessions:0')
+        ->toContain('requested:none');
 });

@@ -8,10 +8,11 @@
    Posts to:  warp/auth/verify-code   (POST, anonymous, rate-limited)
 
    The address the code was sent to is carried across the redirect in the
-   session (the visitor's own input echoed back, so nothing is revealed) and
-   submitted through a hidden field; the visible email input only appears as a
-   fallback when the page is reached directly and the session holds no address.
-   A ?email=... query param also prefills, if you build your own redirect.
+   session (the visitor's own input echoed back, so nothing is revealed), read
+   back through craft.warp.requestedEmail, and submitted through a hidden
+   field; the visible email input only appears as a fallback when the page is
+   reached directly and the session holds no address. A ?email=... query param
+   also prefills, if you build your own redirect.
 
    The code length below is read from Warp's otpDigits setting via
    craft.warp.otpDigits, so it tracks the setting automatically.
@@ -29,7 +30,7 @@
 {%- set warpBase = '' -%}
 {%- set loginUrl = '/members/login' -%}   {# back to the request form — your route #}
 {%- set afterSignInUrl = '/members' -%}   {# where a correct code lands the user #}
-{%- set prefillEmail = craft.app.session.get('warp:requestedEmail') ?? craft.app.request.getParam('email') ?? '' -%}
+{%- set prefillEmail = craft.warp.requestedEmail ?? craft.app.request.getParam('email') ?? '' -%}
 {%- set otpDigits = craft.warp.otpDigits -%}
 
 <main class="warp-auth" id="main-content" tabindex="-1">

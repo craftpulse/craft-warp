@@ -125,12 +125,17 @@ function capturedMailer(): CollectingMailer
 
 function enablePublicRegistration(): void
 {
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', true);
+    setAllowPublicRegistration(true);
     Warp::$plugin->getSettings()->enableRegistration = true;
 }
 
 beforeEach(function() {
     Craft::$app->getUser()->setIdentity(null);
+
+    // The playground is a shared install, so the registration switch is
+    // restored to whatever it was, not to Craft's default. Tests that depend
+    // on a specific switch state set it explicitly themselves.
+    $this->originalAllowPublicRegistration = (bool)Craft::$app->getProjectConfig()->get('users.allowPublicRegistration');
 
     // Swap Auth Kit's token store for one wired to a captured mailer so request
     // tests never touch a real transport, then re-apply Warp's wiring so the
@@ -157,7 +162,7 @@ afterEach(function() {
     $settings->enableRegistration = true;
     $settings->registrationGroupUid = null;
 
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
+    setAllowPublicRegistration($this->originalAllowPublicRegistration);
     AuthKit::getInstance()->set('tokens', ['class' => Tokens::class]);
 });
 
@@ -364,7 +369,7 @@ it('responds byte-identically across active, unknown, pending, suspended, and re
     $pendingResp = $this->postJson('/warp/auth/request', ['email' => $pending->email]);
     $suspendedResp = $this->postJson('/warp/auth/request', ['email' => $suspended->email]);
 
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
+    setAllowPublicRegistration(false);
     $registrationOff = $this->postJson('/warp/auth/request', ['email' => 'ghost2-' . StringHelper::UUID() . '@warp-test.example']);
 
     expect($unknown->getStatusCode())->toBe($existing->getStatusCode())
@@ -387,7 +392,8 @@ it('sends no registration email for a suspended address even with registration o
 });
 
 it('sends no registration email when public registration is off', function() {
-    // allowPublicRegistration defaults off; an unknown address gets nothing.
+    // With allowPublicRegistration off, an unknown address gets nothing.
+    setAllowPublicRegistration(false);
     $this->post('/warp/auth/request', ['email' => 'noreg-' . StringHelper::UUID() . '@warp-test.example']);
 
     expect(capturedMailer()->sent)->toHaveCount(0);

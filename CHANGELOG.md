@@ -73,7 +73,8 @@
   GDPR lawful-basis notes, in `docs/privacy.md`.
 - A `craft.warp` Twig variable exposing the front-end surface: `hasPasskeys`,
   `passkeys`, `webauthnJsUrl` (delegated to Auth Kit), `registrationEnabled`,
-  `loginMethods`, `otpDigits`, `sessions`, and `showPasskeyNudge`.
+  `loginMethods`, `otpDigits`, `requestedEmail` (the session-carried code-entry
+  prefill), `sessions`, and `showPasskeyNudge`.
 - An append-only passwordless login log behind the overview, recorded on every
   Warp login path (magic link, code, registration) and on core's passkey-login
   endpoint, pruned after 90 days on Craft's garbage-collection pass.

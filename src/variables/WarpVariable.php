@@ -13,6 +13,7 @@ namespace craftpulse\warp\variables;
 use Craft;
 use craft\elements\User;
 use craftpulse\authkit\variables\AuthKitVariable;
+use craftpulse\warp\controllers\AuthController;
 use craftpulse\warp\models\SessionInfo;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\Passwordless;
@@ -105,6 +106,25 @@ class WarpVariable
     public function getRegistrationEnabled(): bool
     {
         return Warp::$plugin->getRegistration()->isEnabled();
+    }
+
+    /**
+     * Returns the email address the visitor last requested a sign-in credential
+     * for, or null when none is held — the session-carried prefill the code-entry
+     * page reads, so the visitor need not retype the address they just submitted.
+     * It is the visitor's own input echoed back, so nothing is revealed. Cleared
+     * by the verify endpoint on a successful sign-in.
+     *
+     * @return string|null
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getRequestedEmail(): ?string
+    {
+        $email = $this->_session()->get(AuthController::SESSION_REQUESTED_EMAIL);
+
+        return is_string($email) && $email !== '' ? $email : null;
     }
 
     /**

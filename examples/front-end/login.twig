@@ -5,7 +5,9 @@
    server-side and either emails an existing account a sign-in credential or,
    when registration is open, emails an unknown address a sign-up link. The HTTP
    response is identical either way, so this page never reveals which addresses
-   are registered. Write your copy to cover both cases (it already does below).
+   are registered. The title and sign-up copy key off
+   craft.warp.registrationEnabled, so a closed-registration site never promises
+   an account it will not create.
 
    Posts to:  warp/auth/request      (POST, anonymous, rate-limited)
    Optional passkey button talks to Craft core's anonymous endpoints:
@@ -38,6 +40,9 @@
 {%- set codeEntryUrl = 'members/verify-code' -%}   {# lands here after an OTP-code request #}
 {%- set afterSignInUrl = craft.app.request.getParam('returnUrl') ?? '/members' -%}   {# a ?returnUrl= sends the member back where re-auth interrupted them; the endpoint re-validates it as same-site #}
 
+{# --- Whether sign-up is open (Warp's setting AND Craft's own switch). ------ #}
+{%- set registrationOpen = craft.warp.registrationEnabled -%}
+
 {# --- Enabled login methods (a subset of magic-link + otp). ---------------- #}
 {%- set loginMethods = craft.warp.loginMethods -%}
 {%- set hasMagicLink = 'magic-link' in loginMethods -%}
@@ -47,16 +52,20 @@
 {%- set defaultRedirect = defaultChannel == 'otp' ? codeEntryUrl : linkSentUrl -%}
 
 <main class="warp-auth" id="main-content" tabindex="-1">
-    <h1 class="warp-auth__title">{{ 'Sign in or create an account'|t('warp') }}</h1>
+    <h1 class="warp-auth__title">
+        {{ registrationOpen ? 'Sign in or create an account'|t('warp') : 'Sign in'|t('warp') }}
+    </h1>
 
     <p class="warp-auth__intro">
         {{ 'Enter your email and we will send you a secure way to sign in. No password required.'|t('warp') }}
     </p>
 
-    <p class="warp-auth__intro warp-auth__signup">
-        <strong>{{ 'New here?'|t('warp') }}</strong>
-        {{ 'The same form signs you up: we will email you a link that creates your account.'|t('warp') }}
-    </p>
+    {% if registrationOpen %}
+        <p class="warp-auth__intro warp-auth__signup">
+            <strong>{{ 'New here?'|t('warp') }}</strong>
+            {{ 'The same form signs you up: we will email you a link that creates your account.'|t('warp') }}
+        </p>
+    {% endif %}
 
     {% if craft.app.request.getParam('returnUrl') %}
         {# The returnUrl rides exactly one page view (a re-auth interruption).

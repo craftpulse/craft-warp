@@ -19,3 +19,17 @@ uses(TestCase::class)
         Craft::$app->set('cache', new ArrayCache());
     })
     ->in(__DIR__);
+
+/**
+ * Sets Craft's public-registration switch only when it differs from the
+ * current value. A project-config write inside craft-pest's per-test
+ * transaction can desync the memoized config version from the stored one
+ * (surfacing as a StaleResourceException on a later write), so the suite
+ * skips every write it does not strictly need.
+ */
+function setAllowPublicRegistration(bool $value): void
+{
+    if ((bool)Craft::$app->getProjectConfig()->get('users.allowPublicRegistration') !== $value) {
+        Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', $value);
+    }
+}

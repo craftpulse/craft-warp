@@ -88,6 +88,13 @@ function activeRegistrationUser(string $email): User
     return Craft::$app->getUsers()->getUserById((int)$user->id);
 }
 
+beforeEach(function() {
+    // The playground is a shared install, so the registration switch is
+    // restored to whatever it was, not to Craft's default. Tests that depend
+    // on a specific switch state set it explicitly themselves.
+    $this->originalAllowPublicRegistration = (bool)Craft::$app->getProjectConfig()->get('users.allowPublicRegistration');
+});
+
 afterEach(function() {
     foreach (User::find()->email('*@warp-test.example')->status(null)->all() as $user) {
         Craft::$app->getElements()->deleteElement($user, true);
@@ -97,7 +104,7 @@ afterEach(function() {
     $settings->enableRegistration = true;
     $settings->registrationGroupUid = null;
 
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
+    setAllowPublicRegistration($this->originalAllowPublicRegistration);
 });
 
 // =============================================================================
@@ -207,21 +214,21 @@ it('fails closed for a token with no payload email', function() {
 
 it('is enabled only when both Warp and Craft allow registration', function() {
     Warp::$plugin->getSettings()->enableRegistration = true;
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', true);
+    setAllowPublicRegistration(true);
 
     expect(Warp::$plugin->getRegistration()->isEnabled())->toBeTrue();
 });
 
 it('is disabled when Warp\'s own setting is off', function() {
     Warp::$plugin->getSettings()->enableRegistration = false;
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', true);
+    setAllowPublicRegistration(true);
 
     expect(Warp::$plugin->getRegistration()->isEnabled())->toBeFalse();
 });
 
 it('is disabled when Craft\'s allowPublicRegistration is off', function() {
     Warp::$plugin->getSettings()->enableRegistration = true;
-    Craft::$app->getProjectConfig()->set('users.allowPublicRegistration', false);
+    setAllowPublicRegistration(false);
 
     expect(Warp::$plugin->getRegistration()->isEnabled())->toBeFalse();
 });
