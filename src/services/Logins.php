@@ -150,7 +150,6 @@ class Logins extends Component
                 'ip' => 'l.ip',
                 'city' => 'l.city',
                 'country' => 'l.country',
-                'isNewLocation' => 'l.isNewLocation',
                 'dateCreated' => 'l.dateCreated',
                 'email' => 'u.email',
                 'username' => 'u.username',

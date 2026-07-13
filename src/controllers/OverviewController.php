@@ -172,31 +172,31 @@ class OverviewController extends Controller
                     isset($row['city']) && $row['city'] !== null ? (string)$row['city'] : null,
                     isset($row['country']) && $row['country'] !== null ? (string)$row['country'] : null,
                 ),
-                'newLocation' => (bool)($row['isNewLocation'] ?? false),
                 'when' => is_string($created) ? $formatter->asDatetime($created, 'short') : '-',
             ];
         }, $rows);
     }
 
     /**
-     * Composes a human-friendly location label from a city and country, or a
-     * dash when neither is known (no geo database, or a login recorded before
-     * geo enrichment landed).
+     * Composes a human-friendly location label from a city and country, or
+     * `null` when neither is known (no geo database, or a login recorded
+     * before geo enrichment landed) — the table renders the null as a muted
+     * "Location unknown" badge rather than a bare placeholder string.
      *
      * @param string|null $city the resolved city, or null
      * @param string|null $country the resolved country, or null
-     * @return string
+     * @return string|null
      *
      * @author CraftPulse
      * @since 5.0.0
      */
-    private function _locationLabel(?string $city, ?string $country): string
+    private function _locationLabel(?string $city, ?string $country): ?string
     {
         return match (true) {
             $city !== null && $country !== null => "$city, $country",
             $country !== null => $country,
             $city !== null => $city,
-            default => '-',
+            default => null,
         };
     }
 

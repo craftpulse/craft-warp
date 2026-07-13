@@ -126,28 +126,23 @@
             background: var(--gray-100);
             color: var(--text-color);
         }
-        .warp-badge--new {
-            background: var(--yellow-100, #fdf3d4);
-            color: var(--yellow-800, #74600b);
-        }
     {% endcss %}
 
     {% js %}
         (() => {
-            const newLocationLabel = Craft.t('warp', 'New location');
+            const locationUnknownLabel = Craft.t('warp', 'Location unknown');
             const columns = [
                 { name: '__slot:title', title: Craft.t('warp', 'User'), sortField: 'email' },
                 { name: 'method', title: Craft.t('warp', 'Method'), sortField: 'method' },
                 { name: 'device', title: Craft.t('warp', 'Device') },
                 { name: 'ip', title: Craft.t('warp', 'IP address') },
-                { name: 'location', title: Craft.t('warp', 'Location') },
                 {
-                    name: 'newLocation',
-                    title: Craft.t('warp', 'New location'),
+                    name: 'location',
+                    title: Craft.t('warp', 'Location'),
                     callback: function(value) {
                         return value
-                            ? '<span class="warp-badge warp-badge--new">' + newLocationLabel + '</span>'
-                            : '';
+                            ? Craft.escapeHtml(value)
+                            : '<span class="warp-badge">' + locationUnknownLabel + '</span>';
                     },
                 },
                 { name: 'when', title: Craft.t('warp', 'When'), sortField: 'when' },
