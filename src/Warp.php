@@ -124,6 +124,12 @@ class Warp extends Plugin
             ];
         }
 
+        // A member of the CP with access to the plugin but none of its screens
+        // gets no nav item at all — never a dead entry that leads to a 403.
+        if ($item['subnav'] === []) {
+            return null;
+        }
+
         return $item;
     }
 

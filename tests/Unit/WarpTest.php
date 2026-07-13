@@ -9,6 +9,7 @@
  * @copyright Copyright (c) 2026 CraftPulse
  */
 
+use craft\elements\User;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\Warp;
 
@@ -25,4 +26,21 @@ it('exposes its own control-panel settings surface', function() {
 
     expect($plugin->hasCpSettings)->toBeTrue()
         ->and($plugin->getSettings())->toBeInstanceOf(Settings::class);
+});
+
+it('hides the CP nav item from a user with no reachable Warp screen', function() {
+    $user = activeAuthUser();
+    $this->actingAs($user);
+
+    expect(Warp::getInstance()->getCpNavItem())->toBeNull();
+});
+
+it('shows the CP nav item with both subnav entries to an admin', function() {
+    $admin = User::find()->admin()->one();
+    $this->actingAs($admin);
+
+    $item = Warp::getInstance()->getCpNavItem();
+
+    expect($item)->not->toBeNull()
+        ->and($item['subnav'])->toHaveKeys(['overview', 'settings']);
 });
