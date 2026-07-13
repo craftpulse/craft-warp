@@ -12,83 +12,70 @@ Warp ships two halves:
 - **The back end**, which is fixed. Action routes (`warp/auth/*`,
   `warp/passkeys/*`, `warp/sessions/*`), controllers, and services are
   registered by the plugin. You never define these; you post to them.
-- **The front end**, which is yours. Warp registers no site template root and
-  imposes no page URLs. It ships the screens as copy-in examples under
-  `examples/front-end/`, following the same "copy and restyle" model as the rest
-  of the CraftPulse security plugins.
+- **The front end**, which is yours. Warp registers no site template root. It
+  ships a complete member area as copy-in templates under
+  `example-templates/members/`, following the same model as Craft Commerce's
+  example templates: full pages extending a bundled layout, styled with
+  Tailwind CSS from a CDN, rendering the moment the folder is copied in.
 
-So the page a member visits to sign in is a template you own at a URL you choose;
-the endpoint that template posts to is Warp's.
+So the pages a member visits are templates you own; the endpoints those
+templates post to are Warp's.
 
 ## Copying the example templates
 
-Copy the whole `examples/front-end/` bundle into your project's `templates/`
-directory. The bundle is:
+Copy `example-templates/members/` into your project as `templates/members/`.
+The bundle is:
 
 ```
-login.twig                 sign in / sign up (one unified email form)
-link-sent.twig             "check your email" confirmation (magic-link branch)
-otp-verify.twig            enter the emailed one-time code
-account/index.twig         signed-in landing, hosts the passkey nudge
-account/passkeys.twig      enroll / name / delete passkeys
-account/sessions.twig      list and revoke active sessions
-_partials/flashes.twig     success and error flash notices
-_partials/passkey-nudge.twig   the show-once "add a passkey" nudge
+index.twig                     redirects to the account landing
+login.twig                     sign in / sign up (one unified email form)
+link-sent.twig                 "check your email" confirmation (magic-link branch)
+otp-verify.twig                enter the emailed one-time code
+account/index.twig             signed-in landing, hosts the passkey nudge
+account/passkeys.twig          enroll / name / delete passkeys
+account/sessions.twig          list and revoke active sessions
+account/_includes/passkey-nudge.twig   the show-once "add a passkey" nudge
+_private/layouts/index.twig    the shared HTML shell (head, nav, flashes)
+_private/layouts/includes/header.twig  the member-area nav
 ```
 
-Every file carries a header comment explaining what it posts to, which page URLs
-are yours, and its accessibility contract. Restyle freely: the templates carry no
-framework classes, only low-specificity `warp-` hooks.
+Every page extends `members/_private/layouts`, a complete HTML document with a
+skip link, a small nav, and the flash notices Warp's controllers set, so every
+URL under `/members` is a valid, styled page out of the box. Each file carries
+a header comment explaining what it posts to and its accessibility contract.
 
-### The `warpBase` include prefix
+Styling is Tailwind CSS loaded from a CDN in the layout head, the same
+approach Commerce's example templates take. To integrate with your own design,
+restyle the pages in place (swap the CDN link for your own build) or replace
+the bundled layout: change the one `{% extends %}` line per page to your
+site's layout and keep the `{% block main %}` content.
 
-Craft resolves `{% include %}` from the templates **root**, not relative to the
-including file. The templates that pull in a partial (`login.twig`,
-`link-sent.twig`, `otp-verify.twig`, `account/index.twig`, `account/sessions.twig`)
-declare a `warpBase` variable at the top and prefix their includes with it:
+The bundle assumes it lives at `templates/members/`: every template path and
+URL in it starts with `members/`. If you rename the folder, update those
+references throughout the bundle.
 
-```twig
-{%- set warpBase = '' -%}
-{% include warpBase ~ '_partials/flashes' only %}
-```
+### Page URLs versus Warp's routes
 
-- Copy the bundle to your templates **root** and leave `warpBase` empty.
-- Nest the bundle in a subfolder (say `templates/members/`) and set `warpBase`
-  to that path **with a trailing slash**, for example `'members/'`, so the
-  partial includes still resolve.
+The page URLs are plain template routing: `templates/members/login.twig`
+serves `/members/login`, and so on, with no `config/routes.php` entries
+needed. Warp fixes only the action routes the forms post to
+(`actionUrl('warp/auth/request')` and friends); those must not be changed.
 
-Set it once per page, at the top, where the other page variables live.
+Two behaviors worth knowing:
 
-### Page routing: your URLs versus Warp's routes
-
-Warp fixes only the action routes. The page URLs a member navigates between are
-yours. Each template exposes them as `{% set %}` variables at the top so you edit
-them in one place, for example in `login.twig`:
-
-```twig
-{%- set linkSentUrl = 'members/link-sent' -%}    {# after a magic-link request #}
-{%- set codeEntryUrl = 'members/verify-code' -%} {# after an OTP-code request #}
-{%- set afterSignInUrl = '/members' -%}          {# where the emailed link lands #}
-```
-
-Point these at the routes you serve the copied templates from (via
-`config/routes.php`, section/entry URIs, or template routing, whichever you use).
-The action routes the forms post to (`actionUrl('warp/auth/request')` and
-friends) are fixed and must not be changed.
-
-Two page URLs carry a specific job:
-
-- **`afterSignInUrl`** is passed as a hashed `redirect` and a `returnUrl`. It is
-  where a clicked magic link, a verified code, or a passkey login lands the
-  member. Warp validates it as same-site before honouring it, so an open-redirect
-  attempt is dropped and the member lands on the site root instead.
-- **`link-sent` / `otp-verify`** are the neutral pages the request form redirects
-  to. They must read the same whether the address was known, unknown, or garbage:
-  the example copy already does this. Do not add "we could not find that account"
-  messaging, which would defeat the enumeration safety the endpoint is built for.
+- **The post-sign-in destination** is `members/account`, passed as a hashed
+  `redirect` and a `returnUrl`. It is where a clicked magic link, a verified
+  code, or a passkey login lands the member. Warp validates it as same-site
+  before honouring it, so an open-redirect attempt is dropped and the member
+  lands on the site root instead.
+- **`link-sent` / `otp-verify`** are the neutral pages the request form
+  redirects to. They must read the same whether the address was known,
+  unknown, or garbage: the example copy already does this. Do not add "we
+  could not find that account" messaging, which would defeat the enumeration
+  safety the endpoint is built for.
 
 One core setting completes the wiring: point Craft's `loginPath` general config
-setting at your copied login page (for example `->loginPath('members/login')`).
+setting at the copied login page (for example `->loginPath('members/login')`).
 A failed verification (an expired or reused link, a dead registration link)
 redirects there so its "invalid or expired" flash renders on a page that shows
 flashes and offers a fresh request form. Without it, failures land on Craft's
@@ -134,7 +121,7 @@ verifying the signup link is the proof.
 
 After a member signs in over an email flow (magic link, code, or a fresh signup)
 while holding no passkey, Warp flags a one-time nudge inviting them to add one.
-The nudge is surfaced by `_partials/passkey-nudge.twig`, which
+The nudge is surfaced by `account/_includes/passkey-nudge.twig`, which
 `account/index.twig` includes on the signed-in landing page.
 
 Reading `craft.warp.showPasskeyNudge` **clears** the flag, so the nudge appears

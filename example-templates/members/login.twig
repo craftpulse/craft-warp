@@ -1,3 +1,5 @@
+{% extends 'members/_private/layouts' %}
+
 {# =========================================================================
    Warp example — sign in / sign up (unified passwordless request)
    =========================================================================
@@ -13,13 +15,9 @@
    Optional passkey button talks to Craft core's anonymous endpoints:
               auth/passkey-request-options  +  users/login-with-passkey
 
-   This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
-   your own site layout (which supplies <html lang>, a skip link, header, and
-   footer), and restyle. Every class hook is a low-specificity "warp-" name
-   carrying no framework styling.
-
-   Page URLs below are YOURS to own — Warp fixes only the action routes, never
-   your page routing. Point them at the templates you copy these examples into.
+   The bundle assumes it lives at templates/members/ (see the layout header).
+   Point Craft's loginPath general config setting at members/login so failed
+   verifications land back here with their flash.
 
    Accessibility:
    - Every input has an explicit <label>; the channel choice is a <fieldset> +
@@ -28,41 +26,35 @@
    - No state is color-only — every notice and error carries text.
    ========================================================================= #}
 
-{# --- Include base. Craft resolves {% include %} from the templates ROOT, not
-       relative to this file. Leave warpBase empty when you copy this bundle to
-       your templates/ root; if you nest it in a subfolder (say
-       templates/members/), set warpBase to that path WITH a trailing slash,
-       e.g. 'members/', so the partial includes still resolve. ---------------- #}
-{%- set warpBase = '' -%}
+{% set title = 'Sign in'|t('warp') %}
 
-{# --- Developer-owned page routing. Change these to your own routes. ------- #}
-{%- set linkSentUrl = 'members/link-sent' -%}      {# lands here after a magic-link request #}
-{%- set codeEntryUrl = 'members/verify-code' -%}   {# lands here after an OTP-code request #}
-{%- set afterSignInUrl = craft.app.request.getParam('returnUrl') ?? '/members' -%}   {# a ?returnUrl= sends the member back where re-auth interrupted them; the endpoint re-validates it as same-site #}
+{# A ?returnUrl= sends the member back where re-auth interrupted them; the
+   endpoint re-validates it as same-site. #}
+{%- set afterSignInUrl = craft.app.request.getParam('returnUrl') ?? url('members/account') -%}
 
-{# --- Whether sign-up is open (Warp's setting AND Craft's own switch). ------ #}
+{# Whether sign-up is open (Warp's setting AND Craft's own switch). #}
 {%- set registrationOpen = craft.warp.registrationEnabled -%}
 
-{# --- Enabled login methods (a subset of magic-link + otp). ---------------- #}
+{# Enabled login methods (a subset of magic-link + otp). #}
 {%- set loginMethods = craft.warp.loginMethods -%}
 {%- set hasMagicLink = 'magic-link' in loginMethods -%}
 {%- set hasOtp = 'otp' in loginMethods -%}
 {%- set bothMethods = hasMagicLink and hasOtp -%}
 {%- set defaultChannel = loginMethods|first -%}
-{%- set defaultRedirect = defaultChannel == 'otp' ? codeEntryUrl : linkSentUrl -%}
+{%- set defaultRedirect = defaultChannel == 'otp' ? 'members/otp-verify' : 'members/link-sent' -%}
 
-<main class="warp-auth" id="main-content" tabindex="-1">
-    <h1 class="warp-auth__title">
+{% block main %}
+    <h1 class="text-2xl font-bold text-gray-900 mb-3">
         {{ registrationOpen ? 'Sign in or create an account'|t('warp') : 'Sign in'|t('warp') }}
     </h1>
 
-    <p class="warp-auth__intro">
+    <p class="text-gray-600 mb-2">
         {{ 'Enter your email and we will send you a secure way to sign in. No password required.'|t('warp') }}
     </p>
 
     {% if registrationOpen %}
-        <p class="warp-auth__intro warp-auth__signup">
-            <strong>{{ 'New here?'|t('warp') }}</strong>
+        <p class="text-gray-600 mb-6">
+            <strong class="font-semibold text-gray-800">{{ 'New here?'|t('warp') }}</strong>
             {{ 'The same form signs you up: we will email you a link that creates your account.'|t('warp') }}
         </p>
     {% endif %}
@@ -79,9 +71,7 @@
         </script>
     {% endif %}
 
-    {% include warpBase ~ '_partials/flashes' only %}
-
-    <form class="warp-form" id="warp-login-form" method="post" action="{{ actionUrl('warp/auth/request') }}">
+    <form class="bg-white border border-gray-200 rounded p-6 space-y-5" id="warp-login-form" method="post" action="{{ actionUrl('warp/auth/request') }}">
         {{ csrfInput() }}
 
         {# Where the browser goes after submitting this form. Swapped per channel
@@ -91,10 +81,10 @@
         {# Where the emailed link should land the visitor once they click it. #}
         <input type="hidden" name="returnUrl" value="{{ afterSignInUrl }}">
 
-        <div class="warp-field">
-            <label class="warp-field__label" for="warp-email">{{ 'Email address'|t('warp') }}</label>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="warp-email">{{ 'Email address'|t('warp') }}</label>
             <input
-                class="warp-field__input"
+                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400"
                 id="warp-email"
                 type="email"
                 name="email"
@@ -107,31 +97,29 @@
         </div>
 
         {% if bothMethods %}
-            <fieldset class="warp-fieldset">
-                <legend class="warp-fieldset__legend">{{ 'How would you like to sign in?'|t('warp') }}</legend>
+            <fieldset>
+                <legend class="text-sm font-medium text-gray-700 mb-2">{{ 'How would you like to sign in?'|t('warp') }}</legend>
 
-                <label class="warp-choice">
+                <label class="flex items-center space-x-2 mb-1">
                     <input
-                        class="warp-choice__input"
                         type="radio"
                         name="channel"
                         value="magic-link"
-                        data-warp-redirect="{{ linkSentUrl|hash }}"
+                        data-warp-redirect="{{ 'members/link-sent'|hash }}"
                         {{ defaultChannel == 'magic-link' ? 'checked' : '' }}
                     >
-                    <span class="warp-choice__label">{{ 'Email me a sign-in link'|t('warp') }}</span>
+                    <span>{{ 'Email me a sign-in link'|t('warp') }}</span>
                 </label>
 
-                <label class="warp-choice">
+                <label class="flex items-center space-x-2">
                     <input
-                        class="warp-choice__input"
                         type="radio"
                         name="channel"
                         value="otp"
-                        data-warp-redirect="{{ codeEntryUrl|hash }}"
+                        data-warp-redirect="{{ 'members/otp-verify'|hash }}"
                         {{ defaultChannel == 'otp' ? 'checked' : '' }}
                     >
-                    <span class="warp-choice__label">{{ 'Email me a sign-in code'|t('warp') }}</span>
+                    <span>{{ 'Email me a sign-in code'|t('warp') }}</span>
                 </label>
             </fieldset>
         {% else %}
@@ -139,7 +127,7 @@
             <input type="hidden" name="channel" value="{{ defaultChannel }}">
         {% endif %}
 
-        <button class="warp-button warp-button--primary" type="submit">
+        <button class="w-full bg-blue-600 text-white font-medium rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring" type="submit">
             {{ hasMagicLink and not hasOtp
                 ? 'Email me a sign-in link'|t('warp')
                 : (hasOtp and not hasMagicLink
@@ -169,18 +157,18 @@
     {% endif %}
 
     {# --- Passkey sign-in (optional, progressive enhancement). ------------- #}
-    <section class="warp-passkey" aria-labelledby="warp-passkey-heading">
-        <h2 class="warp-passkey__heading" id="warp-passkey-heading">{{ 'Already set up a passkey?'|t('warp') }}</h2>
+    <section class="mt-8 pt-6 border-t border-gray-200" aria-labelledby="warp-passkey-heading">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3" id="warp-passkey-heading">{{ 'Already set up a passkey?'|t('warp') }}</h2>
 
-        <button class="warp-button warp-button--passkey" type="button" id="warp-passkey-login">
+        <button class="w-full bg-white border border-gray-300 text-gray-800 font-medium rounded px-4 py-2 hover:bg-gray-100 focus:outline-none focus:ring" type="button" id="warp-passkey-login">
             {{ 'Sign in with a passkey'|t('warp') }}
         </button>
 
         {# Live regions must exist in the DOM before status is injected. #}
-        <p class="warp-passkey__fallback" id="warp-passkey-fallback" hidden>
+        <p class="mt-3 text-sm text-gray-500" id="warp-passkey-fallback" hidden>
             {{ 'Passkeys are not available in this browser. Use your email above instead.'|t('warp') }}
         </p>
-        <p class="warp-passkey__status" id="warp-passkey-status" role="alert" tabindex="-1" hidden></p>
+        <p class="mt-3 text-sm text-red-700" id="warp-passkey-status" role="alert" tabindex="-1" hidden></p>
     </section>
 
     <script src="{{ craft.warp.webauthnJsUrl }}"></script>
@@ -220,4 +208,4 @@
             });
         })();
     </script>
-</main>
+{% endblock %}

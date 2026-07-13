@@ -1,0 +1,72 @@
+{% extends 'members/_private/layouts' %}
+
+{# =========================================================================
+   Warp example — signed-in account landing
+   =========================================================================
+   The page a member lands on after signing in. Links out to the two management
+   screens Warp ships examples for: passkeys and sessions. It also hosts the
+   one-time passkey enrollment nudge, so a first-time email-flow sign-in is
+   invited to add a passkey.
+
+   Requires a signed-in user ({% requireLogin %} sends guests to the login page).
+   ========================================================================= #}
+
+{% requireLogin %}
+
+{% set title = 'Your account'|t('warp') %}
+
+{%- set displayName = currentUser ? (currentUser.friendlyName ?? currentUser.email) : '' -%}
+
+{% block main %}
+    <h1 class="text-2xl font-bold text-gray-900 mb-3">{{ 'Your account'|t('warp') }}</h1>
+
+    <p class="text-gray-600 mb-6">
+        {{ 'Signed in as {name}.'|t('warp', { name: displayName }) }}
+    </p>
+
+    {# A passwordless signup collects only the email; the name is asked for
+       here, once the member is verified and signed in, so the login form never
+       has to differ between new and existing members (which would leak which
+       addresses hold accounts). Posts to core's own users/save-user, which
+       lets a member edit their own basic profile. #}
+    {% if currentUser and not currentUser.fullName %}
+        <section class="mb-6 rounded border border-blue-200 bg-blue-50 p-5" aria-label="{{ 'Complete your profile'|t('warp') }}">
+            <p class="text-gray-700 mb-3">{{ 'Finish setting up your account: what should we call you?'|t('warp') }}</p>
+            <form class="flex items-end space-x-3" method="post" accept-charset="UTF-8">
+                {{ csrfInput() }}
+                {{ actionInput('users/save-user') }}
+                {{ hiddenInput('userId', currentUser.id) }}
+                {{ redirectInput(craft.app.request.pathInfo) }}
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="warp-full-name">{{ 'Your name'|t('warp') }}</label>
+                    <input
+                        class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400"
+                        id="warp-full-name"
+                        type="text"
+                        name="fullName"
+                        autocomplete="name"
+                        required
+                    >
+                </div>
+                <button class="bg-blue-600 text-white font-medium rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring" type="submit">{{ 'Save'|t('warp') }}</button>
+            </form>
+        </section>
+    {% endif %}
+
+    {% include 'members/account/_includes/passkey-nudge' only %}
+
+    <nav aria-label="{{ 'Account management'|t('warp') }}">
+        <ul class="bg-white border border-gray-200 rounded divide-y divide-gray-200">
+            <li>
+                <a class="block px-5 py-4 text-blue-600 hover:bg-gray-50 hover:underline" href="{{ url('members/account/passkeys') }}">{{ 'Manage passkeys'|t('warp') }}</a>
+            </li>
+            <li>
+                <a class="block px-5 py-4 text-blue-600 hover:bg-gray-50 hover:underline" href="{{ url('members/account/sessions') }}">{{ 'Manage active sessions'|t('warp') }}</a>
+            </li>
+        </ul>
+    </nav>
+
+    <p class="mt-8">
+        <a class="text-sm text-gray-500 hover:text-gray-700 hover:underline" href="{{ url(craft.app.config.general.logoutPath) }}">{{ 'Sign out'|t('warp') }}</a>
+    </p>
+{% endblock %}

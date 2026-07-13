@@ -1,0 +1,23 @@
+{# =========================================================================
+   Warp example templates — header nav
+   =========================================================================
+   A minimal member-area nav: the account screens for a signed-in member, a
+   sign-in link for a guest. Replace freely with your site's own header.
+   ========================================================================= #}
+
+<header class="w-full border-b border-gray-200 bg-white">
+    <nav class="max-w-xl mx-auto px-6 py-4 flex items-center justify-between" aria-label="{{ 'Member area'|t('warp') }}">
+        <a class="font-semibold text-gray-900 hover:underline" href="{{ url('members/account') }}">{{ siteName }}</a>
+
+        <ul class="flex items-center space-x-4 text-sm">
+            {% if currentUser %}
+                <li><a class="text-gray-600 hover:text-gray-900 hover:underline" href="{{ url('members/account') }}">{{ 'Account'|t('warp') }}</a></li>
+                <li><a class="text-gray-600 hover:text-gray-900 hover:underline" href="{{ url('members/account/passkeys') }}">{{ 'Passkeys'|t('warp') }}</a></li>
+                <li><a class="text-gray-600 hover:text-gray-900 hover:underline" href="{{ url('members/account/sessions') }}">{{ 'Sessions'|t('warp') }}</a></li>
+                <li><a class="text-gray-600 hover:text-gray-900 hover:underline" href="{{ url(craft.app.config.general.logoutPath) }}">{{ 'Sign out'|t('warp') }}</a></li>
+            {% else %}
+                <li><a class="text-gray-600 hover:text-gray-900 hover:underline" href="{{ url('members/login') }}">{{ 'Sign in'|t('warp') }}</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+</header>

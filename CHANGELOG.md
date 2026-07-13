@@ -86,11 +86,13 @@
   no `login.*` event is recorded alongside it, so one signup is one audit fact),
   `passkey.enrolled` / `passkey.deleted` on credential management, and
   `session.revoked` with `scope` `single` or `others` on a genuine revocation.
-- Copy-ready front-end templates in `examples/front-end/`: login/signup,
-  "check your email", code entry, the account landing, passkey management, and
-  session management, with a `warpBase` include-prefix convention, low-specificity
-  `warp-` class hooks, and an accessibility contract (labelled inputs, live
-  regions, focus-to-error, no color-only state).
+- Copy-ready front-end templates in `example-templates/members/`, following the
+  Craft Commerce example-templates model: login/signup, "check your email",
+  code entry, the account landing, passkey management, and session management,
+  each a full page extending the bundle's own `_private/layouts` HTML shell
+  (skip link, nav, flash notices), styled with Tailwind CSS from a CDN, and
+  carrying an accessibility contract (labelled inputs, live regions,
+  focus-to-error, no color-only state).
 - Same-site `returnUrl` validation on every redirect, blocking open-redirect
   attempts, and a coarse user-agent-to-label helper for the sessions screen
   (display only, no fingerprinting).

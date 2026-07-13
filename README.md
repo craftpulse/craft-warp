@@ -37,9 +37,10 @@ routes, controllers, templates, and a control-panel section.
 - **Control-panel section.** A tabbed settings screen for the passwordless
   tunables (with environment-variable support and hover info popovers) and an
   overview with posture stat tiles above a paginated, searchable sign-ins table.
-- **Copy-ready front-end templates.** Every screen ships as a restyleable example
-  in `examples/front-end/`, carrying no framework classes, only low-specificity
-  hooks.
+- **Copy-ready front-end templates.** A complete member area ships in
+  `example-templates/members/`, following the same model as Craft Commerce's
+  example templates: full pages extending a bundled layout, styled with
+  Tailwind CSS from a CDN, working the moment the folder is copied in.
 
 ## Requirements
 
@@ -67,18 +68,20 @@ Kit's services at boot.
 Warp ships the back end (routes, controllers, services) and a set of copy-in
 front-end templates. Wiring up a member area is three steps:
 
-1. **Copy the example templates.** Copy `examples/front-end/` into your project's
-   `templates/` directory (or a subfolder of it), then restyle. The bundle
-   covers login, the "check your email" and code-entry pages, the account
-   landing, passkey management, and session management. Each file's header
-   explains what it posts to and which page URLs are yours to own.
+1. **Copy the example templates.** Copy `example-templates/members/` into your
+   project as `templates/members/`. The bundle covers login, the "check your
+   email" and code-entry pages, the account landing, passkey management, and
+   session management, all extending its own layout
+   (`members/_private/layouts`), so every URL under `/members` renders a
+   complete, styled page immediately. Each file's header explains what it
+   posts to.
 
-2. **Point the page URLs at your routes.** Warp fixes only its action routes
-   (`warp/auth/*`, `warp/passkeys/*`, `warp/sessions/*`); every page URL is
-   yours. Each template exposes its page links as `{% set %}` variables at the
-   top (the login page, the code-entry page, the account pages), so you edit them
-   in one place. If you nest the bundle in a subfolder, set the `warpBase`
-   variable to that path so the partial includes resolve.
+2. **Point Craft's login path at it.** Set the `loginPath` general config
+   setting to `members/login` so guests and failed verifications land on the
+   copied login page. To integrate with your own design, restyle the pages in
+   place or swap the one `{% extends %}` line per page to your site's layout;
+   the bundle assumes it lives at `templates/members/`, so update its
+   `members/...` references if you rename the folder.
 
 3. **Enable the settings you want.** In the control panel, open **Warp** to reach
    the settings screen. Choose the login methods (magic link, one-time code, or

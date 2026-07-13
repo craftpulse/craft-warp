@@ -1,3 +1,5 @@
+{% extends 'members/_private/layouts' %}
+
 {# =========================================================================
    Warp example — active sessions
    =========================================================================
@@ -27,69 +29,61 @@
    credential change) keeps the recent-auth step-up; cleanup does not.
 
    Requires a signed-in user ({% requireLogin %} sends guests to the login page).
-
-   This is a copy-in EXAMPLE. Drop it into your project's templates/, wrap it in
-   your site layout, and restyle. The class hooks are low-specificity "warp-"
-   names; every control is a real <button>. Async state uses live regions and
-   moves focus to failures.
-
-   Because Craft resolves {% include %} from the templates root, warpBase must
-   point at wherever you place this bundle (empty for a root copy, e.g.
-   'members/' if you nest it under templates/members/).
+   Every control is a real <button>; async state uses live regions and moves
+   focus to failures.
    ========================================================================= #}
 
 {% requireLogin %}
 
-{%- set warpBase = '' -%}
-{%- set sessions = craft.warp.sessions -%}
-{%- set otherCount = sessions|filter(s => not s.isCurrent)|length -%}
+{% set title = 'Active sessions'|t('warp') %}
 
-{# Inline, currentColor device-type icons keyed by SessionInfo.deviceType. #}
-{%- set warpDeviceIcons = {
-    desktop: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
-    mobile: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
-    tablet: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M11 18h2"/></svg>',
-    unknown: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>',
-} -%}
+{% block main %}
+    {%- set sessions = craft.warp.sessions -%}
+    {%- set otherCount = sessions|filter(s => not s.isCurrent)|length -%}
 
-<main class="warp-sessions" id="main-content" tabindex="-1">
-    <h1 class="warp-sessions__title">{{ 'Active sessions'|t('warp') }}</h1>
+    {# Inline, currentColor device-type icons keyed by SessionInfo.deviceType. #}
+    {%- set warpDeviceIcons = {
+        desktop: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+        mobile: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+        tablet: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+        unknown: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>',
+    } -%}
 
-    <p class="warp-sessions__intro">
+    <h1 class="text-2xl font-bold text-gray-900 mb-3">{{ 'Active sessions'|t('warp') }}</h1>
+
+    <p class="text-gray-600 mb-6">
         {{ 'These are the devices currently signed in to your account. If you do not recognise one, sign it out.'|t('warp') }}
     </p>
 
-    {% include warpBase ~ '_partials/flashes' only %}
-
     {# Polite status for successful, non-urgent updates. #}
-    <p class="warp-sessions__status" id="warp-sessions-status" role="status" hidden></p>
-    <p class="warp-sessions__error" id="warp-sessions-error" role="alert" tabindex="-1" hidden></p>
+    <p class="mb-4 text-sm text-green-700" id="warp-sessions-status" role="status" hidden></p>
+    <p class="mb-4 text-sm text-red-700" id="warp-sessions-error" role="alert" tabindex="-1" hidden></p>
 
     {# --- Active sessions ----------------------------------------------------- #}
-    <section class="warp-sessions__list-section" aria-labelledby="warp-sessions-list-heading">
-        <h2 class="warp-sessions__subheading" id="warp-sessions-list-heading">{{ 'Signed-in devices'|t('warp') }}</h2>
+    <section class="mb-8" aria-labelledby="warp-sessions-list-heading">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3" id="warp-sessions-list-heading">{{ 'Signed-in devices'|t('warp') }}</h2>
 
         {% if sessions|length %}
-            <ul class="warp-sessions__list">
+            <ul class="space-y-4">
                 {% for session in sessions %}
-                    <li class="warp-session-card warp-session-card--{{ session.deviceType }}{{ session.isCurrent ? ' warp-session-card--current' : '' }}">
-                        <span class="warp-session-card__icon" aria-hidden="true">
+                    <li class="flex items-start bg-white border {{ session.isCurrent ? 'border-blue-300' : 'border-gray-200' }} rounded p-5">
+                        <span class="text-gray-400 mr-4 mt-1" aria-hidden="true">
                             {{ (warpDeviceIcons[session.deviceType] ?? warpDeviceIcons.unknown)|raw }}
                         </span>
 
-                        <div class="warp-session-card__body">
-                            <div class="warp-session-card__heading">
-                                <span class="warp-session-card__device">{{ session.deviceLabel }}</span>
+                        <div class="flex-1">
+                            <div class="flex items-center flex-wrap">
+                                <span class="font-medium text-gray-900 mr-3">{{ session.deviceLabel }}</span>
                                 {% if session.isCurrent %}
-                                    <span class="warp-session-card__pill">{{ 'Current device'|t('warp') }}</span>
+                                    <span class="text-xs font-semibold uppercase tracking-wide text-blue-700 bg-blue-100 rounded-full px-2 py-1">{{ 'Current device'|t('warp') }}</span>
                                 {% endif %}
                             </div>
 
-                            <details class="warp-session-card__details">
-                                <summary class="warp-session-card__summary">{{ 'Details'|t('warp') }}</summary>
-                                <dl class="warp-session-card__meta">
-                                    <div class="warp-session-card__meta-row">
-                                        <dt>{{ 'Last active'|t('warp') }}</dt>
+                            <details class="mt-2">
+                                <summary class="text-sm text-gray-500 cursor-pointer hover:text-gray-700">{{ 'Details'|t('warp') }}</summary>
+                                <dl class="mt-2 text-sm text-gray-600 space-y-1">
+                                    <div class="flex">
+                                        <dt class="w-28 text-gray-400">{{ 'Last active'|t('warp') }}</dt>
                                         <dd>
                                             {%- if session.lastSeen -%}
                                                 {{ session.lastSeen|datetime('short') }}
@@ -99,14 +93,14 @@
                                         </dd>
                                     </div>
                                     {% if session.ip %}
-                                        <div class="warp-session-card__meta-row">
-                                            <dt>{{ 'IP address'|t('warp') }}</dt>
-                                            <dd class="warp-session-card__ip">{{ session.ip }}</dd>
+                                        <div class="flex">
+                                            <dt class="w-28 text-gray-400">{{ 'IP address'|t('warp') }}</dt>
+                                            <dd>{{ session.ip }}</dd>
                                         </div>
                                     {% endif %}
                                     {% if session.city %}
-                                        <div class="warp-session-card__meta-row">
-                                            <dt>{{ 'Location'|t('warp') }}</dt>
+                                        <div class="flex">
+                                            <dt class="w-28 text-gray-400">{{ 'Location'|t('warp') }}</dt>
                                             <dd>{{ session.city }}</dd>
                                         </div>
                                     {% endif %}
@@ -114,12 +108,12 @@
                             </details>
                         </div>
 
-                        <div class="warp-session-card__action">
+                        <div class="ml-4">
                             {% if session.isCurrent %}
-                                <span class="warp-session-card__note">{{ 'Use “Sign out” to end this session.'|t('warp') }}</span>
+                                <span class="text-xs text-gray-400">{{ 'Use “Sign out” to end this session.'|t('warp') }}</span>
                             {% elseif session.uid %}
                                 <button
-                                    class="warp-button warp-button--revoke"
+                                    class="text-sm text-red-600 border border-red-200 rounded px-3 py-1 hover:bg-red-50 focus:outline-none focus:ring"
                                     type="button"
                                     data-warp-revoke
                                     data-uid="{{ session.uid }}"
@@ -129,31 +123,31 @@
                                     {{ 'Sign out'|t('warp') }}
                                 </button>
                             {% else %}
-                                <span class="warp-session-card__note">{{ 'Sign out everywhere else to end this one.'|t('warp') }}</span>
+                                <span class="text-xs text-gray-400">{{ 'Sign out everywhere else to end this one.'|t('warp') }}</span>
                             {% endif %}
                         </div>
                     </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <p class="warp-sessions__empty">{{ 'No other active sessions were found.'|t('warp') }}</p>
+            <p class="text-gray-500">{{ 'No other active sessions were found.'|t('warp') }}</p>
         {% endif %}
     </section>
 
     {# --- Sign out everywhere else -------------------------------------------- #}
     {% if otherCount > 0 %}
-        <footer class="warp-sessions__footer">
-            <p class="warp-sessions__revoke-others-text">
+        <footer class="bg-white border border-gray-200 rounded p-5">
+            <p class="text-gray-600 mb-3">
                 {{ 'Sign out of every device except this one. You will stay signed in here.'|t('warp') }}
             </p>
-            <button class="warp-button warp-button--revoke-others" type="button" id="warp-sessions-revoke-others">
+            <button class="bg-red-600 text-white font-medium rounded px-4 py-2 hover:bg-red-700 focus:outline-none focus:ring" type="button" id="warp-sessions-revoke-others">
                 {{ 'Sign out everywhere else'|t('warp') }}
             </button>
         </footer>
     {% endif %}
 
-    <p class="warp-sessions__actions">
-        <a class="warp-link" href="{{ url('/members') }}">{{ 'Back to your account'|t('warp') }}</a>
+    <p class="mt-8">
+        <a class="text-blue-600 hover:underline" href="{{ url('members/account') }}">{{ 'Back to your account'|t('warp') }}</a>
     </p>
 
     <script>
@@ -242,4 +236,4 @@
             }
         })();
     </script>
-</main>
+{% endblock %}
