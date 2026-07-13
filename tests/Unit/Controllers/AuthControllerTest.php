@@ -291,6 +291,23 @@ it('verifies a correct OTP into a logged-in session', function() {
         ->and(Craft::$app->getUser()->getId())->toBe((int)$user->id);
 });
 
+it('carries the requested address into the session and clears it on a successful verify', function() {
+    $user = activeAuthUser();
+
+    $this->post('/warp/auth/request', ['email' => $user->email, 'channel' => 'otp']);
+
+    expect(Craft::$app->getSession()->get(AuthController::SESSION_REQUESTED_EMAIL))->toBe($user->email);
+
+    seedOtp($user, '424242');
+    $this->post('/warp/auth/verify-code', [
+        'email' => $user->email,
+        'code' => '424242',
+    ]);
+
+    expect(Craft::$app->getUser()->getId())->toBe((int)$user->id)
+        ->and(Craft::$app->getSession()->get(AuthController::SESSION_REQUESTED_EMAIL))->toBeNull();
+});
+
 it('burns the OTP after repeated wrong codes and refuses the correct one after', function() {
     $user = activeAuthUser();
     seedOtp($user, '654321');

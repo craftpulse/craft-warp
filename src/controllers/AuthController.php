@@ -83,6 +83,16 @@ class AuthController extends Controller
      */
     public const VERIFY_CODE_RATE_LIMIT_WINDOW = 60;
 
+    /**
+     * @var string The session key holding the address the visitor last
+     * requested a credential for, so the code-entry page can prefill it
+     * instead of asking twice. It only ever echoes the visitor's own input
+     * back to them, and is cleared on a successful code verify.
+     *
+     * @since 5.0.0
+     */
+    public const SESSION_REQUESTED_EMAIL = 'warp:requestedEmail';
+
     // Protected Properties
     // =========================================================================
 
@@ -147,6 +157,12 @@ class AuthController extends Controller
         $email = (string)$this->request->getBodyParam('email', '');
         $channel = $this->_resolveChannel((string)$this->request->getBodyParam('channel', ''));
         $returnUrl = $this->_returnUrl($this->request->getBodyParam('returnUrl'));
+
+        // Remember the visitor's own typed address so the code-entry page can
+        // prefill it instead of asking twice. Set unconditionally, before any
+        // branch, so the write cost is identical whether or not an account
+        // matches and the response stays enumeration-safe.
+        Craft::$app->getSession()->set(self::SESSION_REQUESTED_EMAIL, $email);
 
         // One form, two outcomes, one response. An address with no active
         // account — unknown or pending — takes the registration path when signup
@@ -238,6 +254,8 @@ class AuthController extends Controller
 
             return $this->_codeFailureResponse();
         }
+
+        Craft::$app->getSession()->remove(self::SESSION_REQUESTED_EMAIL);
 
         $returnUrl = $this->_returnUrl($this->request->getBodyParam('returnUrl')) ?? UrlHelper::siteUrl();
 
