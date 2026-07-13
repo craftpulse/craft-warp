@@ -58,6 +58,18 @@
         {{ 'The same form signs you up: we will email you a link that creates your account.'|t('warp') }}
     </p>
 
+    {% if craft.app.request.getParam('returnUrl') %}
+        {# The returnUrl rides exactly one page view (a re-auth interruption).
+           It is already rendered into the form above, so strip it from the
+           address bar: a reload, bookmark, or later visit from this history
+           entry signs in normally instead of inheriting the old destination. #}
+        <script>
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+        </script>
+    {% endif %}
+
     {% include warpBase ~ '_partials/flashes' only %}
 
     <form class="warp-form" id="warp-login-form" method="post" action="{{ actionUrl('warp/auth/request') }}">
