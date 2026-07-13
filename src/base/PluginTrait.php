@@ -195,13 +195,13 @@ trait PluginTrait
         $tokens = $authKit->getTokens();
         $tokens->magicLinkRoute = 'warp/auth/verify-link';
         $tokens->registrationRoute = 'warp/auth/verify-registration';
-        $tokens->tokenTtl = $settings->tokenTtl;
-        $tokens->otpDigits = $settings->otpDigits;
-        $tokens->otpMaxAttempts = $settings->otpMaxAttempts;
-        $tokens->perEmailLimit = $settings->perEmailLimit;
-        $tokens->perEmailWindow = $settings->perEmailWindow;
+        $tokens->tokenTtl = $settings->getTokenTtl();
+        $tokens->otpDigits = $settings->getOtpDigits();
+        $tokens->otpMaxAttempts = $settings->getOtpMaxAttempts();
+        $tokens->perEmailLimit = $settings->getPerEmailLimit();
+        $tokens->perEmailWindow = $settings->getPerEmailWindow();
 
-        $authKit->getPasskeys()->recentAuthDuration = $settings->recentAuthDuration;
+        $authKit->getPasskeys()->recentAuthDuration = $settings->getRecentAuthDuration();
     }
 
     /**

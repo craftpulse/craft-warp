@@ -118,3 +118,66 @@ it('rejects a registration group UID with no matching group', function() {
     expect($settings->validate())->toBeFalse()
         ->and($settings->hasErrors('registrationGroupUid'))->toBeTrue();
 });
+
+it('resolves a literal integer through the typed getters', function() {
+    $settings = new Settings([
+        'tokenTtl' => 600,
+        'otpDigits' => 8,
+        'otpMaxAttempts' => 3,
+        'perEmailLimit' => 9,
+        'perEmailWindow' => 120,
+        'recentAuthDuration' => 240,
+    ]);
+
+    expect($settings->getTokenTtl())->toBe(600)
+        ->and($settings->getOtpDigits())->toBe(8)
+        ->and($settings->getOtpMaxAttempts())->toBe(3)
+        ->and($settings->getPerEmailLimit())->toBe(9)
+        ->and($settings->getPerEmailWindow())->toBe(120)
+        ->and($settings->getRecentAuthDuration())->toBe(240)
+        ->and($settings->validate())->toBeTrue();
+});
+
+it('resolves an environment variable through the typed getters and validates the resolved value', function() {
+    putenv('WARP_TEST_TTL=1200');
+    $_SERVER['WARP_TEST_TTL'] = '1200';
+    putenv('WARP_TEST_DIGITS=7');
+    $_SERVER['WARP_TEST_DIGITS'] = '7';
+
+    try {
+        $settings = new Settings([
+            'tokenTtl' => '$WARP_TEST_TTL',
+            'otpDigits' => '$WARP_TEST_DIGITS',
+        ]);
+
+        expect($settings->getTokenTtl())->toBe(1200)
+            ->and($settings->getOtpDigits())->toBe(7)
+            ->and($settings->validate())->toBeTrue();
+    } finally {
+        putenv('WARP_TEST_TTL');
+        putenv('WARP_TEST_DIGITS');
+        unset($_SERVER['WARP_TEST_TTL'], $_SERVER['WARP_TEST_DIGITS']);
+    }
+});
+
+it('rejects an environment variable whose resolved value is out of range', function() {
+    putenv('WARP_TEST_BAD_TTL=5');
+    $_SERVER['WARP_TEST_BAD_TTL'] = '5';
+
+    try {
+        $settings = new Settings(['tokenTtl' => '$WARP_TEST_BAD_TTL']);
+
+        expect($settings->validate())->toBeFalse()
+            ->and($settings->hasErrors('tokenTtl'))->toBeTrue();
+    } finally {
+        putenv('WARP_TEST_BAD_TTL');
+        unset($_SERVER['WARP_TEST_BAD_TTL']);
+    }
+});
+
+it('rejects an environment variable that does not resolve to a number', function() {
+    $settings = new Settings(['tokenTtl' => '$WARP_UNDEFINED_TTL_VAR']);
+
+    expect($settings->validate())->toBeFalse()
+        ->and($settings->hasErrors('tokenTtl'))->toBeTrue();
+});

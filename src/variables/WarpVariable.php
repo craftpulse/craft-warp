@@ -76,7 +76,7 @@ class WarpVariable
      */
     public function getOtpDigits(): int
     {
-        return $this->_settings()->otpDigits;
+        return $this->_settings()->getOtpDigits();
     }
 
     /**

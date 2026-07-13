@@ -11,6 +11,12 @@
     {% set groupOptions = groupOptions|merge([{ value: group.uid, label: group.name }]) %}
 {% endfor %}
 
+{% set tabs = {
+    loginMethods: { label: 'Login methods'|t('warp'), url: '#warp-login-methods' },
+    tokensCodes: { label: 'Tokens & codes'|t('warp'), url: '#warp-tokens-codes' },
+    registration: { label: 'Registration'|t('warp'), url: '#warp-registration' },
+} %}
+
 {% block content %}
     {% if not readOnly %}
         {{ actionInput('warp/settings/save') }}
@@ -21,151 +27,157 @@
         {# =================================================================
            Login methods
            ================================================================= #}
-        <h2>{{ 'Login methods'|t('warp') }}</h2>
+        <div id="warp-login-methods">
+            {% if settings.getErrors('loginMethods') %}
+                {{ forms.errorList(settings.getErrors('loginMethods')) }}
+            {% endif %}
 
-        {{ forms.checkboxSelectField({
-            label: 'Enabled login methods'|t('warp'),
-            instructions: 'The passwordless channels the front-end request form offers. A channel that is off is refused at issuance, so disabling one closes it end to end. At least one must stay on.'|t('warp'),
-            id: 'loginMethods',
-            name: 'loginMethods',
-            options: [
-                { value: 'magic-link', label: 'Magic link (an emailed single-use link)'|t('warp') },
-                { value: 'otp', label: 'One-time code (an emailed numeric code)'|t('warp') },
-            ],
-            values: settings.loginMethods,
-            errors: settings.getErrors('loginMethods'),
-            disabled: readOnly,
-        }) }}
+            {{ forms.lightswitchField({
+                label: 'Magic link'|t('warp'),
+                instructions: 'Email a single-use link the visitor clicks to sign in.'|t('warp'),
+                tip: 'The link carries an unguessable secret and expires after the “Sign-in link / code lifetime” below. Turning this off refuses magic-link issuance end to end, even for a request made directly. At least one login method must stay on.'|t('warp'),
+                id: 'loginMethodMagicLink',
+                name: 'loginMethodMagicLink',
+                on: 'magic-link' in settings.loginMethods,
+                disabled: readOnly,
+                first: true,
+            }) }}
 
-        <hr>
+            {{ forms.lightswitchField({
+                label: 'One-time code'|t('warp'),
+                instructions: 'Email a short numeric code the visitor types back into a verify form.'|t('warp'),
+                tip: 'Use this where clicking a link is awkward (a shared inbox, a second device). The code length and attempt cap are set under “Tokens & codes”. Turning this off refuses one-time-code issuance end to end. At least one login method must stay on.'|t('warp'),
+                id: 'loginMethodOtp',
+                name: 'loginMethodOtp',
+                on: 'otp' in settings.loginMethods,
+                disabled: readOnly,
+            }) }}
+
+            <hr>
+
+            {{ forms.lightswitchField({
+                label: 'Nudge passkey enrollment'|t('warp'),
+                instructions: 'After an email-flow sign-in by someone who holds no passkey, prompt them once to enroll one.'|t('warp'),
+                tip: 'A gentle, dismissable prompt shown a single time per triggering sign-in. It never blocks the session and never appears after a passkey sign-in. Leave it on to grow passkey adoption without nagging.'|t('warp'),
+                id: 'enablePasskeyNudge',
+                name: 'enablePasskeyNudge',
+                on: settings.enablePasskeyNudge,
+                errors: settings.getErrors('enablePasskeyNudge'),
+                disabled: readOnly,
+            }) }}
+        </div>
 
         {# =================================================================
            Tokens & codes
            ================================================================= #}
-        <h2>{{ 'Tokens & codes'|t('warp') }}</h2>
+        <div id="warp-tokens-codes" class="hidden">
+            {{ forms.autosuggestField({
+                label: 'Sign-in link / code lifetime'|t('warp'),
+                instructions: 'How long an issued magic link or one-time code stays valid, in seconds.'|t('warp'),
+                tip: 'Shorter is safer but less forgiving of a slow inbox. 900 (15 minutes) suits most sites. Allowed range once resolved: 60 to 86400. Accepts an environment variable such as `$WARP_TOKEN_TTL`.'|t('warp'),
+                id: 'tokenTtl',
+                name: 'tokenTtl',
+                suggestEnvVars: true,
+                value: settings.tokenTtl,
+                errors: settings.getErrors('tokenTtl'),
+                disabled: readOnly,
+                first: true,
+            }) }}
 
-        {{ forms.textField({
-            label: 'Sign-in link / code lifetime'|t('warp'),
-            instructions: 'How long an issued magic link or one-time code stays valid, in seconds. Allowed range: 60 to 86400.'|t('warp'),
-            id: 'tokenTtl',
-            name: 'tokenTtl',
-            type: 'number',
-            value: settings.tokenTtl,
-            errors: settings.getErrors('tokenTtl'),
-            disabled: readOnly,
-            inputAttributes: { inputmode: 'numeric', min: 60, max: 86400, style: 'width: 7rem' },
-            first: true,
-        }) }}
+            {{ forms.autosuggestField({
+                label: 'One-time code length'|t('warp'),
+                instructions: 'How many digits an issued one-time code contains.'|t('warp'),
+                tip: 'Six digits is the familiar default and hard to guess within the attempt cap. Allowed range once resolved: 4 to 10. Accepts an environment variable such as `$WARP_OTP_DIGITS`.'|t('warp'),
+                id: 'otpDigits',
+                name: 'otpDigits',
+                suggestEnvVars: true,
+                value: settings.otpDigits,
+                errors: settings.getErrors('otpDigits'),
+                disabled: readOnly,
+            }) }}
 
-        {{ forms.textField({
-            label: 'One-time code length'|t('warp'),
-            instructions: 'How many digits an issued one-time code contains. Allowed range: 4 to 10.'|t('warp'),
-            id: 'otpDigits',
-            name: 'otpDigits',
-            type: 'number',
-            value: settings.otpDigits,
-            errors: settings.getErrors('otpDigits'),
-            disabled: readOnly,
-            inputAttributes: { inputmode: 'numeric', min: 4, max: 10, style: 'width: 7rem' },
-        }) }}
+            {{ forms.autosuggestField({
+                label: 'One-time code attempt limit'|t('warp'),
+                instructions: 'Failed entries allowed before a code is burned and a new one must be requested.'|t('warp'),
+                tip: 'Low enough to stop guessing, high enough to forgive a typo. Five is a sound default. Allowed range once resolved: 1 to 10. Accepts an environment variable.'|t('warp'),
+                id: 'otpMaxAttempts',
+                name: 'otpMaxAttempts',
+                suggestEnvVars: true,
+                value: settings.otpMaxAttempts,
+                errors: settings.getErrors('otpMaxAttempts'),
+                disabled: readOnly,
+            }) }}
 
-        {{ forms.textField({
-            label: 'One-time code attempt limit'|t('warp'),
-            instructions: 'Failed entries allowed before a code is burned and the user must request a new one. Allowed range: 1 to 10.'|t('warp'),
-            id: 'otpMaxAttempts',
-            name: 'otpMaxAttempts',
-            type: 'number',
-            value: settings.otpMaxAttempts,
-            errors: settings.getErrors('otpMaxAttempts'),
-            disabled: readOnly,
-            inputAttributes: { inputmode: 'numeric', min: 1, max: 10, style: 'width: 7rem' },
-        }) }}
+            {{ forms.autosuggestField({
+                label: 'Issuance limit per address'|t('warp'),
+                instructions: 'Maximum sign-in links or codes issued to one address per window below.'|t('warp'),
+                tip: 'Throttles abuse and runaway email costs without locking out a genuine retry. Allowed range once resolved: 1 to 100. Accepts an environment variable.'|t('warp'),
+                id: 'perEmailLimit',
+                name: 'perEmailLimit',
+                suggestEnvVars: true,
+                value: settings.perEmailLimit,
+                errors: settings.getErrors('perEmailLimit'),
+                disabled: readOnly,
+            }) }}
 
-        {{ forms.textField({
-            label: 'Issuance limit per address'|t('warp'),
-            instructions: 'Maximum sign-in links or codes issued to one address per window below. Allowed range: 1 to 100.'|t('warp'),
-            id: 'perEmailLimit',
-            name: 'perEmailLimit',
-            type: 'number',
-            value: settings.perEmailLimit,
-            errors: settings.getErrors('perEmailLimit'),
-            disabled: readOnly,
-            inputAttributes: { inputmode: 'numeric', min: 1, max: 100, style: 'width: 7rem' },
-        }) }}
+            {{ forms.autosuggestField({
+                label: 'Issuance throttle window'|t('warp'),
+                instructions: 'The per-address issuance throttle window, in seconds.'|t('warp'),
+                tip: 'The rolling window the limit above is counted over. 300 (5 minutes) is a reasonable default. Allowed range once resolved: 60 to 86400. Accepts an environment variable.'|t('warp'),
+                id: 'perEmailWindow',
+                name: 'perEmailWindow',
+                suggestEnvVars: true,
+                value: settings.perEmailWindow,
+                errors: settings.getErrors('perEmailWindow'),
+                disabled: readOnly,
+            }) }}
 
-        {{ forms.textField({
-            label: 'Issuance throttle window'|t('warp'),
-            instructions: 'The per-address issuance throttle window, in seconds. Allowed range: 60 to 86400.'|t('warp'),
-            id: 'perEmailWindow',
-            name: 'perEmailWindow',
-            type: 'number',
-            value: settings.perEmailWindow,
-            errors: settings.getErrors('perEmailWindow'),
-            disabled: readOnly,
-            inputAttributes: { inputmode: 'numeric', min: 60, max: 86400, style: 'width: 7rem' },
-        }) }}
-
-        {{ forms.textField({
-            label: 'Recent-auth window'|t('warp'),
-            instructions: 'How long a recent sign-in satisfies the recent-auth gate before a passwordless step-up is required for sensitive front-end actions, in seconds. Allowed range: 60 to 86400.'|t('warp'),
-            id: 'recentAuthDuration',
-            name: 'recentAuthDuration',
-            type: 'number',
-            value: settings.recentAuthDuration,
-            errors: settings.getErrors('recentAuthDuration'),
-            disabled: readOnly,
-            inputAttributes: { inputmode: 'numeric', min: 60, max: 86400, style: 'width: 7rem' },
-        }) }}
-
-        <hr>
+            {{ forms.autosuggestField({
+                label: 'Recent-auth window'|t('warp'),
+                instructions: 'How long a recent sign-in satisfies the recent-auth gate before a step-up is required for sensitive account actions, in seconds.'|t('warp'),
+                tip: 'Governs passkey management and other sensitive front-end actions, not ordinary browsing. 300 (5 minutes) balances safety and friction. Allowed range once resolved: 60 to 86400. Accepts an environment variable.'|t('warp'),
+                id: 'recentAuthDuration',
+                name: 'recentAuthDuration',
+                suggestEnvVars: true,
+                value: settings.recentAuthDuration,
+                errors: settings.getErrors('recentAuthDuration'),
+                disabled: readOnly,
+            }) }}
+        </div>
 
         {# =================================================================
            Registration
            ================================================================= #}
-        <h2>{{ 'Registration'|t('warp') }}</h2>
+        <div id="warp-registration" class="hidden">
+            {% if settings.enableRegistration and not allowPublicRegistration %}
+                <blockquote class="note warning">
+                    {{ 'Registration is enabled here, but Craft’s own “Allow public registration” setting is off, so registration stays closed. Turn it on under Settings, Users to open sign-up.'|t('warp') }}
+                </blockquote>
+            {% endif %}
 
-        {% if settings.enableRegistration and not allowPublicRegistration %}
-            <blockquote class="note warning">
-                {{ 'Registration is enabled here, but Craft’s own “Allow public registration” setting is off, so registration stays closed. Turn it on under Settings → Users to open sign-up.'|t('warp') }}
-            </blockquote>
-        {% endif %}
+            {{ forms.lightswitchField({
+                label: 'Enable passwordless registration'|t('warp'),
+                instructions: 'Offer sign-up from the unified request form.'|t('warp'),
+                tip: 'Registration also requires Craft’s own “Allow public registration” setting. When either is off the request form degrades to login-only and an unknown address is sent nothing, so enumeration stays impossible.'|t('warp'),
+                id: 'enableRegistration',
+                name: 'enableRegistration',
+                on: settings.enableRegistration,
+                errors: settings.getErrors('enableRegistration'),
+                disabled: readOnly,
+                first: true,
+            }) }}
 
-        {{ forms.lightswitchField({
-            label: 'Enable passwordless registration'|t('warp'),
-            instructions: 'Offer sign-up from the unified request form. Registration also requires Craft’s own “Allow public registration” setting; when either is off the form degrades to login-only.'|t('warp'),
-            id: 'enableRegistration',
-            name: 'enableRegistration',
-            on: settings.enableRegistration,
-            errors: settings.getErrors('enableRegistration'),
-            disabled: readOnly,
-        }) }}
-
-        {{ forms.selectField({
-            label: 'Registration user group'|t('warp'),
-            instructions: 'The group new registrants join. Leave on the default to fall back to Craft’s own default user group.'|t('warp'),
-            id: 'registrationGroupUid',
-            name: 'registrationGroupUid',
-            options: groupOptions,
-            value: settings.registrationGroupUid,
-            errors: settings.getErrors('registrationGroupUid'),
-            disabled: readOnly,
-        }) }}
-
-        <hr>
-
-        {# =================================================================
-           Passkeys
-           ================================================================= #}
-        <h2>{{ 'Passkeys'|t('warp') }}</h2>
-
-        {{ forms.lightswitchField({
-            label: 'Nudge passkey enrollment'|t('warp'),
-            instructions: 'After a user signs in over an email flow while holding no passkey, prompt them once to enroll one.'|t('warp'),
-            id: 'enablePasskeyNudge',
-            name: 'enablePasskeyNudge',
-            on: settings.enablePasskeyNudge,
-            errors: settings.getErrors('enablePasskeyNudge'),
-            disabled: readOnly,
-        }) }}
+            {{ forms.selectField({
+                label: 'Registration user group'|t('warp'),
+                instructions: 'The group new registrants join.'|t('warp'),
+                tip: 'Leave on the default to fall back to Craft’s own default user group. Choosing a group here lets you scope permissions and content to members who signed up through Warp.'|t('warp'),
+                id: 'registrationGroupUid',
+                name: 'registrationGroupUid',
+                options: groupOptions,
+                value: settings.registrationGroupUid,
+                errors: settings.getErrors('registrationGroupUid'),
+                disabled: readOnly,
+            }) }}
+        </div>
     {% endnamespace %}
 {% endblock %}

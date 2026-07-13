@@ -12,6 +12,7 @@ namespace craftpulse\warp\models;
 
 use Craft;
 use craft\base\Model;
+use craft\helpers\App;
 
 /**
  * Settings holds Warp's passwordless tunables. Auth Kit owns the token store
@@ -81,41 +82,50 @@ class Settings extends Model
     public array $loginMethods = [self::CHANNEL_MAGIC_LINK, self::CHANNEL_OTP];
 
     /**
-     * @var int The number of digits in an issued OTP code.
+     * @var int|string The number of digits in an issued OTP code. Accepts a
+     * literal integer or an environment-variable reference like `$WARP_OTP_DIGITS`;
+     * resolve it through [[getOtpDigits()]], never by reading the property.
      *
      * @since 5.0.0
      */
-    public int $otpDigits = 6;
+    public int|string $otpDigits = 6;
 
     /**
-     * @var int The number of failed OTP attempts before a code is burned.
+     * @var int|string The number of failed OTP attempts before a code is burned.
+     * Accepts a literal integer or an environment-variable reference; resolve it
+     * through [[getOtpMaxAttempts()]].
      *
      * @since 5.0.0
      */
-    public int $otpMaxAttempts = 5;
+    public int|string $otpMaxAttempts = 5;
 
     /**
-     * @var int The maximum number of tokens issued to one address per
-     * [[perEmailWindow]] seconds.
+     * @var int|string The maximum number of tokens issued to one address per
+     * [[perEmailWindow]] seconds. Accepts a literal integer or an
+     * environment-variable reference; resolve it through [[getPerEmailLimit()]].
      *
      * @since 5.0.0
      */
-    public int $perEmailLimit = 5;
+    public int|string $perEmailLimit = 5;
 
     /**
-     * @var int The per-address issuance throttle window, in seconds.
+     * @var int|string The per-address issuance throttle window, in seconds.
+     * Accepts a literal integer or an environment-variable reference; resolve it
+     * through [[getPerEmailWindow()]].
      *
      * @since 5.0.0
      */
-    public int $perEmailWindow = 300;
+    public int|string $perEmailWindow = 300;
 
     /**
-     * @var int The recent-auth window, in seconds — how long a prior sign-in
-     * satisfies the recent-auth gate before a step-up is required.
+     * @var int|string The recent-auth window, in seconds — how long a prior
+     * sign-in satisfies the recent-auth gate before a step-up is required.
+     * Accepts a literal integer or an environment-variable reference; resolve it
+     * through [[getRecentAuthDuration()]].
      *
      * @since 5.0.0
      */
-    public int $recentAuthDuration = 300;
+    public int|string $recentAuthDuration = 300;
 
     /**
      * @var string|null The UID of the user group new registrants join, or null
@@ -128,14 +138,97 @@ class Settings extends Model
     public ?string $registrationGroupUid = null;
 
     /**
-     * @var int How long an issued magic link or OTP code stays valid, in seconds.
+     * @var int|string How long an issued magic link or OTP code stays valid, in
+     * seconds. Accepts a literal integer or an environment-variable reference;
+     * resolve it through [[getTokenTtl()]].
      *
      * @since 5.0.0
      */
-    public int $tokenTtl = 900;
+    public int|string $tokenTtl = 900;
 
     // Public Methods
     // =========================================================================
+
+    /**
+     * Returns the resolved number of digits in an issued OTP code.
+     *
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getOtpDigits(): int
+    {
+        return $this->_resolveInt($this->otpDigits);
+    }
+
+    /**
+     * Returns the resolved number of failed OTP attempts allowed before a code
+     * is burned.
+     *
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getOtpMaxAttempts(): int
+    {
+        return $this->_resolveInt($this->otpMaxAttempts);
+    }
+
+    /**
+     * Returns the resolved maximum number of tokens issued to one address per
+     * [[getPerEmailWindow()]] seconds.
+     *
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getPerEmailLimit(): int
+    {
+        return $this->_resolveInt($this->perEmailLimit);
+    }
+
+    /**
+     * Returns the resolved per-address issuance throttle window, in seconds.
+     *
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getPerEmailWindow(): int
+    {
+        return $this->_resolveInt($this->perEmailWindow);
+    }
+
+    /**
+     * Returns the resolved recent-auth window, in seconds.
+     *
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getRecentAuthDuration(): int
+    {
+        return $this->_resolveInt($this->recentAuthDuration);
+    }
+
+    /**
+     * Returns the resolved lifetime of an issued magic link or OTP code, in
+     * seconds.
+     *
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getTokenTtl(): int
+    {
+        return $this->_resolveInt($this->tokenTtl);
+    }
 
     /**
      * Validates that [[loginMethods]] is a non-empty subset of the supported
@@ -187,6 +280,44 @@ class Settings extends Model
         }
     }
 
+    /**
+     * Validates one of the environment-aware numeric tunables by resolving it
+     * first and range-checking the resolved value, so a literal integer and an
+     * environment-variable reference are held to the same bounds. A value that
+     * resolves to something non-numeric — an undefined or misspelled environment
+     * variable — fails with a clear message rather than a confusing range error.
+     *
+     * @param string $attribute the attribute under validation
+     * @param array<string, int>|null $params the `min` and `max` bounds for the resolved value
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function validateResolvedInt(string $attribute, ?array $params = null): void
+    {
+        $resolved = App::parseEnv((string)$this->$attribute);
+
+        if ($resolved === null || !is_numeric($resolved)) {
+            $this->addError($attribute, Craft::t('warp', '{attribute} must be a whole number, or an environment variable that resolves to one.', [
+                'attribute' => $this->getAttributeLabel($attribute),
+            ]));
+
+            return;
+        }
+
+        $value = (int)$resolved;
+        $min = $params['min'] ?? null;
+        $max = $params['max'] ?? null;
+
+        if (($min !== null && $value < $min) || ($max !== null && $value > $max)) {
+            $this->addError($attribute, Craft::t('warp', '{attribute} must resolve to a value between {min} and {max}.', [
+                'attribute' => $this->getAttributeLabel($attribute),
+                'min' => $min,
+                'max' => $max,
+            ]));
+        }
+    }
+
     // Protected Methods
     // =========================================================================
 
@@ -198,14 +329,32 @@ class Settings extends Model
     {
         $rules = parent::defineRules();
         $rules[] = [['loginMethods'], 'validateLoginMethods', 'skipOnEmpty' => false];
-        $rules[] = [['tokenTtl', 'recentAuthDuration', 'perEmailWindow'], 'integer', 'min' => 60, 'max' => 86400];
-        $rules[] = [['otpDigits'], 'integer', 'min' => 4, 'max' => 10];
-        $rules[] = [['otpMaxAttempts'], 'integer', 'min' => 1, 'max' => 10];
-        $rules[] = [['perEmailLimit'], 'integer', 'min' => 1, 'max' => 100];
+        $rules[] = [['tokenTtl', 'recentAuthDuration', 'perEmailWindow'], 'validateResolvedInt', 'params' => ['min' => 60, 'max' => 86400], 'skipOnEmpty' => false];
+        $rules[] = [['otpDigits'], 'validateResolvedInt', 'params' => ['min' => 4, 'max' => 10], 'skipOnEmpty' => false];
+        $rules[] = [['otpMaxAttempts'], 'validateResolvedInt', 'params' => ['min' => 1, 'max' => 10], 'skipOnEmpty' => false];
+        $rules[] = [['perEmailLimit'], 'validateResolvedInt', 'params' => ['min' => 1, 'max' => 100], 'skipOnEmpty' => false];
         $rules[] = [['enableRegistration', 'enablePasskeyNudge'], 'boolean'];
         $rules[] = [['registrationGroupUid'], 'string'];
         $rules[] = [['registrationGroupUid'], 'validateRegistrationGroupUid'];
 
         return $rules;
+    }
+
+    // Private Methods
+    // =========================================================================
+
+    /**
+     * Resolves a numeric tunable's raw value — a literal or an
+     * environment-variable reference — to a concrete integer.
+     *
+     * @param int|string $value the raw stored value
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _resolveInt(int|string $value): int
+    {
+        return (int)App::parseEnv((string)$value);
     }
 }

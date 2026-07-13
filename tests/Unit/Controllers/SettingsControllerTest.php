@@ -14,6 +14,7 @@
 use craft\elements\User;
 use craft\helpers\StringHelper;
 use craft\helpers\UrlHelper;
+use craftpulse\warp\models\Settings;
 use craftpulse\warp\Warp;
 
 function settingsAdmin(): User
@@ -106,6 +107,55 @@ it('preserves untouched settings when a partial form is posted', function() {
         Craft::$app->getPlugins()->savePluginSettings(
             $plugin,
             array_merge($plugin->getSettings()->getAttributes(), ['tokenTtl' => $originalTtl]),
+        );
+    }
+});
+
+it('folds the two login-method switches into the loginMethods array', function() {
+    $plugin = Warp::getInstance();
+    $original = $plugin->getSettings()->loginMethods;
+
+    try {
+        $response = $this->actingAs(settingsAdmin())
+            ->post(UrlHelper::cpUrl('actions/warp/settings/save'), [
+                'settings' => [
+                    'loginMethodMagicLink' => '1',
+                    'loginMethodOtp' => '',
+                ],
+            ]);
+
+        expect($response->getStatusCode())->toBe(302)
+            ->and($plugin->getSettings()->loginMethods)->toBe([Settings::CHANNEL_MAGIC_LINK]);
+    } finally {
+        Craft::$app->getPlugins()->savePluginSettings(
+            $plugin,
+            array_merge($plugin->getSettings()->getAttributes(), ['loginMethods' => $original]),
+        );
+    }
+});
+
+it('re-renders with an error when every login method is switched off', function() {
+    $plugin = Warp::getInstance();
+    $original = $plugin->getSettings()->loginMethods;
+
+    try {
+        // Full-page forms post to the page route with the action as a body param,
+        // so a failed save (null return) re-renders the edit screen in place.
+        $response = $this->actingAs(settingsAdmin())
+            ->post(UrlHelper::cpUrl('warp/settings'), [
+                'action' => 'warp/settings/save',
+                'settings' => [
+                    'loginMethodMagicLink' => '',
+                    'loginMethodOtp' => '',
+                ],
+            ]);
+
+        expect($response->getStatusCode())->toBe(200)
+            ->and($plugin->getSettings()->getErrors('loginMethods'))->not->toBeEmpty();
+    } finally {
+        Craft::$app->getPlugins()->savePluginSettings(
+            $plugin,
+            array_merge($plugin->getSettings()->getAttributes(), ['loginMethods' => $original]),
         );
     }
 });

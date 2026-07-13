@@ -109,7 +109,8 @@ class SettingsController extends Controller
         assert($current instanceof Settings);
 
         $submitted = $this->request->getBodyParam('settings', []);
-        $settings = array_merge($current->getAttributes(), is_array($submitted) ? $submitted : []);
+        $submitted = is_array($submitted) ? $this->_mapLoginMethods($submitted) : [];
+        $settings = array_merge($current->getAttributes(), $submitted);
 
         if (!Craft::$app->getPlugins()->savePluginSettings($plugin, $settings)) {
             $this->setFailFlash(Craft::t('warp', 'Couldn’t save settings.'));
@@ -126,5 +127,51 @@ class SettingsController extends Controller
         $this->setSuccessFlash(Craft::t('warp', 'Settings saved.'));
 
         return $this->redirectToPostedUrl();
+    }
+
+    // Private Methods
+    // =========================================================================
+
+    /**
+     * Folds the two independent login-method lightswitches back into the
+     * `loginMethods` string array the settings model persists.
+     *
+     * The screen presents the channels as two switches for a clearer UX, but the
+     * model keeps its `string[]` shape for backward compatibility (the
+     * project-config schema is unchanged). The two helper keys are consumed here
+     * and dropped so only real settings reach the model. An empty result is left
+     * as-is, so the model's at-least-one-method validation fails closed rather
+     * than the controller silently correcting it.
+     *
+     * @param array<string, mixed> $submitted the posted settings
+     * @return array<string, mixed> the settings with `loginMethods` reconstructed
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _mapLoginMethods(array $submitted): array
+    {
+        // A post that carries neither switch (a partial, non-form submission)
+        // leaves loginMethods untouched, so it merges from the current settings.
+        // The rendered form always posts both switches (a lightswitch emits its
+        // key even when off), so a genuine save always reaches the mapping below.
+        if (!array_key_exists('loginMethodMagicLink', $submitted) && !array_key_exists('loginMethodOtp', $submitted)) {
+            return $submitted;
+        }
+
+        $methods = [];
+
+        if (!empty($submitted['loginMethodMagicLink'])) {
+            $methods[] = Settings::CHANNEL_MAGIC_LINK;
+        }
+
+        if (!empty($submitted['loginMethodOtp'])) {
+            $methods[] = Settings::CHANNEL_OTP;
+        }
+
+        unset($submitted['loginMethodMagicLink'], $submitted['loginMethodOtp']);
+        $submitted['loginMethods'] = $methods;
+
+        return $submitted;
     }
 }
