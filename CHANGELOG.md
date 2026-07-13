@@ -50,7 +50,7 @@
   (VueAdminTable in API mode, newest first, searchable by user email or username).
 - A tabbed control-panel settings section inside Warp's own nav (not the global
   plugin settings screen): Login methods (two independent lightswitches, the
-  passkey nudge, and the new-location alert), Tokens & codes (the numeric tunables,
+  passkey nudge, the new-location alert, and IP anonymization), Tokens & codes (the numeric tunables,
   each accepting a literal or an environment-variable reference), and Registration
   (the enable switch and a user-group picker). Deeper field guidance rides in the
   hover info popover Craft renders from an `info` span. Gated on the
@@ -61,10 +61,16 @@
   are understood, populated by the `warp/geo/refresh` console command from a
   `geoDatabaseUrl` set in `config/warp.php`). Each login resolves a coarse city and
   country; a sign-in from a country and city the member has never used before is
-  flagged (`isNewLocation`), badged in the overview, and — when
-  `notifyOnNewLocation` is on — emailed to the member through the editable
-  `warp_new_location` system message. A member's first-ever login is never new, and
-  everything degrades silently with no database present.
+  flagged (`isNewLocation`) and, when `notifyOnNewLocation` is on, emailed to the
+  member through the editable `warp_new_location` system message. A member's
+  first-ever login is never new, and everything degrades silently with no
+  database present.
+- An optional `anonymizeIp` setting (default off) that zeroes the final octet of
+  each IPv4 address (an IPv6 address keeps only its /48 prefix) before a
+  login-log or session-registry row is written. The geo lookup runs on the full
+  address first, so city-level location and new-location detection are
+  unaffected. Documented, along with the data inventory, retention windows, and
+  GDPR lawful-basis notes, in `docs/privacy.md`.
 - A `craft.warp` Twig variable exposing the front-end surface: `hasPasskeys`,
   `passkeys`, `webauthnJsUrl` (delegated to Auth Kit), `registrationEnabled`,
   `loginMethods`, `otpDigits`, `sessions`, and `showPasskeyNudge`.

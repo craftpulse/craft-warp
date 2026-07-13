@@ -47,7 +47,7 @@ routes, controllers, templates, and a control-panel section.
   which is only public as of 5.10.0)
 - PHP 8.2 or later
 - [`craftpulse/craft-auth-kit`](https://github.com/craftpulse/craft-auth-kit)
-  1.1.0 or later, which Composer installs automatically as a dependency
+  1.2.0 or later, which Composer installs automatically as a dependency
 
 ## Installation
 
@@ -98,8 +98,22 @@ messages ship ready to use. Customize their copy under
 - [Configuration reference](docs/configuration.md): every setting with its
   default and effect, the control-panel permission, read-only behavior, and the
   "no password flows" contract.
+- [Privacy and GDPR](docs/privacy.md): what Warp stores and for how long, the
+  lawful basis, the `anonymizeIp` option, and what to add to your privacy
+  policy.
 - [Manual checks](docs/manual-checks.md): the human verification checklist for
   reviewers.
+
+## Privacy
+
+Warp stores IP addresses, coarse locations, and device labels for account
+security only: the login log prunes itself after 90 days, session rows die with
+their sessions, the geo lookup runs locally and derives a coarse city only, and
+an optional `anonymizeIp` setting zeroes the end of each address before it is
+stored. The lawful basis under the GDPR is legitimate interest in network and
+information security (Recital 49); mention the processing in your site's
+privacy policy. The [privacy guide](docs/privacy.md) has the full inventory and
+suggested disclosure wording.
 
 ## No passwords
 

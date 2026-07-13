@@ -100,20 +100,30 @@ nudge is never flagged.
 | Setting | Type | Default |
 |---|---|---|
 | `notifyOnNewLocation` | bool | `true` |
+| `anonymizeIp` | bool | `false` |
 
-Whether to email a member when they sign in from a country and city they have
-never signed in from before. Detection requires a geo database (see below): with
-none installed no location is ever resolved, so nothing is flagged and no alert
-is sent. A member's first-ever sign-in never counts as new, because there is no
-baseline to compare against. The alert copy is an editable system message
-(**Settings** > **System Messages**, key `warp_new_location`).
+- **`notifyOnNewLocation`** is whether to email a member when they sign in from
+  a country and city they have never signed in from before. Detection requires
+  a geo database (see below): with none installed no location is ever resolved,
+  so nothing is flagged and no alert is sent. A member's first-ever sign-in
+  never counts as new, because there is no baseline to compare against. The
+  alert copy is an editable system message (**Settings** > **System Messages**,
+  key `warp_new_location`).
+- **`anonymizeIp`** is whether stored IP addresses are anonymized: the final
+  octet of an IPv4 address is zeroed (an IPv6 address keeps only its /48
+  network prefix) before a login-log or session-registry row is written. The
+  geo lookup runs on the full address first, so city-level location and
+  new-location detection are unaffected. It applies to new rows only; rows
+  already stored keep their captured address until pruned. See the
+  [privacy guide](privacy.md) for when to turn it on.
 
 ## Geo database (MMDB)
 
 Location awareness is optional and degrades silently. With no database installed,
-logins record no city or country, the overview's Location column shows a dash, no
-sign-in is ever flagged as a new location, and no alert email is sent. Installing
-a database lights all of that up with no further configuration.
+logins record no city or country, the overview's Location column shows a muted
+"Location unknown" badge, no sign-in is ever flagged as a new location, and no
+alert email is sent. Installing a database lights all of that up with no further
+configuration.
 
 Warp reads a city-level MaxMind-format database (`.mmdb`) from
 `storage/warp/geo/city.mmdb`. Both the flat ip-location-db record shape and the
@@ -141,8 +151,11 @@ return [
 ```
 
 The IP is read only to derive the coarse city and country; it is not persisted by
-the geo lookup itself. This is deliberately coarse location, never fingerprinting,
-and the label never influences authorization.
+the geo lookup itself, and the lookup runs entirely against the local file, so no
+member IP is ever sent to a third party. This is deliberately coarse location,
+never fingerprinting, and the label never influences authorization. For the full
+data inventory, retention windows, and lawful-basis notes, see the
+[privacy guide](privacy.md).
 
 ## Values that are not settings
 

@@ -178,4 +178,12 @@ Two consequences for a multi-site member area:
   so a `returnUrl` pointing at another site in the group is dropped as an
   open-redirect attempt. Keep post-login destinations on the same site as the
   form.
+
+## Privacy disclosure
+
+Warp records sign-in history (IP, coarse location, device label) for account
+security, which belongs in your site's privacy policy. The
+[privacy guide](privacy.md) has the data inventory, retention windows, the
+GDPR lawful-basis notes, and suggested disclosure wording, plus the optional
+`anonymizeIp` setting for deployments that must not store full addresses.
 </content>
