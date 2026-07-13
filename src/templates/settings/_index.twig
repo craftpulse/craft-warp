@@ -23,15 +23,14 @@
         {{ redirectInput('warp/settings') }}
     {% endif %}
 
-    {# The pane divs live OUTSIDE the settings namespace: Craft's tab JS
-       resolves each tab's href as a selector, and a namespaced pane id
-       (settings-warp-...) would never match the #warp-... anchors. #}
+    {# Field names carry the settings[...] envelope explicitly (house style,
+       as in Password Policy) rather than a {% namespace %} wrap: the namespace
+       tag also rewrites ids, which breaks the tab anchors' pane matching. #}
 
     {# =================================================================
        Login methods
        ================================================================= #}
     <div id="warp-login-methods">
-        {% namespace 'settings' %}
             {% if settings.getErrors('loginMethods') %}
                 {{ forms.errorList(settings.getErrors('loginMethods')) }}
             {% endif %}
@@ -41,7 +40,7 @@
                 instructions: 'Email a single-use link the visitor clicks to sign in.'|t('warp') ~
                     ' <span class="info">' ~ 'The link carries an unguessable secret and expires after the sign-in link / code lifetime. Turning this off refuses magic-link issuance end to end, even for a request made directly. At least one login method must stay on.'|t('warp') ~ '</span>',
                 id: 'loginMethodMagicLink',
-                name: 'loginMethodMagicLink',
+                name: 'settings[loginMethodMagicLink]',
                 on: 'magic-link' in settings.loginMethods,
                 disabled: readOnly,
                 first: true,
@@ -52,7 +51,7 @@
                 instructions: 'Email a short numeric code the visitor types back into a verify form.'|t('warp') ~
                     ' <span class="info">' ~ 'Use this where clicking a link is awkward, such as a shared inbox or a second device. The code length and attempt cap are set under Tokens & codes. Turning this off refuses one-time-code issuance end to end. At least one login method must stay on.'|t('warp') ~ '</span>',
                 id: 'loginMethodOtp',
-                name: 'loginMethodOtp',
+                name: 'settings[loginMethodOtp]',
                 on: 'otp' in settings.loginMethods,
                 disabled: readOnly,
             }) }}
@@ -64,7 +63,7 @@
                 instructions: 'After an email-flow sign-in by someone who holds no passkey, prompt them once to enroll one.'|t('warp') ~
                     ' <span class="info">' ~ 'A gentle, dismissable prompt shown a single time per triggering sign-in. It never blocks the session and never appears after a passkey sign-in. Leave it on to grow passkey adoption without nagging.'|t('warp') ~ '</span>',
                 id: 'enablePasskeyNudge',
-                name: 'enablePasskeyNudge',
+                name: 'settings[enablePasskeyNudge]',
                 on: settings.enablePasskeyNudge,
                 errors: settings.getErrors('enablePasskeyNudge'),
                 disabled: readOnly,
@@ -75,25 +74,23 @@
                 instructions: 'Email a member when they sign in from a country and city they have never signed in from before.'|t('warp') ~
                     ' <span class="info">' ~ 'Requires a geo database to be installed (see the plugin documentation). With none present no location is resolved, so nothing is flagged and no alert is sent. A member’s first-ever sign-in never counts as new.'|t('warp') ~ '</span>',
                 id: 'notifyOnNewLocation',
-                name: 'notifyOnNewLocation',
+                name: 'settings[notifyOnNewLocation]',
                 on: settings.notifyOnNewLocation,
                 errors: settings.getErrors('notifyOnNewLocation'),
                 disabled: readOnly,
             }) }}
-        {% endnamespace %}
     </div>
 
     {# =================================================================
        Tokens & codes
        ================================================================= #}
     <div id="warp-tokens-codes" class="hidden">
-        {% namespace 'settings' %}
             {{ forms.autosuggestField({
                 label: 'Sign-in link / code lifetime'|t('warp'),
                 instructions: 'How long an issued magic link or one-time code stays valid, in seconds.'|t('warp') ~
                     ' <span class="info">' ~ 'Shorter is safer but less forgiving of a slow inbox; 900 (15 minutes) suits most sites. Allowed range once resolved: 60 to 86400.'|t('warp') ~ '</span>',
                 id: 'tokenTtl',
-                name: 'tokenTtl',
+                name: 'settings[tokenTtl]',
                 suggestEnvVars: true,
                 value: settings.tokenTtl,
                 errors: settings.getErrors('tokenTtl'),
@@ -106,7 +103,7 @@
                 instructions: 'How many digits an issued one-time code contains.'|t('warp') ~
                     ' <span class="info">' ~ 'Six digits is the familiar default and hard to guess within the attempt cap. Allowed range once resolved: 4 to 10.'|t('warp') ~ '</span>',
                 id: 'otpDigits',
-                name: 'otpDigits',
+                name: 'settings[otpDigits]',
                 suggestEnvVars: true,
                 value: settings.otpDigits,
                 errors: settings.getErrors('otpDigits'),
@@ -118,7 +115,7 @@
                 instructions: 'Failed entries allowed before a code is burned and a new one must be requested.'|t('warp') ~
                     ' <span class="info">' ~ 'The brute-force guard that keeps a short numeric code from being guessable: low enough to stop guessing, high enough to forgive a typo. Five is a sound default. Allowed range once resolved: 1 to 10.'|t('warp') ~ '</span>',
                 id: 'otpMaxAttempts',
-                name: 'otpMaxAttempts',
+                name: 'settings[otpMaxAttempts]',
                 suggestEnvVars: true,
                 value: settings.otpMaxAttempts,
                 errors: settings.getErrors('otpMaxAttempts'),
@@ -130,7 +127,7 @@
                 instructions: 'Maximum sign-in links or codes issued to one address per window below.'|t('warp') ~
                     ' <span class="info">' ~ 'Throttles abuse and runaway email costs without locking out a genuine retry. Allowed range once resolved: 1 to 100.'|t('warp') ~ '</span>',
                 id: 'perEmailLimit',
-                name: 'perEmailLimit',
+                name: 'settings[perEmailLimit]',
                 suggestEnvVars: true,
                 value: settings.perEmailLimit,
                 errors: settings.getErrors('perEmailLimit'),
@@ -142,7 +139,7 @@
                 instructions: 'The per-address issuance throttle window, in seconds.'|t('warp') ~
                     ' <span class="info">' ~ 'The rolling window the limit above is counted over; 300 (5 minutes) is a reasonable default. Allowed range once resolved: 60 to 86400.'|t('warp') ~ '</span>',
                 id: 'perEmailWindow',
-                name: 'perEmailWindow',
+                name: 'settings[perEmailWindow]',
                 suggestEnvVars: true,
                 value: settings.perEmailWindow,
                 errors: settings.getErrors('perEmailWindow'),
@@ -154,20 +151,18 @@
                 instructions: 'How long a recent sign-in satisfies the recent-auth gate before a step-up is required for sensitive account actions, in seconds.'|t('warp') ~
                     ' <span class="info">' ~ 'Governs passkey management and other sensitive front-end actions, not ordinary browsing; 300 (5 minutes) balances safety and friction. Allowed range once resolved: 60 to 86400.'|t('warp') ~ '</span>',
                 id: 'recentAuthDuration',
-                name: 'recentAuthDuration',
+                name: 'settings[recentAuthDuration]',
                 suggestEnvVars: true,
                 value: settings.recentAuthDuration,
                 errors: settings.getErrors('recentAuthDuration'),
                 disabled: readOnly,
             }) }}
-        {% endnamespace %}
     </div>
 
     {# =================================================================
        Registration
        ================================================================= #}
     <div id="warp-registration" class="hidden">
-        {% namespace 'settings' %}
             {% if settings.enableRegistration and not allowPublicRegistration %}
                 <div class="readable">
                     <blockquote class="note warning">
@@ -185,7 +180,7 @@
                 instructions: 'Offer sign-up from the unified request form.'|t('warp') ~
                     ' <span class="info">' ~ 'Registration also requires Craft’s own “Allow public registration” setting. When either is off the request form degrades to login-only and an unknown address is sent nothing, so enumeration stays impossible.'|t('warp') ~ '</span>',
                 id: 'enableRegistration',
-                name: 'enableRegistration',
+                name: 'settings[enableRegistration]',
                 on: settings.enableRegistration,
                 errors: settings.getErrors('enableRegistration'),
                 disabled: readOnly,
@@ -197,12 +192,11 @@
                 instructions: 'The group new registrants join.'|t('warp') ~
                     ' <span class="info">' ~ 'Leave on the default to fall back to Craft’s own default user group. Choosing a group here lets you scope permissions and content to members who signed up through Warp.'|t('warp') ~ '</span>',
                 id: 'registrationGroupUid',
-                name: 'registrationGroupUid',
+                name: 'settings[registrationGroupUid]',
                 options: groupOptions,
                 value: settings.registrationGroupUid,
                 errors: settings.getErrors('registrationGroupUid'),
                 disabled: readOnly,
             }) }}
-        {% endnamespace %}
     </div>
 {% endblock %}
