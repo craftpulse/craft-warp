@@ -88,15 +88,19 @@ class PasskeysController extends Controller
 
         $uid = (string)$this->request->getRequiredBodyParam('uid');
         $user = $this->_currentUser();
-        AuthKit::$plugin->getPasskeys()->deletePasskey($user, $uid);
+        $deleted = AuthKit::$plugin->getPasskeys()->deletePasskey($user, $uid);
 
         // A removed passkey is an audit fact. Record it neutrally through Auth
-        // Kit's contract — a no-op with no sinks registered.
-        AuthKit::$plugin->getAudit()->record(new AuthEvent(
-            name: AuthEvent::PASSKEY_DELETED,
-            emitter: 'warp',
-            userId: (int)$user->id,
-        ));
+        // Kit's contract — a no-op with no sinks registered — but only when a
+        // credential was actually removed: an unknown UID no-ops silently and
+        // must never fabricate a deletion in the trail.
+        if ($deleted) {
+            AuthKit::$plugin->getAudit()->record(new AuthEvent(
+                name: AuthEvent::PASSKEY_DELETED,
+                emitter: 'warp',
+                userId: (int)$user->id,
+            ));
+        }
 
         return $this->asSuccess(Craft::t('warp', 'Passkey deleted.'))
             ?? $this->asJson(['success' => true]);

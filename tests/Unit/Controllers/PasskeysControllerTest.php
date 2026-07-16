@@ -247,13 +247,30 @@ it('records no audit event when verify-creation fails', function() {
     expect($sink->ofName(AuthEvent::PASSKEY_ENROLLED))->toBe([]);
 });
 
-it('records a passkey.deleted audit event on a successful delete', function() {
+it('records a passkey.deleted audit event when a credential was removed', function() {
     $sink = new CollectingAuditSink();
     AuthKit::$plugin->getAudit()->setSinks([$sink]);
 
+    AuthKit::getInstance()->set('passkeys', new class() extends Passkeys {
+        /**
+         * @inheritdoc
+         */
+        public function hasRecentAuth(?int $within = null): bool
+        {
+            return true;
+        }
+
+        /**
+         * @inheritdoc
+         */
+        public function deletePasskey(User $user, string $uid): bool
+        {
+            return true;
+        }
+    });
+
     $user = passkeyUser();
     $this->actingAs($user);
-    stampRecentAuth();
 
     $this->postJson('/warp/passkeys/delete', ['uid' => StringHelper::UUID()]);
 
@@ -264,4 +281,20 @@ it('records a passkey.deleted audit event on a successful delete', function() {
         ->and($event->outcome)->toBe(AuthEvent::OUTCOME_SUCCESS)
         ->and($event->userId)->toBe((int)$user->id)
         ->and($event->details)->toBe([]);
+});
+
+it('records no audit event when the delete no-ops on an unknown uid', function() {
+    // The response stays identical (no credential-existence oracle), but the
+    // trail must never contain a deletion that did not happen.
+    $sink = new CollectingAuditSink();
+    AuthKit::$plugin->getAudit()->setSinks([$sink]);
+
+    $user = passkeyUser();
+    $this->actingAs($user);
+    stampRecentAuth();
+
+    $response = $this->postJson('/warp/passkeys/delete', ['uid' => StringHelper::UUID()]);
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($sink->ofName(AuthEvent::PASSKEY_DELETED))->toBe([]);
 });

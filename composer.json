@@ -2,7 +2,7 @@
     "name": "craftpulse/craft-warp",
     "description": "Passwordless front-end auth for Craft members. Magic links, email codes, and passkeys, built on Auth Kit.",
     "type": "craft-plugin",
-    "version": "5.0.0-beta.1",
+    "version": "5.0.0-beta.2",
     "license": "proprietary",
     "keywords": [
         "craft",
@@ -31,7 +31,7 @@
     "require": {
         "php": "^8.2",
         "craftcms/cms": "^5.10.0",
-        "craftpulse/craft-auth-kit": "^1.2.0",
+        "craftpulse/craft-auth-kit": "^1.3.0",
         "maxmind-db/reader": "^1.11"
     },
     "require-dev": {

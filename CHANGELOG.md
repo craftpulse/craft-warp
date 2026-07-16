@@ -1,5 +1,14 @@
 # Release Notes for Warp
 
+## 5.0.0-beta.2 - 2026-07-16
+
+### Changed
+- Requires Auth Kit 1.3.0 or later.
+- The `passkey.deleted` audit event is now recorded only when a credential was
+  actually removed. Deleting an unknown UID still responds identically (no
+  credential-existence oracle), but no longer fabricates a deletion in the
+  audit trail, using Auth Kit 1.3.0's boolean `deletePasskey()` return.
+
 ## 5.0.0-beta.1 - 2026-07-13
 
 > Initial beta release.
