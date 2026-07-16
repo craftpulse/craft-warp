@@ -51,6 +51,15 @@ class Passwordless extends Component
      */
     public const SESSION_PASSKEY_NUDGE_KEY = 'warp:showPasskeyNudge';
 
+    /**
+     * @var string The Auth Kit token origin for Warp-issued credentials.
+     * Tokens are consumed strictly within their origin, so a Warp link or
+     * code can only ever verify at Warp's own endpoints.
+     *
+     * @since 5.0.0
+     */
+    public const TOKEN_ORIGIN = 'warp';
+
     // Public Methods
     // =========================================================================
 
@@ -112,15 +121,33 @@ class Passwordless extends Component
         }
 
         $tokens = AuthKit::$plugin->getTokens();
+        $settings = $this->_settings();
 
+        // Routes, lifetimes, and throttles ride the issuance itself (never
+        // shared Auth Kit state), and the origin label scopes each token to
+        // Warp's own verify endpoints — another Auth Kit consumer can never
+        // consume it.
         if ($channel === Settings::CHANNEL_MAGIC_LINK) {
-            $tokens->issueMagicLink($email, $returnUrl);
+            $tokens->issueMagicLink($email, $returnUrl, [
+                'origin' => self::TOKEN_ORIGIN,
+                'route' => 'warp/auth/verify-link',
+                'ttl' => $settings->getTokenTtl(),
+                'perEmailLimit' => $settings->getPerEmailLimit(),
+                'perEmailWindow' => $settings->getPerEmailWindow(),
+            ]);
 
             return;
         }
 
         if ($channel === Settings::CHANNEL_OTP) {
-            $tokens->issueOtp($email);
+            $tokens->issueOtp($email, [
+                'origin' => self::TOKEN_ORIGIN,
+                'ttl' => $settings->getTokenTtl(),
+                'digits' => $settings->getOtpDigits(),
+                'maxAttempts' => $settings->getOtpMaxAttempts(),
+                'perEmailLimit' => $settings->getPerEmailLimit(),
+                'perEmailWindow' => $settings->getPerEmailWindow(),
+            ]);
         }
     }
 

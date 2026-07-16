@@ -3,7 +3,14 @@
 ## 5.0.0-beta.2 - 2026-07-16
 
 ### Changed
-- Requires Auth Kit 1.3.0 or later.
+- Requires Auth Kit 1.4.0 or later.
+- Warp no longer mutates Auth Kit's shared service state. Verify routes,
+  token lifetimes, OTP digits and attempt caps, per-address throttles, and
+  the recent-auth window ride each issuance or check as per-call options,
+  and every Warp-issued token carries the `warp` origin: it can only verify
+  at Warp's own endpoints, and Warp's endpoints only honor Warp-issued
+  tokens. On a site running another Auth Kit consumer (e.g. Warden), the two
+  products' passwordless flows are now fully isolated.
 - The `passkey.deleted` audit event is now recorded only when a credential was
   actually removed. Deleting an unknown UID still responds identically (no
   credential-existence oracle), but no longer fabricates a deletion in the

@@ -42,6 +42,22 @@ final class CollectingMailer extends Mailer
     }
 
     /**
+     * Returns the `code` variable from the most recently sent message.
+     */
+    public function lastCode(): ?string
+    {
+        $message = end($this->sent);
+
+        if (!$message instanceof Message) {
+            return null;
+        }
+
+        $code = $message->variables['code'] ?? null;
+
+        return is_string($code) ? $code : null;
+    }
+
+    /**
      * Returns the single link variable from the most recently sent message.
      */
     public function lastLink(): ?string

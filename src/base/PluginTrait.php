@@ -12,9 +12,11 @@ namespace craftpulse\warp\base;
 
 use Craft;
 use craft\elements\User;
+use craft\events\RegisterCpAlertsEvent;
 use craft\events\RegisterEmailMessagesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
+use craft\helpers\Cp;
 use craft\models\SystemMessage;
 use craft\services\Gc;
 use craft\services\SystemMessages;
@@ -67,7 +69,7 @@ trait PluginTrait
         $this->_registerSessionRegistry();
         $this->_registerSystemMessages();
         $this->_registerVariable();
-        $this->_configureAuthKit();
+        $this->_guardAuthKit();
     }
 
     /**
@@ -174,39 +176,38 @@ trait PluginTrait
     }
 
     /**
-     * Pushes Warp's settings into Auth Kit's services.
+     * Guards Auth Kit's presence — loudly, but never fatally.
      *
-     * Auth Kit owns the token store, one-time-code issuance, and recent-auth
-     * gate but is headless — it exposes its tunables as service properties.
-     * Warp is the product that configures them, applying its settings once here
-     * rather than scattering configuration across controllers.
+     * Auth Kit is a hard dependency: every auth flow dereferences
+     * `AuthKit::$plugin`. A missing or disabled Auth Kit is logged as an error
+     * and surfaced as a control-panel alert rather than thrown — throwing here
+     * runs inside the application's deferred `onInit` callbacks and would take
+     * down every request, including the screens an admin needs to recover.
      *
-     * Skipped gracefully if Auth Kit is somehow not installed.
+     * Warp deliberately writes NOTHING onto Auth Kit's shared services:
+     * routes, lifetimes, throttles, and the recent-auth window ride each
+     * issuance/check as per-call options (Auth Kit 1.4.0), so another
+     * consumer plugin can never clobber Warp's configuration — nor Warp
+     * theirs.
      *
      * @author CraftPulse
      * @since 5.0.0
      */
-    private function _configureAuthKit(): void
+    private function _guardAuthKit(): void
     {
-        $authKit = AuthKit::getInstance();
-
-        if ($authKit === null) {
+        if (AuthKit::getInstance() !== null) {
             return;
         }
 
-        $settings = $this->getSettings();
-        assert($settings instanceof Settings);
+        Craft::error('Warp requires the Auth Kit plugin (craftpulse/craft-auth-kit) to be installed and enabled. All authentication flows are disabled until it is.', __METHOD__);
 
-        $tokens = $authKit->getTokens();
-        $tokens->magicLinkRoute = 'warp/auth/verify-link';
-        $tokens->registrationRoute = 'warp/auth/verify-registration';
-        $tokens->tokenTtl = $settings->getTokenTtl();
-        $tokens->otpDigits = $settings->getOtpDigits();
-        $tokens->otpMaxAttempts = $settings->getOtpMaxAttempts();
-        $tokens->perEmailLimit = $settings->getPerEmailLimit();
-        $tokens->perEmailWindow = $settings->getPerEmailWindow();
-
-        $authKit->getPasskeys()->recentAuthDuration = $settings->getRecentAuthDuration();
+        Event::on(
+            Cp::class,
+            Cp::EVENT_REGISTER_ALERTS,
+            static function(RegisterCpAlertsEvent $event): void {
+                $event->alerts[] = Craft::t('warp', 'Warp requires the Auth Kit plugin to be installed and enabled. All authentication flows are disabled until it is.');
+            },
+        );
     }
 
     /**

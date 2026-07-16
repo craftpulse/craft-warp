@@ -21,6 +21,7 @@ use craftpulse\authkit\services\Tokens;
 use craftpulse\warp\helpers\Redirect;
 use craftpulse\warp\models\Login;
 use craftpulse\warp\models\Settings;
+use craftpulse\warp\services\Passwordless;
 use craftpulse\warp\Warp;
 use yii\filters\RateLimiter;
 use yii\web\Response;
@@ -176,7 +177,13 @@ class AuthController extends Controller
         $isActive = $user !== null && $user->getStatus() === User::STATUS_ACTIVE;
 
         if (!$isActive && Warp::$plugin->getRegistration()->isEnabled()) {
-            AuthKit::$plugin->getTokens()->issueRegistration($email, $returnUrl);
+            AuthKit::$plugin->getTokens()->issueRegistration($email, $returnUrl, [
+                'origin' => Passwordless::TOKEN_ORIGIN,
+                'route' => 'warp/auth/verify-registration',
+                'ttl' => $this->_settings()->getTokenTtl(),
+                'perEmailLimit' => $this->_settings()->getPerEmailLimit(),
+                'perEmailWindow' => $this->_settings()->getPerEmailWindow(),
+            ]);
         } else {
             Warp::$plugin->getPasswordless()->request($email, $channel, $returnUrl);
         }
@@ -203,7 +210,7 @@ class AuthController extends Controller
     public function actionVerifyLink(): Response
     {
         $token = (string)$this->request->getQueryParam(Tokens::TOKEN_PARAM, '');
-        $user = AuthKit::$plugin->getTokens()->consumeMagicLink($token);
+        $user = AuthKit::$plugin->getTokens()->consumeMagicLink($token, Passwordless::TOKEN_ORIGIN);
 
         if ($user === null) {
             Craft::warning('A magic-link verification failed or was reused.', __METHOD__);
@@ -241,7 +248,7 @@ class AuthController extends Controller
         $email = (string)$this->request->getBodyParam('email', '');
         $code = (string)$this->request->getBodyParam('code', '');
 
-        $user = AuthKit::$plugin->getTokens()->consumeOtp($email, $code);
+        $user = AuthKit::$plugin->getTokens()->consumeOtp($email, $code, Passwordless::TOKEN_ORIGIN);
 
         if ($user === null) {
             Craft::warning('An OTP verification failed or was reused.', __METHOD__);
@@ -284,7 +291,7 @@ class AuthController extends Controller
     public function actionVerifyRegistration(): Response
     {
         $token = (string)$this->request->getQueryParam(Tokens::TOKEN_PARAM, '');
-        $consumed = AuthKit::$plugin->getTokens()->consumeRegistration($token);
+        $consumed = AuthKit::$plugin->getTokens()->consumeRegistration($token, Passwordless::TOKEN_ORIGIN);
 
         if ($consumed === null) {
             return $this->_registrationFailureResponse('A registration verification failed or was reused.');
@@ -385,6 +392,22 @@ class AuthController extends Controller
      * @author CraftPulse
      * @since 5.0.0
      */
+    /**
+     * Returns Warp's settings, narrowed for static analysis.
+     *
+     * @return Settings
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _settings(): Settings
+    {
+        $settings = Warp::$plugin->getSettings();
+        assert($settings instanceof Settings);
+
+        return $settings;
+    }
+
     private function _resolveChannel(string $requested): string
     {
         if ($requested !== '') {

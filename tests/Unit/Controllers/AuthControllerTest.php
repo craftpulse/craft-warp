@@ -21,6 +21,7 @@ use craftpulse\authkit\models\Token;
 use craftpulse\authkit\records\Token as TokenRecord;
 use craftpulse\authkit\services\Tokens;
 use craftpulse\warp\controllers\AuthController;
+use craftpulse\warp\services\Passwordless;
 use craftpulse\warp\tests\Support\CollectingMailer;
 use craftpulse\warp\Warp;
 use yii\web\TooManyRequestsHttpException;
@@ -46,6 +47,7 @@ function seedMagicLink(int $userId, string $rawToken, string $expiryModifier = '
     $record = new TokenRecord();
     $record->userId = $userId;
     $record->type = Token::TYPE_MAGIC_LINK;
+    $record->origin = Passwordless::TOKEN_ORIGIN;
     $record->tokenHash = hash('sha256', $rawToken);
     $record->expiryDate = (string)Db::prepareDateForDb((new DateTime())->modify($expiryModifier));
     $record->save(false);
@@ -56,6 +58,7 @@ function seedOtp(User $user, string $code): void
     $record = new TokenRecord();
     $record->userId = (int)$user->id;
     $record->type = Token::TYPE_OTP;
+    $record->origin = Passwordless::TOKEN_ORIGIN;
     $record->tokenHash = hash('sha256', (string)$user->uid . ':' . $code);
     $record->maxAttempts = 5;
     $record->expiryDate = (string)Db::prepareDateForDb((new DateTime())->modify('+15 minutes'));
@@ -67,6 +70,7 @@ function seedRegistration(string $email, string $rawToken, string $expiryModifie
     $record = new TokenRecord();
     $record->userId = null;
     $record->type = Token::TYPE_REGISTER;
+    $record->origin = Passwordless::TOKEN_ORIGIN;
     $record->tokenHash = hash('sha256', $rawToken);
     $record->expiryDate = (string)Db::prepareDateForDb((new DateTime())->modify($expiryModifier));
     $record->payload = Json::encode(['email' => $email]);
@@ -137,12 +141,12 @@ beforeEach(function() {
     // on a specific switch state set it explicitly themselves.
     $this->originalAllowPublicRegistration = (bool)Craft::$app->getProjectConfig()->get('users.allowPublicRegistration');
 
-    // Swap Auth Kit's token store for one wired to a captured mailer so request
-    // tests never touch a real transport, then re-apply Warp's wiring so the
-    // fresh instance carries Warp's verify routes (the emitted links must point
-    // at warp/auth/*), not Auth Kit's defaults.
+    // Swap Auth Kit's token store for one wired to a captured mailer so
+    // request tests never touch a real transport. No re-wiring is needed:
+    // Warp's verify routes, lifetimes, and origin ride each issuance as
+    // per-call options (Auth Kit 1.4.0), so the fresh instance behaves
+    // identically.
     AuthKit::getInstance()->set('tokens', new Tokens(['mailer' => new CollectingMailer()]));
-    (new ReflectionMethod(Warp::class, '_configureAuthKit'))->invoke(Warp::$plugin);
 });
 
 afterEach(function() {

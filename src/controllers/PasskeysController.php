@@ -15,6 +15,8 @@ use craft\elements\User;
 use craft\web\Controller;
 use craftpulse\authkit\audit\AuthEvent;
 use craftpulse\authkit\AuthKit;
+use craftpulse\warp\models\Settings;
+use craftpulse\warp\Warp;
 use yii\web\Response;
 
 /**
@@ -88,7 +90,7 @@ class PasskeysController extends Controller
 
         $uid = (string)$this->request->getRequiredBodyParam('uid');
         $user = $this->_currentUser();
-        $deleted = AuthKit::$plugin->getPasskeys()->deletePasskey($user, $uid);
+        $deleted = AuthKit::$plugin->getPasskeys()->deletePasskey($user, $uid, $this->_recentAuthWindow());
 
         // A removed passkey is an audit fact. Record it neutrally through Auth
         // Kit's contract — a no-op with no sinks registered — but only when a
@@ -139,7 +141,7 @@ class PasskeysController extends Controller
                 ?? $this->asJson(['success' => false]);
         }
 
-        if (!AuthKit::$plugin->getPasskeys()->verifyCreation($credentials, $credentialName)) {
+        if (!AuthKit::$plugin->getPasskeys()->verifyCreation($credentials, $credentialName, $this->_recentAuthWindow())) {
             return $this->asFailure(Craft::t('warp', 'Passkey creation failed.'))
                 ?? $this->asJson(['success' => false]);
         }
@@ -177,6 +179,24 @@ class PasskeysController extends Controller
     }
 
     /**
+     * Returns Warp's own recent-auth window, passed per call so the gate never
+     * depends on mutable shared Auth Kit state another consumer could have
+     * overwritten.
+     *
+     * @return int
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _recentAuthWindow(): int
+    {
+        $settings = Warp::$plugin->getSettings();
+        assert($settings instanceof Settings);
+
+        return $settings->getRecentAuthDuration();
+    }
+
+    /**
      * Returns a re-authentication response when the recent-auth gate is not
      * satisfied, or null when it is. Passwordless users re-authenticate by
      * logging in again — the front end keys off `reauthRequired`.
@@ -188,7 +208,7 @@ class PasskeysController extends Controller
      */
     private function _guardRecentAuth(): ?Response
     {
-        if (AuthKit::$plugin->getPasskeys()->hasRecentAuth()) {
+        if (AuthKit::$plugin->getPasskeys()->hasRecentAuth($this->_recentAuthWindow())) {
             return null;
         }
 

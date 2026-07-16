@@ -61,6 +61,7 @@ function seedNudgeMagicLink(int $userId, string $rawToken): void
     $record = new TokenRecord();
     $record->userId = $userId;
     $record->type = Token::TYPE_MAGIC_LINK;
+    $record->origin = Passwordless::TOKEN_ORIGIN;
     $record->tokenHash = hash('sha256', $rawToken);
     $record->expiryDate = (string)Db::prepareDateForDb((new DateTime())->modify('+15 minutes'));
     $record->save(false);

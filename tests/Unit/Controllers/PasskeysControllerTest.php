@@ -161,7 +161,7 @@ it('records a passkey.enrolled audit event on a successful verify-creation', fun
         /**
          * @inheritdoc
          */
-        public function verifyCreation(string $credentials, ?string $credentialName = null): bool
+        public function verifyCreation(string $credentials, ?string $credentialName = null, ?int $within = null): bool
         {
             return true;
         }
@@ -198,7 +198,7 @@ it('refuses an unnamed passkey on verify-creation', function() {
         /**
          * @inheritdoc
          */
-        public function verifyCreation(string $credentials, ?string $credentialName = null): bool
+        public function verifyCreation(string $credentials, ?string $credentialName = null, ?int $within = null): bool
         {
             return true;
         }
@@ -233,7 +233,7 @@ it('records no audit event when verify-creation fails', function() {
         /**
          * @inheritdoc
          */
-        public function verifyCreation(string $credentials, ?string $credentialName = null): bool
+        public function verifyCreation(string $credentials, ?string $credentialName = null, ?int $within = null): bool
         {
             return false;
         }
@@ -263,7 +263,7 @@ it('records a passkey.deleted audit event when a credential was removed', functi
         /**
          * @inheritdoc
          */
-        public function deletePasskey(User $user, string $uid): bool
+        public function deletePasskey(User $user, string $uid, ?int $within = null): bool
         {
             return true;
         }

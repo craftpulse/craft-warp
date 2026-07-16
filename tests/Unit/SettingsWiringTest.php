@@ -2,52 +2,74 @@
 /**
  * Warp plugin for Craft CMS 5.x
  *
- * Verifies that Warp's settings are pushed into Auth Kit's headless services at
- * init — Warp owns the configuration, Auth Kit owns the behaviour — and that
- * the magic-link verify route is pinned to Warp's own endpoint.
+ * Verifies that Warp's settings reach Auth Kit per issuance — as of Auth Kit
+ * 1.4.0 Warp writes NOTHING onto the shared services (another consumer could
+ * clobber it); the route, lifetime, throttle, digits, and origin ride each
+ * issuance instead.
  *
  * @link      https://craft-pulse.com
  * @copyright Copyright (c) 2026 CraftPulse
  */
 
+use craft\elements\User;
+use craft\helpers\StringHelper;
 use craftpulse\authkit\AuthKit;
+use craftpulse\authkit\records\Token as TokenRecord;
+use craftpulse\authkit\services\Tokens;
+use craftpulse\warp\models\Settings;
+use craftpulse\warp\services\Passwordless;
+use craftpulse\warp\tests\Support\CollectingMailer;
 use craftpulse\warp\Warp;
 
-it('pushes Warp settings into Auth Kit services', function() {
-    $tokens = AuthKit::$plugin->getTokens();
-    $passkeys = AuthKit::$plugin->getPasskeys();
-
-    $settings = Warp::$plugin->getSettings();
-    $settings->tokenTtl = 1234;
-    $settings->otpDigits = 8;
-    $settings->otpMaxAttempts = 9;
-    $settings->perEmailLimit = 7;
-    $settings->perEmailWindow = 4321;
-    $settings->recentAuthDuration = 1111;
-
-    // _configureAuthKit() is private init-time wiring; invoke it directly.
-    (new ReflectionMethod(Warp::class, '_configureAuthKit'))->invoke(Warp::$plugin);
-
-    expect($tokens->tokenTtl)->toBe(1234)
-        ->and($tokens->otpDigits)->toBe(8)
-        ->and($tokens->otpMaxAttempts)->toBe(9)
-        ->and($tokens->perEmailLimit)->toBe(7)
-        ->and($tokens->perEmailWindow)->toBe(4321)
-        ->and($tokens->magicLinkRoute)->toBe('warp/auth/verify-link')
-        ->and($tokens->registrationRoute)->toBe('warp/auth/verify-registration')
-        ->and($passkeys->recentAuthDuration)->toBe(1111);
-});
-
 afterEach(function() {
-    // The services are shared singletons; restore defaults so the mutated
-    // values above don't leak into other tests.
     $settings = Warp::$plugin->getSettings();
     $settings->tokenTtl = 900;
     $settings->otpDigits = 6;
-    $settings->otpMaxAttempts = 5;
-    $settings->perEmailLimit = 5;
-    $settings->perEmailWindow = 300;
-    $settings->recentAuthDuration = 300;
 
-    (new ReflectionMethod(Warp::class, '_configureAuthKit'))->invoke(Warp::$plugin);
+    AuthKit::getInstance()->set('tokens', ['class' => Tokens::class]);
+
+    foreach (User::find()->email('wpwire-*@warp-test.example')->status(null)->all() as $user) {
+        Craft::$app->getElements()->deleteElement($user, true);
+    }
+});
+
+it('threads settings and origin into each issuance instead of shared Auth Kit state', function() {
+    $mailer = new CollectingMailer();
+    AuthKit::getInstance()->set('tokens', new Tokens(['mailer' => $mailer]));
+
+    $settings = Warp::$plugin->getSettings();
+    $settings->tokenTtl = 120;
+    $settings->otpDigits = 8;
+
+    $unique = str_replace('-', '', StringHelper::UUID());
+    $user = new User();
+    $user->username = "wpwire-{$unique}@warp-test.example";
+    $user->email = "wpwire-{$unique}@warp-test.example";
+
+    if (!Craft::$app->getElements()->saveElement($user)) {
+        throw new RuntimeException('Could not save settings wiring test user.');
+    }
+
+    Craft::$app->getUsers()->activateUser($user);
+    $user = Craft::$app->getUsers()->getUserById((int)$user->id);
+
+    Warp::$plugin->getPasswordless()->request($user->email, Settings::CHANNEL_MAGIC_LINK);
+
+    // The emailed URL points at Warp's verify route without the shared
+    // magicLinkRoute ever having been touched...
+    expect((string)$mailer->lastLink())->toContain('warp/auth/verify-link')
+        ->and(AuthKit::$plugin->getTokens()->magicLinkRoute)->toBe('auth-kit/magic-link/verify');
+
+    // ...and the token row carries Warp's origin and the settings-driven ttl.
+    $record = TokenRecord::findOne(['userId' => $user->id]);
+    $delta = (new DateTime((string)$record->expiryDate, new DateTimeZone('UTC')))->getTimestamp() - time();
+
+    expect($record->origin)->toBe(Passwordless::TOKEN_ORIGIN)
+        ->and($delta)->toBeGreaterThan(60)
+        ->and($delta)->toBeLessThanOrEqual(121);
+
+    // The OTP channel threads its digits the same way.
+    Warp::$plugin->getPasswordless()->request($user->email, Settings::CHANNEL_OTP);
+
+    expect(strlen((string)$mailer->lastCode()))->toBe(8);
 });
