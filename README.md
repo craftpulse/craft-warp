@@ -109,8 +109,9 @@ messages ship ready to use. Customize their copy under
   the system messages, registration prerequisites, the passkey nudge, sessions,
   and multi-site notes.
 - [Configuration reference](docs/configuration.md): every setting with its
-  default and effect, the control-panel permission, read-only behavior, and the
-  "no password flows" contract.
+  default and effect, the complete `craft.warp` template-variable surface, the
+  control-panel permission, read-only behavior, and the "no password flows"
+  contract.
 - [Privacy and GDPR](docs/privacy.md): what Warp stores and for how long, the
   lawful basis, the `anonymizeIp` option, and what to add to your privacy
   policy.

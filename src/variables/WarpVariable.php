@@ -23,9 +23,16 @@ use craftpulse\warp\Warp;
 
 /**
  * WarpVariable is the `craft.warp` Twig variable — the single front-end handle
- * onto Warp's passwordless surface: passkey state for a management UI (delegated
- * to Auth Kit), the reference WebAuthn client URL, whether registration is open,
- * the enabled login methods, and the show-once passkey-enrollment nudge.
+ * onto Warp's passwordless surface. It exposes read accessors for passkey state
+ * ([[getHasPasskeys()]], [[getPasskeys()]]) and the reference WebAuthn client URL
+ * ([[getWebauthnJsUrl()]], all delegated to Auth Kit), whether registration is
+ * open ([[getRegistrationEnabled()]]), the enabled login methods
+ * ([[getLoginMethods()]]), the one-time-code length ([[getOtpDigits()]]), the
+ * session-carried code-entry prefill ([[getRequestedEmail()]]), the current
+ * user's active sessions ([[getSessions()]]), and the show-once
+ * passkey-enrollment nudge ([[getShowPasskeyNudge()]]); plus the two OTP render
+ * builders ([[otpForm()]], [[otpInput()]]). It is the whole front-end contract —
+ * templates never reach a Warp service or record directly.
  *
  * The passkey passthroughs delegate to Auth Kit's own variable, so templates
  * never need to know where the split falls — Warp owns the front-end handle,

@@ -159,6 +159,40 @@ never fingerprinting, and the label never influences authorization. For the full
 data inventory, retention windows, and lawful-basis notes, see the
 [privacy guide](privacy.md).
 
+## Template variables (`craft.warp`)
+
+Warp exposes its whole front-end surface through the single `craft.warp` Twig
+variable. Everything the example templates read is listed here; nothing else is
+exposed, so a template never reaches a service or a record directly. The
+data accessors are read as properties (Craft's magic getter drops the `get`
+prefix); the two render builders are called as functions and terminated with
+`.render()`.
+
+### Data accessors
+
+| Variable | Returns | What it is |
+|---|---|---|
+| `craft.warp.hasPasskeys` | bool | Whether the current user has any passkeys enrolled. `false` for a guest. Delegated to Auth Kit. |
+| `craft.warp.passkeys` | array | The current user's enrolled passkeys, ready for a management list. Empty for a guest. Delegated to Auth Kit. |
+| `craft.warp.webauthnJsUrl` | string | The published URL of the reference WebAuthn client script, for the passkey login and enrollment JS. Delegated to Auth Kit. |
+| `craft.warp.registrationEnabled` | bool | Whether passwordless registration is currently open, meaning Warp's `enableRegistration` **and** Craft's `users.allowPublicRegistration` are both on. |
+| `craft.warp.loginMethods` | array of strings | The enabled login channels, a subset of `magic-link` and `otp`, so a template renders only the channels the site offers. |
+| `craft.warp.otpDigits` | int | The configured one-time-code length, for sizing a custom code input to match the setting instead of hardcoding it. |
+| `craft.warp.requestedEmail` | string or null | The email the visitor last requested a credential for, the session-carried prefill the code-entry page reads. It is the visitor's own input echoed back, so it reveals nothing, and the verify endpoint clears it on a successful sign-in. |
+| `craft.warp.sessions` | array of `SessionInfo` | The current user's active sessions for the session-management screen, the current session flagged and each other device labelled. Empty for a guest. |
+| `craft.warp.showPasskeyNudge` | bool | Whether to show the one-time passkey-enrollment nudge. Reading it **clears** the flag, so the nudge surfaces exactly once per triggering sign-in. |
+
+### Render builders
+
+| Function | Renders |
+|---|---|
+| `craft.warp.otpForm({...}).render()` | The complete one-time-code verify form: the post to `warp/auth/verify-code` with CSRF, the carried email prefill (or a visible email input when none is held), the segmented code input, a hint, and the submit button. |
+| `craft.warp.otpInput({...}).render()` | The segmented one-time-code input alone, for a page composing its own form around it. One paste-aware square per digit, sized to `otpDigits`, degrading to a plain input with no JavaScript. |
+
+Both builders are chainable: every key in the options array matches a setter on
+the builder, and any setter may also be called fluently before `.render()`. See
+[the OTP form builder](setup.md#the-otp-form-builder) for the option list.
+
 ## Values that are not settings
 
 Two retention windows are deliberately fixed constants rather than settings:
