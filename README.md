@@ -51,7 +51,7 @@ routes, controllers, templates, and a control-panel section.
   which is only public as of 5.10.0)
 - PHP 8.2 or later
 - [`craftpulse/craft-auth-kit`](https://github.com/craftpulse/craft-auth-kit)
-  1.2.0 or later, which Composer installs automatically as a dependency
+  1.4.0 or later, which Composer installs automatically as a dependency
 
 ## Installation
 
@@ -65,6 +65,18 @@ composer require craftpulse/craft-warp
 Auth Kit is pulled in as a Composer dependency and installed alongside Warp. You
 do not install or configure it separately: Warp pushes its settings into Auth
 Kit's services at boot.
+
+**Not yet on Packagist.** Until Warp is published, `composer require` needs a
+VCS repository entry in your project's `composer.json`:
+
+```json
+"repositories": [
+    { "type": "vcs", "url": "https://github.com/craftpulse/craft-warp.git" }
+]
+```
+
+Auth Kit itself is already on Packagist, so it resolves normally as a
+dependency.
 
 ## Quick start
 
@@ -115,8 +127,6 @@ messages ship ready to use. Customize their copy under
 - [Privacy and GDPR](docs/privacy.md): what Warp stores and for how long, the
   lawful basis, the `anonymizeIp` option, and what to add to your privacy
   policy.
-- [Manual checks](docs/manual-checks.md): the human verification checklist for
-  reviewers.
 
 ## Privacy
 
