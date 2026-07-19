@@ -39,6 +39,15 @@
         "craftcms/phpstan": "dev-main",
         "markhuot/craft-pest-core": "^3.2"
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../*",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "autoload": {
         "psr-4": {
             "craftpulse\\warp\\": "src/"
