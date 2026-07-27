@@ -270,4 +270,3 @@ security, which belongs in your site's privacy policy. The
 [privacy guide](privacy.md) has the data inventory, retention windows, the
 GDPR lawful-basis notes, and suggested disclosure wording, plus the optional
 `anonymizeIp` setting for deployments that must not store full addresses.
-</content>

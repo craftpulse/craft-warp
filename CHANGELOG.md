@@ -126,4 +126,3 @@
 - Same-site `returnUrl` validation on every redirect, blocking open-redirect
   attempts, and a coarse user-agent-to-label helper for the sessions screen
   (display only, no fingerprinting).
-</content>

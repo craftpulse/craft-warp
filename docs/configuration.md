@@ -258,4 +258,3 @@ Warp is passwordless by design (decision D4). Stated explicitly:
 If you need password-based login for the same members, that is a different product
 surface; Warp neither provides nor blocks it, but it will never set a password on
 a member's behalf.
-</content>
