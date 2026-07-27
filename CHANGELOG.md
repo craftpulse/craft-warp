@@ -1,6 +1,6 @@
 # Release Notes for Warp
 
-## 5.0.0-beta.2 - 2026-07-16
+## 5.0.0-beta.2 - 2026-07-27
 
 ### Changed
 - Requires Auth Kit 1.4.0 or later.
