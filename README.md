@@ -153,5 +153,3 @@ statement.
 ## License
 
 Warp is commercial software. See [LICENSE.md](LICENSE.md).
-</content>
-</invoke>
