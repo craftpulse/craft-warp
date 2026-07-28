@@ -17,7 +17,7 @@ jobs:
           - name: 'PHPStan'
             run: composer phpstan
           - name: 'Coding Standards'
-            run: composer fix-cs
+            run: composer check-cs
     name: ${{ matrix.actions.name }}
     runs-on: ubuntu-latest
     steps:
@@ -38,3 +38,50 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --no-ansi --no-progress
       - run: ${{ matrix.actions.run }}
+  pest:
+    name: Pest
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: db_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: /tmp/composer-cache
+          key: ${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          extensions: 'ctype,curl,dom,gd,iconv,imagick,intl,json,mbstring,openssl,pcre,pdo,pdo_mysql,reflection,spl,zip'
+          ini-values: post_max_size=256M, max_execution_time=180, memory_limit=512M
+          tools: composer:v2
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-ansi --no-progress
+      # Run from the plugin's own root, through its own composer-installed
+      # Pest binary — never a shared playground's `craft pest/test` console
+      # command, which silently defeats this suite's DB isolation (see
+      # phpunit.xml.dist and tests/Bootstrap.php). A CI checkout has no such
+      # shared vendor to conflict with. CRAFT_DB_SERVER/USER/PASSWORD/PORT
+      # come from this job's own env below rather than phpunit.xml.dist's
+      # forced overrides, so no hostname-alias trick is needed here.
+      - name: Run Pest
+        run: composer test
+    env:
+      CRAFT_DB_DRIVER: mysql
+      CRAFT_DB_SERVER: 127.0.0.1
+      CRAFT_DB_PORT: 3306
+      CRAFT_DB_USER: root
+      CRAFT_DB_PASSWORD: root
