@@ -5,6 +5,10 @@
 # Craft runtime artifacts from tooling that boots Craft with the plugin dir as base path
 /config
 /storage
+# ExampleTemplatesControllerTest writes here (site templates path resolves under the
+# plugin root in the standalone test bootstrap); its own afterEach() cleans this up
+# on a normal run, this is only a backstop for an interrupted one
+/templates
 .phpunit.cache
 .phpunit.result.cache
 .DS_Store
