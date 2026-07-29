@@ -1,5 +1,19 @@
 # Release Notes for Warp
 
+## Unreleased
+
+### Changed
+- Warp's two control-panel permission handles are now kebab-case:
+  `warp:viewOverview` is now `warp:view-overview`, and `warp:manageSettings` is
+  now `warp:manage-settings`. Craft lowercases a permission name both when it
+  stores it and when it checks it, so the old names read as `warp:viewoverview`
+  and `warp:managesettings` in the database; the kebab names keep their word
+  boundaries there and in exports. A migration carries every existing grant over
+  automatically, for users, for user groups, and in the project-config group
+  permission lists, so nobody loses access. Craft's own permissions are
+  untouched. If you reference either handle in your own templates or code (for
+  example `currentUser.can('warp:viewOverview')`), update it to the new name.
+
 ## 5.0.0-beta.2 - 2026-07-27
 
 ### Changed

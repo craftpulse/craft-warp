@@ -50,7 +50,7 @@ class OverviewController extends Controller
      *
      * @since 5.0.0
      */
-    public const PERMISSION_VIEW_OVERVIEW = 'warp:viewOverview';
+    public const PERMISSION_VIEW_OVERVIEW = 'warp:view-overview';
 
     // Public Methods
     // =========================================================================

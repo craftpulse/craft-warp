@@ -3,7 +3,7 @@
  * Warp plugin for Craft CMS 5.x
  *
  * HTTP tests for the control-panel OverviewController: the screen is gated on
- * the `warp:viewOverview` permission — a user without it is rejected, an admin
+ * the `warp:view-overview` permission — a user without it is rejected, an admin
  * and a permission-holding user both render the summary.
  *
  * @link      https://craft-pulse.com

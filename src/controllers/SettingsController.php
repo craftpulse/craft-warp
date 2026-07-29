@@ -42,7 +42,7 @@ class SettingsController extends Controller
      *
      * @since 5.0.0
      */
-    public const PERMISSION_MANAGE_SETTINGS = 'warp:manageSettings';
+    public const PERMISSION_MANAGE_SETTINGS = 'warp:manage-settings';
 
     // Public Methods
     // =========================================================================
