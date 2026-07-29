@@ -22,8 +22,8 @@ use yii\helpers\Console;
  * `warp/geo/refresh` on deploy or on a schedule, from a licence-appropriate URL
  * configured via `config/warp.php`.
  *
- * With no database installed everything degrades silently — no location, no
- * new-location detection, no alerts — so running this is entirely optional.
+ * With no database installed everything degrades silently (no location, no
+ * new-location detection, no alerts), so running this is entirely optional.
  *
  * @author CraftPulse
  * @since 5.0.0

@@ -20,7 +20,7 @@ use yii\helpers\Console;
 
 /**
  * ExampleTemplatesController installs Warp's example member-area templates
- * into the project's templates directory — the same convenience Craft
+ * into the project's templates directory, the same convenience Craft
  * Commerce ships as `commerce/example-templates`. Run:
  *
  * ```
