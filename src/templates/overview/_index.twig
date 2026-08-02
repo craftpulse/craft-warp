@@ -10,6 +10,21 @@
 
 {% do view.registerAssetBundle('craft\\web\\assets\\admintable\\AdminTableAsset') %}
 
+{# The table's JS strings go through Craft.t('warp', ...), which only knows a
+   translation once it is registered here — without this the CP falls back to
+   the raw English messages on non-English installs. #}
+{% do view.registerTranslations('warp', [
+    'Location unknown',
+    'User',
+    'Method',
+    'Device',
+    'IP address',
+    'Location',
+    'When',
+    'Search by email or username',
+    'No passwordless sign-ins recorded yet.',
+]) %}
+
 {% block content %}
     {# =====================================================================
        Current posture
