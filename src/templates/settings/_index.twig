@@ -6,7 +6,7 @@
 
 {% set allowPublicRegistration = craft.app.projectConfig.get('users.allowPublicRegistration') %}
 
-{% set groupOptions = [{ value: '', label: 'Craft’s default user group'|t('warp') }] %}
+{% set groupOptions = [{ value: '', label: 'Default User Group'|t('warp') }] %}
 {% for group in craft.app.userGroups.allGroups %}
     {% set groupOptions = groupOptions|merge([{ value: group.uid, label: group.name }]) %}
 {% endfor %}
