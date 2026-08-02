@@ -71,9 +71,16 @@ class Warp extends Plugin
     /**
      * @var string The plugin's schema version.
      *
-     * @since 5.0.0
+     * Craft compares this against the value recorded for Warp in the `plugins`
+     * table to decide whether a site has a pending database update, using a
+     * strictly-greater comparison. It must therefore be raised in any release
+     * that ships a new dated migration, or the control panel never prompts for
+     * the update and the migration only runs for someone who happens to run
+     * `craft up` by hand. It is independent of the plugin's released version.
+     *
+     * @since 5.0.1
      */
-    public string $schemaVersion = '5.0.0';
+    public string $schemaVersion = '5.0.1';
 
     // Public Methods
     // =========================================================================
