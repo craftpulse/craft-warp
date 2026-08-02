@@ -58,6 +58,9 @@ class Registration extends Component
      * - no account yet: created active with no password, username set to the
      *   email, assigned to [[Settings::$registrationGroupUid]] (or Craft's
      *   default group when that is unset or dangling);
+     * - an account matched by username only (its email is a different address):
+     *   null — the token proved possession of the payload mailbox and nothing
+     *   else, so it must never unlock an account owned by another address;
      * - a pending account: activated in place, unless it is locked;
      * - an active account: returned unchanged — mailbox possession is the same
      *   proof a magic link accepts;
@@ -82,6 +85,18 @@ class Registration extends Component
 
         if ($user === null) {
             return $this->_createUser($email);
+        }
+
+        // The token proved possession of the payload mailbox and nothing else,
+        // so it may only ever unlock an account whose EMAIL is that mailbox.
+        // getUserByUsernameOrEmail() also matches by username, and a username
+        // is free-form text another member could have set to this address —
+        // honouring that match would log the mailbox holder into someone
+        // else's account (a pre-hijack). Fail closed instead.
+        if (!is_string($user->email) || strcasecmp($user->email, $email) !== 0) {
+            Craft::warning("A registration token's email matched an account by username only; refusing to fulfill.", __METHOD__);
+
+            return null;
         }
 
         $status = $user->getStatus();

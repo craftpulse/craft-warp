@@ -172,6 +172,25 @@ it('passes an already-active account straight through', function() {
         ->and($user->getStatus())->toBe(User::STATUS_ACTIVE);
 });
 
+it('fails closed for an account matched by username only', function() {
+    // The token proved possession of the payload mailbox, nothing else. An
+    // account whose USERNAME is that address but whose email is a different
+    // mailbox (a squatted username) must never be unlocked by it — honouring
+    // the match would log the mailbox holder into someone else's account.
+    $tokenEmail = registrationEmail();
+    $squatter = new User();
+    $squatter->username = $tokenEmail;
+    $squatter->email = registrationEmail();
+
+    if (!Craft::$app->getElements()->saveElement($squatter)) {
+        throw new RuntimeException('Could not save squatter test user.');
+    }
+
+    Craft::$app->getUsers()->activateUser($squatter);
+
+    expect(Warp::$plugin->getRegistration()->fulfill(registrationToken($tokenEmail)))->toBeNull();
+});
+
 it('fails closed for a suspended account', function() {
     $email = registrationEmail();
     $user = activeRegistrationUser($email);
