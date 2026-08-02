@@ -28,9 +28,19 @@
 
 {% set title = 'Sign in'|t('warp') %}
 
-{# A ?returnUrl= sends the member back where re-auth interrupted them; the
-   endpoint re-validates it as same-site. #}
-{%- set afterSignInUrl = craft.app.request.getParam('returnUrl') ?? url('members/account') -%}
+{# A ?returnUrl= sends the member back where re-auth interrupted them. The
+   endpoint re-validates the posted copy as same-site, but the passkey script
+   below also assigns it to window.location.href, so it is constrained HERE
+   too: only a site-relative path is accepted (no scheme, so a javascript: or
+   protocol-relative URL can never reach the redirect), anything else falls
+   back to the account page. #}
+{%- set requestedReturnUrl = craft.app.request.getParam('returnUrl') -%}
+{%- set afterSignInUrl = requestedReturnUrl is not empty
+    and requestedReturnUrl starts with '/'
+    and not (requestedReturnUrl starts with '//')
+    and '\\' not in requestedReturnUrl
+    ? requestedReturnUrl
+    : url('members/account') -%}
 
 {# Whether sign-up is open (Warp's setting AND Craft's own switch). #}
 {%- set registrationOpen = craft.warp.registrationEnabled -%}
@@ -193,7 +203,7 @@
                     loginUrl: '{{ actionUrl('users/login-with-passkey')|e('js') }}',
                     csrfToken: '{{ craft.app.request.csrfToken|e('js') }}'
                 }).then(function () {
-                    window.location.href = '{{ afterSignInUrl }}';
+                    window.location.href = '{{ afterSignInUrl|e('js') }}';
                 }).catch(function (error) {
                     // A cancelled or timed-out browser ceremony throws a DOMException
                     // whose message is written for developers, not members.
