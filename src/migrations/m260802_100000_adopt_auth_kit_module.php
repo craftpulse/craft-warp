@@ -36,12 +36,16 @@ use craftpulse\authkit\migrations\Adoption;
  *
  * - It is idempotent, so a re-run finds nothing left to do.
  * - It degrades to a plain migrator `up()` on an install that never had the
- *   plugin, which is what a site installing Warp fresh at this release gets
- *   (that install runs [[Install]] instead, and this migration is marked
- *   applied without running).
+ *   plugin.
  * - It is safe when several consumers ship it. Warden ships the same adoption
  *   migration; on an install running both, whichever migration runs first does
  *   the work and the second is a no-op.
+ *
+ * This migration is the upgrade path only. A site installing Warp fresh never
+ * runs it — Craft stamps dated migrations as applied without running them on a
+ * fresh install — so [[Install]] makes the same `adoptFromPlugin()` call
+ * itself. It has to: installing fresh onto a database that once carried the
+ * Auth Kit plugin leaves a stale registration that nothing else would clear.
  *
  * There is deliberately no `safeDown()` beyond the base no-op: reversing the
  * adoption would mean re-registering a plugin whose package no longer declares

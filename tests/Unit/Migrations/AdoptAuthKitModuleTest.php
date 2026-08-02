@@ -17,6 +17,14 @@
  * rest of this suite runs against, and that a second run finds nothing to do,
  * which is what makes it safe for Warden to ship the same migration alongside.
  *
+ * Warp reaches the adoption from two places, and both are covered here.
+ * The dated migration is the upgrade path, for a site that already has Warp
+ * installed. `Install` is the fresh-install path, and it needs the adoption
+ * just as much: Craft stamps dated migrations as applied *without running
+ * them* on a fresh install, so installing Warp fresh onto a database that once
+ * carried the Auth Kit plugin would otherwise leave the stale registration
+ * behind with nothing left to ever clear it.
+ *
  * @link      https://craft-pulse.com
  * @copyright Copyright (c) 2026 CraftPulse
  */
@@ -28,6 +36,7 @@ use craft\helpers\StringHelper;
 use craftpulse\authkit\AuthKit;
 use craftpulse\authkit\db\Table as AuthKitTable;
 use craftpulse\authkit\migrations\Adoption;
+use craftpulse\warp\migrations\Install;
 use craftpulse\warp\migrations\m260802_100000_adopt_auth_kit_module;
 
 /**
@@ -234,4 +243,76 @@ it('finds nothing left to do on a second run, so co-shipping consumers are safe'
         ->and(warpMigrationNamesOnTrack(Adoption::MODULE_TRACK))->toBe($afterFirst)
         ->and(warpAuthKitPluginRowExists())->toBeFalse()
         ->and(Craft::$app->getDb()->tableExists(AuthKitTable::TOKENS))->toBeTrue();
+});
+
+// =============================================================================
+// Fresh install onto a database that once carried the Auth Kit plugin
+//
+// The migration above never runs here — Craft stamps dated migrations as
+// applied without running them on a fresh install — so `Install` has to carry
+// the adoption itself. Without it the stale registration would survive
+// indefinitely and Auth Kit would keep showing up in the plugins list.
+// =============================================================================
+
+it('clears a stale Auth Kit plugin registration when Warp is installed fresh', function() {
+    warpFixturePluginEraAuthKit(withProjectConfig: true);
+
+    expect(warpAuthKitPluginRowExists())->toBeTrue()
+        ->and(Craft::$app->getProjectConfig()->get('plugins.' . AuthKit::ID))->not->toBeNull();
+
+    expect((new Install())->safeUp())->toBeTrue()
+        ->and(warpAuthKitPluginRowExists())->toBeFalse()
+        ->and(Craft::$app->getProjectConfig()->get('plugins.' . AuthKit::ID))->toBeNull();
+});
+
+it('adopts the plugin-era migration history when Warp is installed fresh', function() {
+    warpFixturePluginEraAuthKit();
+
+    expect(warpMigrationNamesOnTrack(Adoption::MODULE_TRACK))->toBe([]);
+
+    (new Install())->safeUp();
+
+    expect(warpMigrationNamesOnTrack(Adoption::MODULE_TRACK))->toContain(
+        'm260617_000000_Install',
+        'm260711_000001_MakeTokenUserIdNullable',
+        'm260716_000001_AddTokenOrigin',
+        'm260718_000001_AddTokenSubject',
+    )->and(warpMigrationNamesOnTrack(Adoption::PLUGIN_TRACK))->toBe([]);
+});
+
+it('keeps the token store when Warp is installed over a plugin-era Auth Kit', function() {
+    // The stale registration goes; the data behind it never does.
+    warpFixturePluginEraAuthKit(withProjectConfig: true);
+
+    $now = Db::prepareDateForDb(new DateTime('now', new DateTimeZone('UTC')));
+    $tokenHash = hash('sha256', 'warp-fresh-install-fixture');
+
+    Db::insert(AuthKitTable::TOKENS, [
+        'userId' => null,
+        'type' => 'magic-link',
+        'origin' => 'warp',
+        'subject' => hash('sha256', 'fresh-install-fixture@example.test'),
+        'tokenHash' => $tokenHash,
+        'expiryDate' => Db::prepareDateForDb(new DateTime('+1 hour', new DateTimeZone('UTC'))),
+        'dateCreated' => $now,
+        'dateUpdated' => $now,
+        'uid' => StringHelper::UUID(),
+    ]);
+
+    (new Install())->safeUp();
+
+    expect((new Query())
+        ->from([AuthKitTable::TOKENS])
+        ->where(['tokenHash' => $tokenHash])
+        ->exists())->toBeTrue();
+});
+
+it('still brings the shared schema up when Warp is installed on a database that never had the plugin', function() {
+    // The degrade-to-plain-`up()` case: no registration to clear, schema still
+    // brought up, nothing invented.
+    expect((new Install())->safeUp())->toBeTrue()
+        ->and(Craft::$app->getDb()->tableExists(AuthKitTable::TOKENS))->toBeTrue()
+        ->and(warpAuthKitPluginRowExists())->toBeFalse()
+        ->and(warpMigrationNamesOnTrack(Adoption::MODULE_TRACK))
+        ->toContain('m260617_000000_Install');
 });
