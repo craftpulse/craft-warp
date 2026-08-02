@@ -3,7 +3,8 @@
 This guide takes a fresh Warp install to a working member area: copying the
 example templates, wiring your page URLs, customizing the emails, and turning on
 the flows you want. For the meaning of each setting, see the
-[configuration reference](configuration.md).
+[configuration reference](configuration.md). For the Twig surface the templates
+read, see the [template reference](templates.md).
 
 ## The shape of Warp
 
@@ -25,16 +26,20 @@ templates post to are Warp's.
 
 The quickest way in is the console command:
 
-```sh
+```shell
 php craft warp/example-templates
+```
+
+```shell
+ddev craft warp/example-templates
 ```
 
 It prompts for a folder name (default `members`) and copies the bundle into
 your `templates/` directory. Choosing a different folder name rewrites the
 bundle's internal `members/...` template paths and URLs to match, so the copy
-works wherever it lands. An existing folder is only replaced when you pass
-`--overwrite`, and `--folder-name=members` skips the prompt for scripted
-setups. Copying `example-templates/members/` into `templates/` by hand works
+works wherever it lands. See the
+[console command reference](console-commands.md#warpexample-templates) for the
+options. Copying `example-templates/members/` into `templates/` by hand works
 just as well.
 
 The bundle is:
@@ -57,17 +62,24 @@ skip link, a small nav, and the flash notices Warp's controllers set, so every
 URL under `/members` is a valid, styled page out of the box. Each file carries
 a header comment explaining what it posts to and its accessibility contract.
 
-Styling is Tailwind CSS loaded from a CDN in the layout head, the same
-approach Commerce's example templates take. To integrate with your own design,
-restyle the pages in place (swap the CDN link for your own build) or replace
-the bundled layout: change the one `{% extends %}` line per page to your
-site's layout and keep the `{% block main %}` content.
+The bundle is meant to be edited, not treated as vendor code. Styling is
+Tailwind CSS loaded from a CDN in the layout head, the same approach Commerce's
+example templates take, so it looks right with no buildchain. You have two
+integration paths, and both are cheap:
+
+- **Restyle in place.** Edit the utility classes on the pages and the shell, and
+  swap the CDN link for your own build. The markup, routing, and interactions
+  keep working.
+- **Swap the shell.** Change the one `{% extends %}` line per page to your
+  site's layout and keep the `{% block main %}` content. Because the chrome
+  (skip link, nav, flash notices) lives in the shell rather than in each page,
+  re-homing it is a one-liner per page.
 
 The bundle assumes it lives at `templates/members/`: every template path and
-URL in it starts with `members/`. If you rename the folder, update those
-references throughout the bundle.
+URL in it starts with `members/`. If you rename the folder after installing,
+update those references throughout the bundle.
 
-### Page URLs versus Warp's routes
+### Page URLs and Warp's routes
 
 The page URLs are plain template routing: `templates/members/login.twig`
 serves `/members/login`, and so on, with no `config/routes.php` entries
@@ -81,44 +93,22 @@ Two behaviors worth knowing:
   code, or a passkey login lands the member. Warp validates it as same-site
   before honouring it, so an open-redirect attempt is dropped and the member
   lands on the site root instead.
-- **`link-sent` / `otp-verify`** are the neutral pages the request form
+- **`link-sent` and `otp-verify`** are the neutral pages the request form
   redirects to. They must read the same whether the address was known,
-  unknown, or garbage: the example copy already does this. Do not add "we
-  could not find that account" messaging, which would defeat the enumeration
-  safety the endpoint is built for.
+  unknown, or garbage, and the example copy already does. Do not add "we could
+  not find that account" messaging, which would defeat the enumeration safety
+  the endpoint is built for.
 
-### The OTP form builder
-
-The code-entry page renders its whole form through a fluent builder, the same
-shape Password Policy ships for its password forms:
-
-```twig
-{{ craft.warp.otpForm({
-    returnUrl: url('members/account'),
-    requestUrl: url('members/login'),
-}).render() }}
-```
-
-That one call outputs the post to `warp/auth/verify-code` with CSRF, the
-session-carried email prefill (or a visible email input on a direct visit),
-the segmented code input, its hint, and the submit button. The input renders
-as one square per digit, sized to the `otpDigits` setting, with auto-advance,
-backspace, arrow keys, and paste distributing a full code across the squares;
-with no JavaScript it degrades to a plain input, so the form always submits.
-
-Composing your own form instead? `craft.warp.otpInput().render()` gives you
-just the segmented input (options: `digits`, `name`, `id`, `label`,
-`autofocus`, `inputAttrs`). Both builders auto-register a small JS and
-neutral CSS asset; override the `warp-otp__*` and `warp-otp-form__*` classes
-to restyle.
+### Pointing Craft at the login page
 
 One core setting completes the wiring: point Craft's `loginPath` general config
-setting at the copied login page (for example `->loginPath('members/login')`).
+setting at the copied login page, for example `->loginPath('members/login')`.
+
 A failed verification (an expired or reused link, a dead registration link)
-redirects there so its "invalid or expired" flash renders on a page that shows
+redirects there, so its "invalid or expired" flash renders on a page that shows
 flashes and offers a fresh request form. Without it, failures land on Craft's
-default `/login` path; if `loginPath` is disabled entirely (`false` or headless),
-they fall back to the site root.
+default `/login` path; if `loginPath` is disabled entirely (`false` or
+headless), they fall back to the site root.
 
 ## Customizing the emails
 
@@ -128,21 +118,20 @@ then **Email**, then **System Messages**:
 
 | Message key | Sent when |
 |---|---|
-| `auth_kit_magic_link` | a member requests a magic-link sign-in |
-| `auth_kit_otp` | a member requests a one-time code |
-| `auth_kit_register` | an unknown address requests sign-up (registration open) |
+| `auth_kit_magic_link` | A member requests a magic-link sign-in. |
+| `auth_kit_otp` | A member requests a one-time code. |
+| `auth_kit_register` | An unknown address requests sign-up, with registration open. |
+| `warp_new_location` | A member signs in from a city and country they have never used. |
 
-Edit the subject and body per site. Because these belong to Auth Kit, the same
-copy is shared by any other Auth Kit consumer on the install; that is by design,
-one token store, one set of messages. The new-location alert
-(`warp_new_location`, see the [configuration reference](configuration.md#location-awareness))
-is edited in the same place.
+Edit the subject and body per site. The first three messages belong to Auth Kit,
+so their copy is shared with any other Auth Kit consumer on the install: one
+token store, one set of messages.
 
 These are all standard Craft system messages, so everything that applies to
 core's own emails (account activation, password reset) applies here:
 
 - **Copy** is edited per site and language under **Settings** > **Email** >
-  **System Messages**, Markdown supported. Each message receives Twig
+  **System Messages**, with Markdown supported. Each message receives Twig
   variables you can use in the subject and body: the magic-link message gets
   `{{ link }}` and `{{ user }}`, the one-time code gets `{{ code }}` and
   `{{ user }}`, the signup link gets `{{ link }}` and `{{ email }}`, and the
@@ -150,11 +139,11 @@ core's own emails (account activation, password reset) applies here:
   `{{ location }}`, and `{{ sessionsUrl }}`.
 - **Visual styling** comes from Craft's own email template setting
   (**Settings** > **Email** > **HTML Email Template**, project-config
-  tracked; requires Craft Pro). Point it at a site Twig template and every
-  system email, Warp's included, renders inside your branded HTML wrapper. No
-  Warp configuration is involved, and the plain-text alternative Craft
-  generates stays intact. Without a custom template (or on Craft Solo),
-  emails use Craft's plain default wrapper.
+  tracked, Craft Pro only). Point it at a site Twig template and every system
+  email, Warp's included, renders inside your branded HTML wrapper. No Warp
+  configuration is involved, and the plain-text alternative Craft generates
+  stays intact. Without a custom template, or on Craft Solo, emails use Craft's
+  plain default wrapper.
 
 ### Styling the emails
 
@@ -199,8 +188,8 @@ for the full mail-settings reference, including per-environment overrides via
 
 Passwordless registration turns on only when **both** switches are on:
 
-1. **Warp's own `enableRegistration` setting** (on the Warp settings screen,
-   default on).
+1. **Warp's own `enableRegistration` setting**, on the Warp settings screen,
+   default on.
 2. **Craft's public-registration switch.** This is the core
    `users.allowPublicRegistration` value in project config, the same switch
    Craft's own front-end registration checks. It is not a `config/general.php`
@@ -209,10 +198,11 @@ Passwordless registration turns on only when **both** switches are on:
 
 When either switch is off, the unified email form silently degrades to
 login-only: an unknown address is emailed nothing, and the HTTP response is
-unchanged, so the form still never reveals whether registration is open. New
-members join the group named by Warp's `registrationGroupUid` setting, or Craft's
-default user group when that is unset. They are created active with no password;
-verifying the signup link is the proof.
+unchanged, so the form still never reveals whether registration is open.
+
+New members join the group named by Warp's `registrationGroupUid` setting, or
+Craft's default user group when that is unset. They are created active with no
+password; verifying the signup link is the proof.
 
 ## The passkey nudge
 
@@ -232,8 +222,8 @@ request is always false. Turn the nudge off entirely with the
 `account/sessions.twig` lists the member's active sessions through
 `craft.warp.sessions`. Each row is a live Craft session joined to Warp's device
 registry for a friendly label; the session making the request wears a "This
-device" badge and has no per-row sign-out button (the normal sign-out link ends
-it). Other rows offer a per-row "Sign out", and a "Sign out everywhere else"
+device" badge and has no per-row sign-out button, since the normal sign-out link
+ends it. Other rows offer a per-row "Sign out", and a "Sign out everywhere else"
 button clears every session but the current one.
 
 A session created before Warp was installed, or by a path Warp does not capture,
@@ -256,7 +246,7 @@ the Dutch site, not the primary one.
 Two consequences for a multi-site member area:
 
 - Serve the copied templates on each site that offers passwordless login, at the
-  URLs that site expects. The `afterSignInUrl` and page-routing variables are
+  URLs that site expects. The post-sign-in destination and the page routing are
   per-template, so a site-specific template can point at site-specific routes.
 - The same-site `returnUrl` validation is scoped to the issuing site's base URL,
   so a `returnUrl` pointing at another site in the group is dropped as an
@@ -265,8 +255,8 @@ Two consequences for a multi-site member area:
 
 ## Privacy disclosure
 
-Warp records sign-in history (IP, coarse location, device label) for account
-security, which belongs in your site's privacy policy. The
+Warp records sign-in history (IP address, coarse location, device label) for
+account security, which belongs in your site's privacy policy. The
 [privacy guide](privacy.md) has the data inventory, retention windows, the
-GDPR lawful-basis notes, and suggested disclosure wording, plus the optional
+lawful-basis notes, and suggested disclosure wording, plus the optional
 `anonymizeIp` setting for deployments that must not store full addresses.
