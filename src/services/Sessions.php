@@ -388,13 +388,6 @@ class Sessions extends Component
      */
     private function _recordRevocation(int $userId, string $scope): void
     {
-        // Session management runs entirely on core's tables, so it still works
-        // with Auth Kit disabled — the audit deref is guarded so a missing
-        // contract can never turn an already-completed kill into a 500.
-        if (AuthKit::getInstance() === null) {
-            return;
-        }
-
         AuthKit::$plugin->getAudit()->record(new AuthEvent(
             name: AuthEvent::SESSION_REVOKED,
             emitter: 'warp',

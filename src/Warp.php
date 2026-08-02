@@ -14,6 +14,7 @@ use Craft;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\helpers\UrlHelper;
+use craftpulse\authkit\AuthKit;
 use craftpulse\warp\base\PluginTrait;
 use craftpulse\warp\controllers\OverviewController;
 use craftpulse\warp\controllers\SettingsController;
@@ -86,6 +87,23 @@ class Warp extends Plugin
         self::$plugin = $this;
 
         Craft::setAlias('@craftpulse/warp', __DIR__);
+
+        // Auth Kit is a library-shipped Yii module, not a Craft plugin: it
+        // arrives with Composer, never appears in the installed-plugins list,
+        // and nothing installs or enables it. Every consumer registers it from
+        // its own init(), and the call is idempotent, so an install running
+        // Warp alongside another consumer (Warden) is fine either way round:
+        // the first caller creates the module, the rest resolve the same
+        // instance. Registration happens here rather than from the deferred
+        // onInit() wiring below so Auth Kit's services are reachable for the
+        // whole of Warp's own boot.
+        //
+        // Registration is all Warp does to it. Warp writes NOTHING onto Auth
+        // Kit's shared services: routes, lifetimes, throttles, and the
+        // recent-auth window ride each issuance or check as per-call options,
+        // so a co-installed consumer can never clobber Warp's configuration,
+        // nor Warp theirs.
+        AuthKit::register();
 
         if (Craft::$app->getRequest()->getIsConsoleRequest()) {
             $this->controllerNamespace = 'craftpulse\\warp\\console\\controllers';

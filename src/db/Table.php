@@ -16,7 +16,7 @@ namespace craftpulse\warp\db;
  * Warp owns `warp_logins` (Phase 6, the passwordless login log backing the
  * overview screen) and `warp_sessions` (Phase 7, the device registry joined
  * against core's `{{%sessions}}` for the session-management screen). The token
- * store lives in the shared `craftpulse/craft-auth-kit` plugin.
+ * store lives in the shared `craftpulse/craft-auth-kit` module.
  *
  * @author CraftPulse
  * @since 5.0.0

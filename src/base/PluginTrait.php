@@ -12,11 +12,9 @@ namespace craftpulse\warp\base;
 
 use Craft;
 use craft\elements\User;
-use craft\events\RegisterCpAlertsEvent;
 use craft\events\RegisterEmailMessagesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
-use craft\helpers\Cp;
 use craft\models\SystemMessage;
 use craft\services\Gc;
 use craft\services\SystemMessages;
@@ -39,10 +37,9 @@ use yii\web\UserEvent;
  * PluginTrait owns Warp's event listeners, URL rule registration, and plugin
  * lifecycle wiring, keeping the main plugin class a thin orchestrator.
  *
- * The registrar methods are deliberately empty in the scaffold — each is filled
- * as its feature phase lands: site URL rules and the Auth Kit wiring with the
- * passwordless flows, CP URL rules with the overview and settings screens, and
- * the Twig variable with the front-end surface.
+ * Auth Kit itself is registered from [[\craftpulse\warp\Warp::init()]], not
+ * from here: it is a library-shipped module that has to exist before the
+ * deferred `onInit()` wiring these registrars run in.
  *
  * @author CraftPulse
  * @since 5.0.0
@@ -69,7 +66,6 @@ trait PluginTrait
         $this->_registerSessionRegistry();
         $this->_registerSystemMessages();
         $this->_registerVariable();
-        $this->_guardAuthKit();
     }
 
     /**
@@ -111,16 +107,12 @@ trait PluginTrait
                     // A passkey login runs through core's endpoint, so it is the
                     // one login.* event Passwordless::loginUser() never emits —
                     // record it here as an audit fact through Auth Kit's contract
-                    // (a no-op with no sinks registered). Core's endpoint works
-                    // even with Auth Kit disabled, so the deref is guarded: a
-                    // missing audit contract must never fail the login itself.
-                    if (AuthKit::getInstance() !== null) {
-                        AuthKit::$plugin->getAudit()->record(new AuthEvent(
-                            name: AuthEvent::LOGIN_PASSKEY,
-                            emitter: 'warp',
-                            userId: (int)$identity->id,
-                        ));
-                    }
+                    // (a no-op with no sinks registered).
+                    AuthKit::$plugin->getAudit()->record(new AuthEvent(
+                        name: AuthEvent::LOGIN_PASSKEY,
+                        emitter: 'warp',
+                        userId: (int)$identity->id,
+                    ));
                 }
             },
         );
@@ -175,41 +167,6 @@ trait PluginTrait
             Gc::EVENT_RUN,
             function(): void {
                 $this->getSessions()->pruneOrphans();
-            },
-        );
-    }
-
-    /**
-     * Guards Auth Kit's presence — loudly, but never fatally.
-     *
-     * Auth Kit is a hard dependency: every auth flow dereferences
-     * `AuthKit::$plugin`. A missing or disabled Auth Kit is logged as an error
-     * and surfaced as a control-panel alert rather than thrown — throwing here
-     * runs inside the application's deferred `onInit` callbacks and would take
-     * down every request, including the screens an admin needs to recover.
-     *
-     * Warp deliberately writes NOTHING onto Auth Kit's shared services:
-     * routes, lifetimes, throttles, and the recent-auth window ride each
-     * issuance/check as per-call options (Auth Kit 1.4.0), so another
-     * consumer plugin can never clobber Warp's configuration — nor Warp
-     * theirs.
-     *
-     * @author CraftPulse
-     * @since 5.0.0
-     */
-    private function _guardAuthKit(): void
-    {
-        if (AuthKit::getInstance() !== null) {
-            return;
-        }
-
-        Craft::error('Warp requires the Auth Kit plugin (craftpulse/craft-auth-kit) to be installed and enabled. All authentication flows are disabled until it is.', __METHOD__);
-
-        Event::on(
-            Cp::class,
-            Cp::EVENT_REGISTER_ALERTS,
-            static function(RegisterCpAlertsEvent $event): void {
-                $event->alerts[] = Craft::t('warp', 'Warp requires the Auth Kit plugin to be installed and enabled. All authentication flows are disabled until it is.');
             },
         );
     }
