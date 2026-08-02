@@ -1,5 +1,31 @@
 # Release Notes for Warp
 
+## 5.0.0-beta.5 - 2026-08-02
+
+### Fixed
+- Craft now prompts for the database update that the last two releases needed.
+  Warp's schema version was not raised when 5.0.0-beta.3 and 5.0.0-beta.4 added
+  their migrations, and Craft uses that number to decide whether a site has a
+  pending database update. A site that updated to either release without running
+  its migrations was therefore never told anything was outstanding, so the
+  permission rename and the Auth Kit module adoption stayed unapplied. Updating
+  to this release raises the schema version, so Craft asks for the update and the
+  pending migrations run as they should. Anyone who already ran `craft up` or
+  `migrate/all` after updating is unaffected: those commands apply pending
+  migrations regardless of the schema version, and this release will find nothing
+  left to do.
+- Warp's install migration now skips any index or foreign key that is already
+  present, so re-running it against a database that still holds Warp's tables
+  cannot accumulate duplicates.
+- Installing Warp on a site that previously ran Auth Kit as a plugin no longer
+  leaves the stale plugin registration behind. Craft marks dated migrations as
+  applied without running them on a fresh install, so the upgrade migration that
+  clears the registration never got the chance, and Auth Kit stayed in the
+  plugins list. Warp's install migration now performs the same Auth Kit module
+  adoption that migration does, so the registration is cleared whichever way
+  Warp arrives on the site. Auth Kit's tables and the tokens in them are
+  untouched either way.
+
 ## 5.0.0-beta.4 - 2026-08-02
 
 ### Changed
