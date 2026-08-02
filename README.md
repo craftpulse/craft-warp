@@ -53,7 +53,9 @@ routes, controllers, templates, and a control-panel section.
   which is only public as of 5.10.0)
 - PHP 8.2 or later
 - [`craftpulse/craft-auth-kit`](https://github.com/craftpulse/craft-auth-kit)
-  1.4.0 or later, which Composer installs automatically as a dependency
+  1.7.0 or later, which Composer installs automatically as a dependency. Auth
+  Kit is a library, not a plugin: there is nothing to install or enable, and it
+  never appears in your plugins list.
 
 ## Installation
 
@@ -64,9 +66,18 @@ composer require craftpulse/craft-warp
 ./craft plugin/install warp
 ```
 
-Auth Kit is pulled in as a Composer dependency and installed alongside Warp. You
-do not install or configure it separately: Warp pushes its settings into Auth
-Kit's services at boot.
+That is the whole installation. Auth Kit comes along as a Composer dependency
+and needs no install step of its own: it is a library Warp loads directly, so
+there is no `plugin/install auth-kit`, no entry in the plugins list, and nothing
+to enable or configure separately. Warp creates the shared token store as part
+of its own install, and passes its settings to Auth Kit per request rather than
+storing them there, so another Auth Kit consumer on the same site (such as
+Warden) can never clobber Warp's configuration.
+
+Upgrading from Warp 5.0.0-beta.3 or earlier, where Auth Kit was a separate
+plugin? Update Warp and run your migrations as usual. Warp's own migration
+converts the existing Auth Kit install in place, keeping every token, passkey,
+and setting, and removes the now-obsolete plugin entry for you.
 
 **Not yet on Packagist.** Until Warp is published, `composer require` needs a
 VCS repository entry in your project's `composer.json`:

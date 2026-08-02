@@ -1,5 +1,27 @@
 # Release Notes for Warp
 
+## 5.0.0-beta.4 - 2026-08-02
+
+### Changed
+- Requires Auth Kit 1.7.0 or later.
+- Auth Kit is no longer a separate plugin to install. It now ships as a library
+  that Composer pulls in with Warp, so there is nothing to install and nothing
+  to enable: it no longer appears in the plugins list, in your project config,
+  or in `plugin/install` and `plugin/uninstall`. Every passwordless feature
+  behaves exactly as before, and no token, passkey, or setting is affected.
+- Upgrading is automatic. Deploy the update and run your migrations as usual:
+  Warp converts an existing Auth Kit install in place, moving its migration
+  history to the new track and clearing the obsolete plugin entry out of the
+  plugins table and the project config, while leaving its tables untouched.
+  There is no step to perform by hand. If you run Warden on the same site as
+  well, whichever plugin migrates first does the conversion and the other
+  finds nothing left to do.
+
+### Removed
+- The control-panel alert and error-log entry warning that Auth Kit was missing
+  or disabled. Auth Kit now arrives as a library that cannot be disabled or
+  uninstalled on its own, so the warning could never be true again.
+
 ## 5.0.0-beta.3 - 2026-08-02
 
 ### Changed
