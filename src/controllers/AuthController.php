@@ -392,6 +392,15 @@ class AuthController extends Controller
      * @author CraftPulse
      * @since 5.0.0
      */
+    private function _resolveChannel(string $requested): string
+    {
+        if ($requested !== '') {
+            return $requested;
+        }
+
+        return $this->_settings()->loginMethods[0] ?? Settings::CHANNEL_MAGIC_LINK;
+    }
+
     /**
      * Returns Warp's settings, narrowed for static analysis.
      *
@@ -406,18 +415,6 @@ class AuthController extends Controller
         assert($settings instanceof Settings);
 
         return $settings;
-    }
-
-    private function _resolveChannel(string $requested): string
-    {
-        if ($requested !== '') {
-            return $requested;
-        }
-
-        $settings = Warp::$plugin->getSettings();
-        assert($settings instanceof Settings);
-
-        return $settings->loginMethods[0] ?? Settings::CHANNEL_MAGIC_LINK;
     }
 
     /**

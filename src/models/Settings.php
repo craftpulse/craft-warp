@@ -15,10 +15,10 @@ use craft\base\Model;
 use craft\helpers\App;
 
 /**
- * Settings holds Warp's passwordless tunables. Auth Kit owns the token store
- * and exposes these as service properties; Warp is the product that owns the
- * configuration UX and pushes the values into Auth Kit at plugin init — see
- * `PluginTrait::_configureAuthKit()`.
+ * Settings holds Warp's passwordless tunables. Auth Kit owns the token store;
+ * Warp owns the configuration UX and passes these values into Auth Kit as
+ * per-call options on every issuance and check (never as shared service
+ * state), so another Auth Kit consumer can never clobber Warp's configuration.
  *
  * All of these knobs are edited in Warp's own control-panel section and are
  * project-config tracked, so they sync across environments.
