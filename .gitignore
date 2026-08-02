@@ -12,8 +12,9 @@
 .phpunit.cache
 .phpunit.result.cache
 .DS_Store
-.claude/settings.local.json
-.claude/scheduled_tasks.lock
+# AI tooling config, local only
+/.claude/
+/CLAUDE.md
 
 # AI build-planning artifacts, local only
 /PLAN.md
