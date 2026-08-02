@@ -55,25 +55,24 @@ if (is_object($composerLoader) && method_exists($composerLoader, 'addPsr4')) {
 // case".
 
 // =============================================================================
-// Plugin install — Auth Kit, then Warp. craft-pest-core's InstallsCraft plugin
-// (which already booted Craft by this point in the Kernel sequence, see the
-// class docblock above) installs Craft core and applies any pending project
-// config, but never installs the plugin(s) under test.
+// Plugin install — Warp alone. craft-pest-core's InstallsCraft plugin (which
+// already booted Craft by this point in the Kernel sequence, see the class
+// docblock above) installs Craft core and applies any pending project config,
+// but never installs the plugin(s) under test.
 //
-// Auth Kit is Warp's hard `require` dependency (not a suggest-only
-// integration): every passwordless flow reaches through `AuthKit::$plugin`
-// (its Passwords registry, its Audit sink registry), so Auth Kit must be
-// installed before Warp — a plugin whose Install.php or runtime code
-// references another plugin's tables/services fails otherwise.
+// Auth Kit is not installed here, because as of 1.7.0 it is not installable:
+// it is a library-shipped Yii module that Warp registers from its own `init()`
+// and whose schema Warp's `Install` migration brings up on the
+// `module:auth-kit` track. Installing Warp is therefore the whole of the
+// setup — the token store the passwordless flows reach through
+// `AuthKit::$plugin` exists by the time this returns.
 // =============================================================================
 
 if (Craft::$app->getIsInstalled(true)) {
     $plugins = Craft::$app->getPlugins();
 
-    foreach (['auth-kit', 'warp'] as $handle) {
-        if (!$plugins->isPluginInstalled($handle)) {
-            $plugins->installPlugin($handle);
-        }
+    if (!$plugins->isPluginInstalled('warp')) {
+        $plugins->installPlugin('warp');
     }
 }
 

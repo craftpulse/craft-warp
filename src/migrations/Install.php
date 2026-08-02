@@ -12,6 +12,7 @@ namespace craftpulse\warp\migrations;
 
 use craft\db\Migration;
 use craft\db\Table as CraftTable;
+use craftpulse\authkit\AuthKit;
 use craftpulse\warp\db\Table;
 
 /**
@@ -21,9 +22,14 @@ use craftpulse\warp\db\Table;
  * Warp owns the append-only login log (`warp_logins`, Phase 6) that backs the
  * overview screen and the device registry (`warp_sessions`, Phase 7) that backs
  * the front-end session-management screen — the passwordless token store lives
- * in the shared `craftpulse/craft-auth-kit` plugin. Warp is unreleased
+ * in the shared `craftpulse/craft-auth-kit` package. Warp is unreleased
  * throughout, so this migration is edited freely per phase (reinstall in the
  * playground) until 5.0.0 tags.
+ *
+ * Auth Kit is a library-shipped Yii module rather than a Craft plugin, so
+ * nothing installs it and Craft never runs its migrations: every consumer
+ * brings the shared schema up itself from its own install migration. See
+ * [[_installAuthKit()]].
  *
  * @author CraftPulse
  * @since 5.0.0
@@ -35,9 +41,12 @@ class Install extends Migration
 
     /**
      * @inheritdoc
+     *
+     * @throws \Throwable if a pending Auth Kit migration fails to apply
      */
     public function safeUp(): bool
     {
+        $this->_installAuthKit();
         $this->_createTables();
         $this->_createIndexes();
         $this->_addForeignKeys();
@@ -47,6 +56,10 @@ class Install extends Migration
 
     /**
      * @inheritdoc
+     *
+     * Only Warp's own tables are dropped. Auth Kit's schema is shared with
+     * every other consumer on the install and outlives any one of them, so
+     * uninstalling Warp must never take the token store with it.
      */
     public function safeDown(): bool
     {
@@ -58,6 +71,28 @@ class Install extends Migration
 
     // Private Methods
     // =========================================================================
+
+    /**
+     * Brings Auth Kit's shared schema up to date on its own `module:auth-kit`
+     * migration track.
+     *
+     * A module has no plugin row for Craft to watch, so there is no
+     * schemaVersion comparison and nothing applies Auth Kit's migrations on its
+     * behalf — its consumers do, here on install and from a dated migration per
+     * Auth Kit release that adds one. Applied migrations are recorded on the
+     * module track and never re-run, so this is a no-op on an install where
+     * another consumer (Warden) already brought the schema up, and safe to
+     * reach from a reinstall.
+     *
+     * @throws \Throwable if a pending Auth Kit migration fails to apply
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _installAuthKit(): void
+    {
+        AuthKit::getInstance()->getMigrator()->up();
+    }
 
     /**
      * Creates Warp's tables, skipping any that already exist.
