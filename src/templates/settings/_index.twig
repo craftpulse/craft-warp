@@ -198,10 +198,19 @@
                 disabled: readOnly,
             }) }}
 
+            {# `defaultGroupName` is the name of the group Craft itself is
+               configured to put new users in, resolved (and HTML-encoded) by
+               SettingsController so the copy can name it outright instead of
+               sending the operator off to Settings → Users to look it up. #}
+            {% set defaultGroupSentence = defaultGroupName
+                ? 'Leave on the default to fall back to Craft’s configured default user group, {group}.'|t('warp', { group: defaultGroupName })
+                : 'Craft has no default user group configured, so leaving this on the default means new registrants join no group at all.'|t('warp') %}
+
             {{ forms.selectField({
                 label: 'Registration user group'|t('warp'),
                 instructions: 'The group new registrants join.'|t('warp') ~
-                    ' <span class="info">' ~ 'Leave on the default to fall back to Craft’s own default user group. Choosing a group here lets you scope permissions and content to members who signed up through Warp.'|t('warp') ~ '</span>',
+                    ' <span class="info">' ~ defaultGroupSentence ~
+                    ' ' ~ 'Choosing a group here lets you scope permissions and content to members who signed up through Warp.'|t('warp') ~ '</span>',
                 id: 'registrationGroupUid',
                 name: 'settings[registrationGroupUid]',
                 options: groupOptions,

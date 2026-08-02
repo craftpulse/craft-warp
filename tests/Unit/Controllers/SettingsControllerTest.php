@@ -5,7 +5,10 @@
  * HTTP tests for the in-section SettingsController: it keeps settings inside the
  * Warp CP section, redirects the global entry there, gates on an admin, fails
  * closed when `allowAdminChanges` is off, and merges a partial post over the
- * current settings so untouched keys are preserved.
+ * current settings so untouched keys are preserved. Also covers the
+ * registration-group copy naming Craft's own configured default user group,
+ * across all three resolution outcomes (configured, unset, and configured but
+ * pointing at a group that no longer exists).
  *
  * @link      https://craft-pulse.com
  * @copyright Copyright (c) 2026 CraftPulse
@@ -14,6 +17,7 @@
 use craft\elements\User;
 use craft\helpers\StringHelper;
 use craft\helpers\UrlHelper;
+use craft\models\UserGroup;
 use craftpulse\warp\models\Settings;
 use craftpulse\warp\Warp;
 
@@ -26,6 +30,31 @@ function settingsAdmin(): User
     }
 
     return $admin;
+}
+
+function makeSettingsUserGroup(): UserGroup
+{
+    $unique = strtolower(str_replace('-', '', StringHelper::UUID()));
+    $group = new UserGroup(['name' => "WS {$unique}", 'handle' => "ws{$unique}"]);
+
+    if (!Craft::$app->getUserGroups()->saveGroup($group)) {
+        throw new RuntimeException('Could not save settings test user group.');
+    }
+
+    return $group;
+}
+
+/**
+ * Points Craft's own default user group at the given UID, skipping the write
+ * when project config already holds that value: a needless project-config write
+ * inside craft-pest's per-test transaction can desync the memoized config
+ * version (see tests/Pest.php).
+ */
+function setDefaultUserGroupUid(?string $uid): void
+{
+    if (Craft::$app->getProjectConfig()->get('users.defaultGroup') !== $uid) {
+        Craft::$app->getProjectConfig()->set('users.defaultGroup', $uid);
+    }
 }
 
 // The render test exercises the full CP layout, which builds every installed
@@ -49,6 +78,57 @@ it('renders the settings screen inside the Warp section with hover info popovers
         // The deeper guidance rides inside the field instructions as an `info`
         // span, which Craft's CP renders as the hover popover icon.
         ->assertSee('class="info"');
+})->skip($cortexNavIsBroken, 'a CP plugin crashes getCpNavItem() in the sidebar');
+
+it('names Craft’s configured default user group in the registration-group copy', function() {
+    $original = Craft::$app->getProjectConfig()->get('users.defaultGroup');
+    $group = makeSettingsUserGroup();
+
+    try {
+        setDefaultUserGroupUid($group->uid);
+
+        $this->actingAs(settingsAdmin())
+            ->get(UrlHelper::cpUrl('warp/settings'))
+            ->assertOk()
+            ->assertSee($group->name)
+            // The whole joined string, so the interpolation, the full stop, and
+            // the retained closing sentence are all pinned.
+            ->assertSee("configured default user group, {$group->name}. Choosing a group here");
+    } finally {
+        setDefaultUserGroupUid(is_string($original) ? $original : null);
+        Craft::$app->getUserGroups()->deleteGroupById((int)$group->id);
+    }
+})->skip($cortexNavIsBroken, 'a CP plugin crashes getCpNavItem() in the sidebar');
+
+it('says no group at all when Craft has no default user group configured', function() {
+    $original = Craft::$app->getProjectConfig()->get('users.defaultGroup');
+
+    try {
+        setDefaultUserGroupUid(null);
+
+        $this->actingAs(settingsAdmin())
+            ->get(UrlHelper::cpUrl('warp/settings'))
+            ->assertOk()
+            ->assertSee('no default user group configured, so leaving this on the default means new registrants join no group at all. Choosing a group here');
+    } finally {
+        setDefaultUserGroupUid(is_string($original) ? $original : null);
+    }
+})->skip($cortexNavIsBroken, 'a CP plugin crashes getCpNavItem() in the sidebar');
+
+it('falls back to the no-group copy when the configured default group is gone', function() {
+    $original = Craft::$app->getProjectConfig()->get('users.defaultGroup');
+
+    try {
+        // A UID left behind by a since-deleted group: configured, unresolvable.
+        setDefaultUserGroupUid(StringHelper::UUID());
+
+        $this->actingAs(settingsAdmin())
+            ->get(UrlHelper::cpUrl('warp/settings'))
+            ->assertOk()
+            ->assertSee('no default user group configured, so leaving this on the default means new registrants join no group at all. Choosing a group here');
+    } finally {
+        setDefaultUserGroupUid(is_string($original) ? $original : null);
+    }
 })->skip($cortexNavIsBroken, 'a CP plugin crashes getCpNavItem() in the sidebar');
 
 it('redirects the global plugin-settings entry into the Warp section', function() {

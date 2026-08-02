@@ -11,6 +11,7 @@
 namespace craftpulse\warp\controllers;
 
 use Craft;
+use craft\helpers\Html;
 use craft\helpers\UrlHelper;
 use craft\web\Controller;
 use craft\web\UrlManager;
@@ -81,6 +82,7 @@ class SettingsController extends Controller
             'title' => $title,
             'docTitle' => "{$pluginName} - {$title}",
             'settings' => Warp::$plugin->getSettings(),
+            'defaultGroupName' => $this->_defaultUserGroupName(),
             'readOnly' => !Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
             'crumbs' => [
                 ['label' => $pluginName, 'url' => UrlHelper::cpUrl('warp')],
@@ -136,6 +138,51 @@ class SettingsController extends Controller
 
     // Private Methods
     // =========================================================================
+
+    /**
+     * Returns the name of the user group Craft is configured to put new users
+     * in, or `null` when no usable group is configured.
+     *
+     * The resolution mirrors `craft\services\Users::getDefaultUserGroups()`
+     * (read the `users.defaultGroup` UID out of project config, then look the
+     * group up by UID) rather than calling that method: it requires a User
+     * instance and fires `EVENT_DEFINE_DEFAULT_USER_GROUPS`, so calling it here
+     * would hand a plugin a fabricated user and let it skew a piece of settings
+     * copy. Mirroring the lookup instead means this agrees with core on every
+     * edition by construction, including Team's virtual group, since
+     * `UserGroups::getGroupByUid()` is a plain query and is not edition-gated.
+     *
+     * Because that event is deliberately not fired, the copy this feeds
+     * describes the CONFIGURED default rather than promising what any given
+     * registrant will actually receive.
+     *
+     * The name is returned HTML-encoded: its sole consumer interpolates it into
+     * the raw-HTML `instructions` string of the registration-group field. Do not
+     * reuse this value anywhere that escapes again or expects a raw name.
+     *
+     * @return ?string the HTML-encoded group name, or `null` when project config
+     * names no default group, names one that no longer exists, or names one
+     * carrying no name to print
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _defaultUserGroupName(): ?string
+    {
+        $uid = Craft::$app->getProjectConfig()->get('users.defaultGroup');
+
+        if (!is_string($uid) || $uid === '') {
+            return null;
+        }
+
+        $name = Craft::$app->getUserGroups()->getGroupByUid($uid)?->name;
+
+        if ($name === null || $name === '') {
+            return null;
+        }
+
+        return Html::encode($name);
+    }
 
     /**
      * Folds the two independent login-method lightswitches back into the
