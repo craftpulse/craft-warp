@@ -340,7 +340,9 @@ class Logins extends Component
             'city' => $row['city'] !== null ? (string)$row['city'] : null,
             'country' => $row['country'] !== null ? (string)$row['country'] : null,
             'isNewLocation' => (bool)$row['isNewLocation'],
-            'dateCreated' => is_string($dateCreated) ? Carbon::parse($dateCreated) : null,
+            // The column holds a naive UTC string while the process timezone is
+            // the system timezone, so the zone must be named at parse time.
+            'dateCreated' => is_string($dateCreated) ? Carbon::parse($dateCreated, 'UTC') : null,
         ]);
     }
 

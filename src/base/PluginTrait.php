@@ -111,12 +111,16 @@ trait PluginTrait
                     // A passkey login runs through core's endpoint, so it is the
                     // one login.* event Passwordless::loginUser() never emits —
                     // record it here as an audit fact through Auth Kit's contract
-                    // (a no-op with no sinks registered).
-                    AuthKit::$plugin->getAudit()->record(new AuthEvent(
-                        name: AuthEvent::LOGIN_PASSKEY,
-                        emitter: 'warp',
-                        userId: (int)$identity->id,
-                    ));
+                    // (a no-op with no sinks registered). Core's endpoint works
+                    // even with Auth Kit disabled, so the deref is guarded: a
+                    // missing audit contract must never fail the login itself.
+                    if (AuthKit::getInstance() !== null) {
+                        AuthKit::$plugin->getAudit()->record(new AuthEvent(
+                            name: AuthEvent::LOGIN_PASSKEY,
+                            emitter: 'warp',
+                            userId: (int)$identity->id,
+                        ));
+                    }
                 }
             },
         );

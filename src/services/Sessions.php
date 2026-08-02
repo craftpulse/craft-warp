@@ -388,6 +388,13 @@ class Sessions extends Component
      */
     private function _recordRevocation(int $userId, string $scope): void
     {
+        // Session management runs entirely on core's tables, so it still works
+        // with Auth Kit disabled — the audit deref is guarded so a missing
+        // contract can never turn an already-completed kill into a 500.
+        if (AuthKit::getInstance() === null) {
+            return;
+        }
+
         AuthKit::$plugin->getAudit()->record(new AuthEvent(
             name: AuthEvent::SESSION_REVOKED,
             emitter: 'warp',
@@ -440,7 +447,9 @@ class Sessions extends Component
             ? Device::label($userAgent)
             : Craft::t('warp', 'Unknown device');
         $info->deviceType = Device::type($userAgent);
-        $info->lastSeen = is_string($lastSeen) ? Carbon::parse($lastSeen) : null;
+        // The column holds a naive UTC string while the process timezone is
+        // the system timezone, so the zone must be named at parse time.
+        $info->lastSeen = is_string($lastSeen) ? Carbon::parse($lastSeen, 'UTC') : null;
         $info->isCurrent = $currentHash !== null && hash_equals($currentHash, $hash);
 
         return $info;
