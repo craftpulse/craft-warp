@@ -1,5 +1,7 @@
 # Warp
 
+![Warp](./resources/img/warp-banner.png)
+
 Passwordless front-end auth for Craft CMS 5 members. Magic links, email one-time
 codes, and passkeys, plus passwordless-first registration and session management,
 assembled into a copy-and-restyle front-end surface.
