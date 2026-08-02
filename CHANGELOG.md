@@ -1,6 +1,6 @@
 # Release Notes for Warp
 
-## Unreleased
+## 5.0.0-beta.3 - 2026-08-02
 
 ### Changed
 - Warp's two control-panel permission handles are now kebab-case:
@@ -13,6 +13,40 @@
   permission lists, so nobody loses access. Craft's own permissions are
   untouched. If you reference either handle in your own templates or code (for
   example `currentUser.can('warp:viewOverview')`), update it to the new name.
+
+### Fixed
+- Login-log and session timestamps are now read from the database as the UTC
+  values they are stored as. They were previously parsed in the install's
+  system timezone, so "when" on the control-panel overview and "last active"
+  on the sessions screen were shifted by the full UTC offset on any
+  non-UTC install.
+- A passkey login through core's endpoint, and a session revocation, no longer
+  fail when the Auth Kit plugin is disabled. Both flows run entirely on core's
+  own machinery, but their audit recording dereferenced Auth Kit
+  unconditionally; the recording is now skipped when Auth Kit is unavailable,
+  matching the plugin's loud-but-never-fatal posture for a missing Auth Kit.
+- The overview table's column labels, search placeholder, and empty-state
+  message are now registered for JavaScript translation, so they render
+  translated on non-English control panels instead of falling back to the raw
+  English strings.
+
+### Security
+- Fulfilling a registration token now fails closed unless the matched
+  account's email address is the address the token proved. The lookup
+  previously also matched by username, and a username is free-form text
+  another member can set to someone else's email address, so a registration
+  link for one mailbox could resolve to, and sign its holder into, a
+  different member's account. An account matched by username only is now
+  refused and the attempt is logged.
+- The example login template now validates the `returnUrl` query parameter
+  before the passkey script assigns it to `window.location.href`, accepting
+  only a site-relative path and falling back to the account page otherwise,
+  and the value is JavaScript-encoded at the sink. The posted email flows
+  were already validated server-side; this closes the client-side redirect
+  the passkey branch performed on its own, which could previously be pointed
+  at an external URL or a `javascript:` target. Re-copy the example templates
+  (`php craft warp/example-templates`) if you built on the bundled
+  `login.twig`.
 
 ## 5.0.0-beta.2 - 2026-07-27
 
