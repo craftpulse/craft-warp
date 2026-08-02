@@ -66,18 +66,6 @@ ddev composer require craftpulse/craft-warp
 ddev craft plugin/install warp
 ```
 
-### Package repository
-
-Warp is not on Packagist. Add its repository to your project's `composer.json` before requiring it:
-
-```json
-"repositories": [
-    { "type": "vcs", "url": "https://github.com/craftpulse/craft-warp.git" }
-]
-```
-
-Auth Kit is on Packagist and resolves as a normal dependency.
-
 ## Next steps
 
 Warp makes no changes to your site when first installed. To open a passwordless member area:
