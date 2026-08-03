@@ -34,12 +34,26 @@
         {{ 'We emailed you a short numeric code. Enter it below to finish signing in.'|t('warp') }}
     </p>
 
-    <div class="bg-white border border-gray-200 rounded p-6">
-        {{ craft.warp.otpForm({
-            returnUrl: url('members/account'),
-            requestUrl: url('members/login'),
-        }).render() }}
-    </div>
+    {# Every class below is ours, not Warp's. Each *Attrs option merges onto
+       Warp's own class rather than replacing it, so these Tailwind utilities and
+       Warp's warp-otp-form__* hooks both land on the element; add
+       resetClass: true to any of them to drop Warp's class entirely. boxAttrs
+       and boxesAttrs reach the digit boxes the client script builds. Warp's
+       stylesheet keeps its rules in a `warp` cascade layer, so ordinary CSS of
+       yours always wins, and renderCss: false leaves it out altogether. #}
+    {{ craft.warp.otpForm({
+        returnUrl: url('members/account'),
+        requestUrl: url('members/login'),
+        attrs: { class: 'bg-white border border-gray-200 rounded p-6' },
+        labelAttrs: { class: 'block text-sm font-medium text-gray-700 mb-1' },
+        hintAttrs: { class: 'block mt-2 text-sm text-gray-500' },
+        sentAttrs: { class: 'mb-5 text-sm text-gray-600' },
+        changeAttrs: { class: 'text-blue-600 hover:underline' },
+        emailAttrs: { class: 'w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400' },
+        boxesAttrs: { class: 'gap-2' },
+        boxAttrs: { class: 'border-gray-300 rounded' },
+        submitAttrs: { class: 'mt-5 w-full bg-blue-600 text-white font-medium rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring' },
+    }).render() }}
 
     <p class="mt-6 text-sm text-gray-500">
         {{ 'Did not get a code?'|t('warp') }}

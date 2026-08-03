@@ -45,14 +45,6 @@
 {# Whether sign-up is open (Warp's setting AND Craft's own switch). #}
 {%- set registrationOpen = craft.warp.registrationEnabled -%}
 
-{# Enabled login methods (a subset of magic-link + otp). #}
-{%- set loginMethods = craft.warp.loginMethods -%}
-{%- set hasMagicLink = 'magic-link' in loginMethods -%}
-{%- set hasOtp = 'otp' in loginMethods -%}
-{%- set bothMethods = hasMagicLink and hasOtp -%}
-{%- set defaultChannel = loginMethods|first -%}
-{%- set defaultRedirect = defaultChannel == 'otp' ? 'members/otp-verify' : 'members/link-sent' -%}
-
 {% block main %}
     <h1 class="text-2xl font-bold text-gray-900 mb-3">
         {{ registrationOpen ? 'Sign in or create an account'|t('warp') : 'Sign in'|t('warp') }}
@@ -81,90 +73,30 @@
         </script>
     {% endif %}
 
-    <form class="bg-white border border-gray-200 rounded p-6 space-y-5" id="warp-login-form" method="post" action="{{ actionUrl('warp/auth/request') }}">
-        {{ csrfInput() }}
+    {# craft.warp.requestForm() renders the whole thing: the post to
+       warp/auth/request with CSRF, the labelled email field, the channel choice
+       when both methods are enabled (with its per-channel redirect swap), and
+       the submit button.
 
-        {# Where the browser goes after submitting this form. Swapped per channel
-           by the script below when both methods are offered. #}
-        {{ redirectInput(defaultRedirect) }}
-
-        {# Where the emailed link should land the visitor once they click it. #}
-        <input type="hidden" name="returnUrl" value="{{ afterSignInUrl }}">
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="warp-email">{{ 'Email address'|t('warp') }}</label>
-            <input
-                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400"
-                id="warp-email"
-                type="email"
-                name="email"
-                autocomplete="email"
-                autocapitalize="none"
-                spellcheck="false"
-                required
-                autofocus
-            >
-        </div>
-
-        {% if bothMethods %}
-            <fieldset>
-                <legend class="text-sm font-medium text-gray-700 mb-2">{{ 'How would you like to sign in?'|t('warp') }}</legend>
-
-                <label class="flex items-center space-x-2 mb-1">
-                    <input
-                        type="radio"
-                        name="channel"
-                        value="magic-link"
-                        data-warp-redirect="{{ 'members/link-sent'|hash }}"
-                        {{ defaultChannel == 'magic-link' ? 'checked' : '' }}
-                    >
-                    <span>{{ 'Email me a sign-in link'|t('warp') }}</span>
-                </label>
-
-                <label class="flex items-center space-x-2">
-                    <input
-                        type="radio"
-                        name="channel"
-                        value="otp"
-                        data-warp-redirect="{{ 'members/otp-verify'|hash }}"
-                        {{ defaultChannel == 'otp' ? 'checked' : '' }}
-                    >
-                    <span>{{ 'Email me a sign-in code'|t('warp') }}</span>
-                </label>
-            </fieldset>
-        {% else %}
-            {# Only one channel is enabled — send it as a fixed value. #}
-            <input type="hidden" name="channel" value="{{ defaultChannel }}">
-        {% endif %}
-
-        <button class="w-full bg-blue-600 text-white font-medium rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring" type="submit">
-            {{ hasMagicLink and not hasOtp
-                ? 'Email me a sign-in link'|t('warp')
-                : (hasOtp and not hasMagicLink
-                    ? 'Email me a sign-in code'|t('warp')
-                    : 'Continue'|t('warp')) }}
-        </button>
-    </form>
-
-    {% if bothMethods %}
-        <script>
-            (function () {
-                var form = document.getElementById('warp-login-form');
-                if (!form) {
-                    return;
-                }
-                var redirect = form.querySelector('input[name="redirect"]');
-                var radios = form.querySelectorAll('input[name="channel"]');
-                Array.prototype.forEach.call(radios, function (radio) {
-                    radio.addEventListener('change', function () {
-                        if (radio.checked && redirect && radio.dataset.warpRedirect) {
-                            redirect.value = radio.dataset.warpRedirect;
-                        }
-                    });
-                });
-            })();
-        </script>
-    {% endif %}
+       Every class below is ours, not Warp's. Each *Attrs option merges onto
+       Warp's own class rather than replacing it, so these Tailwind utilities and
+       Warp's warp-request-form__* hooks both land on the element; add
+       resetClass: true to any of them to drop Warp's class entirely. Warp's
+       stylesheet keeps its rules in a `warp` cascade layer, so ordinary CSS of
+       yours always wins, and renderCss: false leaves it out altogether. #}
+    {{ craft.warp.requestForm({
+        linkSentUrl: 'members/link-sent',
+        otpVerifyUrl: 'members/otp-verify',
+        returnUrl: afterSignInUrl,
+        attrs: { class: 'bg-white border border-gray-200 rounded p-6 space-y-5', id: 'warp-login-form' },
+        fieldAttrs: { class: 'mb-0' },
+        labelAttrs: { class: 'block text-sm font-medium text-gray-700 mb-1' },
+        emailAttrs: { class: 'w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400' },
+        channelsAttrs: { class: 'mb-0' },
+        legendAttrs: { class: 'text-sm font-medium text-gray-700 mb-2' },
+        choiceAttrs: { class: 'flex items-center space-x-2 mb-1' },
+        submitAttrs: { class: 'w-full bg-blue-600 text-white font-medium rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring' },
+    }).render() }}
 
     {# --- Passkey sign-in (optional, progressive enhancement). ------------- #}
     <section class="mt-8 pt-6 border-t border-gray-200" aria-labelledby="warp-passkey-heading">
