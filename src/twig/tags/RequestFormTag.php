@@ -408,7 +408,7 @@ class RequestFormTag extends BaseTag
     private function _channelChoiceHtml(array $channels, array $redirects): string
     {
         if (array_filter($redirects) !== []) {
-            $this->_registerScriptAsset(WarpRequestAsset::class);
+            $this->_registerAsset(WarpRequestAsset::class);
         }
 
         $security = Craft::$app->getSecurity();

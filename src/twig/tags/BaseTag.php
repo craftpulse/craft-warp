@@ -186,20 +186,32 @@ abstract class BaseTag
     }
 
     /**
-     * Registers one of Warp's front-end scripts on the current view. Always
-     * registered: the scripts are behavior rather than decoration, so there is
-     * no switch for them. A site that wants different markup writes its own
-     * template against the DOM contract the script documents, rather than
-     * turning the script off and losing the affordance.
+     * Registers an asset bundle on the current view, swallowing any failure — a
+     * published-asset problem must never take a page down with it — and a no-op
+     * outside web requests.
+     *
+     * Warp's scripts go through here unconditionally: they are behavior rather
+     * than decoration, so there is no switch for them. A site that wants
+     * different markup writes its own template against the DOM contract the
+     * script documents rather than turning the script off and losing the
+     * affordance. Only the stylesheet is gated, in [[_registerStyleAsset()]].
      *
      * @param class-string<\craft\web\AssetBundle> $bundle the asset bundle to register
      *
      * @author CraftPulse
      * @since 5.0.0
      */
-    protected function _registerScriptAsset(string $bundle): void
+    protected function _registerAsset(string $bundle): void
     {
-        $this->_registerAsset($bundle);
+        if (Craft::$app->getRequest()->getIsConsoleRequest()) {
+            return;
+        }
+
+        try {
+            Craft::$app->getView()->registerAssetBundle($bundle);
+        } catch (Throwable) {
+            // Defensive — never let asset registration break Twig rendering.
+        }
     }
 
     /**
@@ -236,28 +248,6 @@ abstract class BaseTag
 
     // Private Methods
     // =========================================================================
-
-    /**
-     * Registers an asset bundle on the current view, swallowing any failure —
-     * a published-asset problem must never take a page down with it.
-     *
-     * @param class-string<\craft\web\AssetBundle> $bundle
-     *
-     * @author CraftPulse
-     * @since 5.0.0
-     */
-    private function _registerAsset(string $bundle): void
-    {
-        if (Craft::$app->getRequest()->getIsConsoleRequest()) {
-            return;
-        }
-
-        try {
-            Craft::$app->getView()->registerAssetBundle($bundle);
-        } catch (Throwable) {
-            // Defensive — never let asset registration break Twig rendering.
-        }
-    }
 
     /**
      * Returns whether this render should register the baseline stylesheet: the

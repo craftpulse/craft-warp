@@ -240,7 +240,7 @@ class OtpInputTag extends BaseTag
     protected function _renderHtml(): string
     {
         $this->_registerStyleAsset();
-        $this->_registerScriptAsset(WarpOtpAsset::class);
+        $this->_registerAsset(WarpOtpAsset::class);
 
         $digits = $this->_resolveDigits();
         $label = $this->config['label'] ?? Craft::t('warp', 'Sign-in code');
