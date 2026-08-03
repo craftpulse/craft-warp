@@ -1,6 +1,6 @@
 # Release Notes for Warp
 
-## Unreleased
+## 5.0.0-rc.1 - 2026-08-03
 
 ### Authentication
 - Added the `craft.warp.requestForm()` render builder, which renders the unified sign-in and sign-up form: the post to `warp/auth/request` with CSRF, the labelled email input, the channel choice when both login methods are enabled, and the submit button.
