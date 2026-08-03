@@ -62,6 +62,27 @@ uses(TestCase::class, RefreshesDatabase::class)
     ->in(__DIR__);
 
 /**
+ * Returns the asset bundles a render registered, using Craft's own asset-bundle
+ * buffer so nothing an earlier test registered leaks into the assertion.
+ *
+ * @param callable $render
+ * @return array<int, string>
+ */
+function warpRegisteredBundles(callable $render): array
+{
+    $view = Craft::$app->getView();
+    $view->startAssetBundleBuffer();
+
+    try {
+        $render();
+    } finally {
+        $bundles = $view->clearAssetBundleBuffer();
+    }
+
+    return is_array($bundles) ? array_keys($bundles) : [];
+}
+
+/**
  * Sets Craft's public-registration switch only when it differs from the
  * current value. A project-config write inside craft-pest's per-test
  * transaction can desync the memoized config version from the stored one

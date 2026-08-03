@@ -19,6 +19,7 @@ use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\Passwordless;
 use craftpulse\warp\twig\tags\OtpFormTag;
 use craftpulse\warp\twig\tags\OtpInputTag;
+use craftpulse\warp\twig\tags\RequestFormTag;
 use craftpulse\warp\Warp;
 
 /**
@@ -30,9 +31,10 @@ use craftpulse\warp\Warp;
  * ([[getLoginMethods()]]), the one-time-code length ([[getOtpDigits()]]), the
  * session-carried code-entry prefill ([[getRequestedEmail()]]), the current
  * user's active sessions ([[getSessions()]]), and the show-once
- * passkey-enrollment nudge ([[getShowPasskeyNudge()]]); plus the two OTP render
- * builders ([[otpForm()]], [[otpInput()]]). It is the whole front-end contract —
- * templates never reach a Warp service or record directly.
+ * passkey-enrollment nudge ([[getShowPasskeyNudge()]]); plus the three render
+ * builders ([[requestForm()]], [[otpForm()]], [[otpInput()]]) covering both
+ * steps of the email flow. It is the whole front-end contract — templates never
+ * reach a Warp service or record directly.
  *
  * The passkey passthroughs delegate to Auth Kit's own variable, so templates
  * never need to know where the split falls — Warp owns the front-end handle,
@@ -226,6 +228,25 @@ class WarpVariable
     public function otpInput(array $params = []): OtpInputTag
     {
         return new OtpInputTag($params);
+    }
+
+    /**
+     * Returns the fluent builder for the unified sign-in and sign-up request
+     * form — `craft.warp.requestForm({ otpVerifyUrl: 'members/otp-verify' }).render()`
+     * renders the post to `warp/auth/request` with CSRF, the labelled email
+     * input, the channel choice when the site offers both, and the submit
+     * button. The form every visitor starts at.
+     *
+     * @param array<string, mixed> $params builder options; each key matches a
+     * chainable setter on [[RequestFormTag]]
+     * @return RequestFormTag
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function requestForm(array $params = []): RequestFormTag
+    {
+        return new RequestFormTag($params);
     }
 
     // Private Methods

@@ -14,12 +14,17 @@ use craft\web\AssetBundle;
 use craft\web\View;
 
 /**
- * WarpOtpAsset is the front-end client asset behind the `craft.warp.otpInput`
- * and `craft.warp.otpForm` render builders: the vanilla JS that enhances the
+ * WarpOtpAsset is the client JavaScript behind the `craft.warp.otpInput` and
+ * `craft.warp.otpForm` render builders: the vanilla script that enhances the
  * single code input into one square per digit (auto-advance, backspace, arrow
- * keys, paste distribution) and a small neutral baseline stylesheet for the
- * boxes. No framework dependency, no build-tool assumption on the consumer
- * side; auto-registered by the builders when they render.
+ * keys, paste distribution). No framework dependency and no build-tool
+ * assumption on the consumer side; auto-registered by the builders when they
+ * render, and suppressible through the `renderJs` setting or a per-render
+ * `renderJs: false`.
+ *
+ * The baseline stylesheet is a separate bundle
+ * ([[\craftpulse\warp\assetbundles\warpforms\WarpFormsStyleAsset]]) so styling
+ * and behavior can be switched off independently.
  *
  * @author CraftPulse
  * @since 5.0.0
@@ -41,10 +46,6 @@ class WarpOtpAsset extends AssetBundle
 
         $this->js = [
             ['warp-otp.js', 'position' => View::POS_END],
-        ];
-
-        $this->css = [
-            'warp-otp.css',
         ];
 
         parent::init();

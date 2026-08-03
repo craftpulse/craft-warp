@@ -173,6 +173,20 @@ class Settings extends Model
     public ?string $registrationGroupUid = null;
 
     /**
+     * @var bool Whether the render builders register Warp's baseline stylesheet.
+     * Turn it off to own the styling of the rendered forms outright; the markup
+     * and the client behavior are unaffected. Only worth reaching for when you
+     * want none of Warp's styling anywhere, since the stylesheet keeps its
+     * cosmetic rules in a `warp` cascade layer that any ordinary rule of yours
+     * already beats. This setting is not surfaced in the control panel: theming
+     * is a template-and-code decision, so set it in `config/warp.php`, or
+     * override it per render with `renderCss: false`.
+     *
+     * @since 5.0.0
+     */
+    public bool $renderCss = true;
+
+    /**
      * @var int|string How long an issued magic link or OTP code stays valid, in
      * seconds. Accepts a literal integer or an environment-variable reference;
      * resolve it through [[getTokenTtl()]].
@@ -381,7 +395,7 @@ class Settings extends Model
         $rules[] = [['otpDigits'], 'validateResolvedInt', 'params' => ['min' => 4, 'max' => 10], 'skipOnEmpty' => false];
         $rules[] = [['otpMaxAttempts'], 'validateResolvedInt', 'params' => ['min' => 1, 'max' => 10], 'skipOnEmpty' => false];
         $rules[] = [['perEmailLimit'], 'validateResolvedInt', 'params' => ['min' => 1, 'max' => 100], 'skipOnEmpty' => false];
-        $rules[] = [['anonymizeIp', 'enableRegistration', 'enablePasskeyNudge', 'notifyOnNewLocation'], 'boolean'];
+        $rules[] = [['anonymizeIp', 'enableRegistration', 'enablePasskeyNudge', 'notifyOnNewLocation', 'renderCss'], 'boolean'];
         $rules[] = [['geoDatabaseUrl'], 'string'];
         $rules[] = [['registrationGroupUid'], 'string'];
         $rules[] = [['registrationGroupUid'], 'validateRegistrationGroupUid'];
