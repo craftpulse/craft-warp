@@ -2,7 +2,27 @@
 
 ## Unreleased
 
+### Authentication
+- Added the `craft.warp.requestForm()` render builder, which renders the unified sign-in and sign-up form: the post to `warp/auth/request` with CSRF, the labelled email input, the channel choice when both login methods are enabled, and the submit button.
+- Added `attrs`, `channel`, `channelsAttrs`, `choiceAttrs`, `email`, `emailAttrs`, `emailLabel`, `fieldAttrs`, `labelAttrs`, `legend`, `legendAttrs`, `linkSentUrl`, `magicLinkLabel`, `otpLabel`, `otpVerifyUrl`, `radioAttrs`, `renderCss`, `returnUrl`, `submitAttrs`, and `submitLabel` options to `craft.warp.requestForm()`.
+- Added `boxAttrs`, `boxesAttrs`, `changeAttrs`, `changeLabel`, `digitLabel`, `emailAttrs`, `emailLabel`, `enhancedClass`, `fieldAttrs`, `hint`, `hintAttrs`, `inputAttrs`, `label`, `labelAttrs`, `renderCss`, `sentAttrs`, and `sentText` options to `craft.warp.otpForm()`, so every element it emits and every string it renders is now overridable.
+- Added `boxAttrs`, `boxesAttrs`, `digitLabel`, `enhancedClass`, and `renderCss` options to `craft.warp.otpInput()`.
+- Added a `renderCss` setting, which stops the render builders from registering Warp's baseline stylesheet. Set it in `config/warp.php`, or per render with `renderCss: false`.
+- The example login and code-entry templates now render their forms through `craft.warp.requestForm()` and `craft.warp.otpForm()`, passing their own classes into the per-element options. Re-copy the example templates with `php craft warp/example-templates` to pick this up.
+- A `class` passed to a builder's `attrs` or `inputAttrs` option is now added to Warp's own class on that element instead of replacing it, and a `data` array is merged key by key. Pass `resetClass: true` in the same array to own an element's `class` outright.
+- Warp's baseline stylesheet now keeps its cosmetic rules in a `warp` cascade layer, so an ordinary rule in a site's own stylesheet wins over Warp's without `!important` and regardless of the fact that Craft injects plugin stylesheets last in `<head>`.
+- The digit boxes the one-time-code script builds now take their attributes from the `boxAttrs` and `boxesAttrs` options rather than from class names fixed inside the script.
+- Warp now logs a warning when a builder is given a `digits` value that disagrees with the resolved `otpDigits` setting, or a `channel` that is not an enabled login method, since the server follows the settings either way.
 - The "Registration user group" setting's fallback option is now labelled "Default User Group", and its instructions name the group Craft is configured to fall back to, or say that new registrants join no group at all when Craft has none configured.
+
+### Documentation
+- Added an endpoints reference documenting all nine action routes: their parameters, authentication level, response shapes, and rate limits.
+- Added the return shapes of `craft.warp.sessions` and `craft.warp.passkeys` to the template reference, including that a session with a `null` `uid` cannot be signed out individually.
+- Added the DOM contracts `warp-otp.js` and `warp-request.js` read, so a hand-written template can carry the segmented code input and the channel-aware redirect.
+- Fixed the documented claim that both session revoke endpoints are recent-auth gated and answer `reauthRequired`. Neither is, deliberately: the step-up covers passkey management, where the action is destructive, and not session cleanup.
+- Fixed the documented claim that `returnUrl` validation is scoped to the issuing site. It is scoped to the install, so a `returnUrl` under any configured site's base URL is honoured.
+- Fixed the restyling instructions, which named a `warp-otp__*` glob that missed the code input's own `warp-otp` class.
+- Removed the upgrading page.
 
 ## 5.0.0-beta.5 - 2026-08-02
 

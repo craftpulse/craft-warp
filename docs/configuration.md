@@ -52,7 +52,9 @@ to 10.
 The `craft.warp.otpForm()` and `craft.warp.otpInput()` render builders read this
 automatically, so the segmented input always renders exactly one square per
 configured digit. Custom markup can read it through `craft.warp.otpDigits`
-rather than hardcoding the length.
+rather than hardcoding the length. Change the length here rather than through a
+builder's `digits` option: the issuer follows this setting whatever a template
+passes, so the two disagreeing makes signing in impossible.
 
 #### Code attempts (`otpMaxAttempts`)
 
@@ -76,9 +78,13 @@ is what slows a broad attack.
 
 #### Recent auth duration (`recentAuthDuration`)
 
-How long a prior sign-in satisfies the recent-auth gate before a sensitive
-action (managing passkeys, revoking sessions) requires a step-up, in seconds.
-Defaults to `300`, and accepts 60 to 86400.
+How long a prior sign-in satisfies the recent-auth gate before a sensitive action
+requires a step-up, in seconds. Defaults to `300`, and accepts 60 to 86400.
+
+The gate covers passkey management: enrolling, naming and deleting credentials.
+Session revocation is deliberately outside it, because signing a device out is
+defensive and reversible and a member who spots something suspicious must be able
+to act immediately.
 
 The step-up for a passwordless member is simply signing in again. Raising it
 spares members a re-authentication mid-session; lowering it narrows the window
@@ -143,6 +149,34 @@ applies to new rows only; rows already stored keep their captured address until
 they are pruned. Turn it on when your privacy posture prefers coarser addresses
 over the sharper forensic value of full ones, and see the
 [privacy guide](privacy.md) for the disclosure that goes with it.
+
+## Front-end assets (`renderCss`)
+
+Whether the render builders register Warp's baseline stylesheet. On by default,
+and not surfaced in the control panel: how a site's front end is styled is a
+template-and-code decision, so it lives in `config/warp.php`:
+
+```php
+<?php
+
+return [
+    // Never register Warp's baseline stylesheet. The rendered markup and the
+    // client behavior are unaffected.
+    'renderCss' => false,
+];
+```
+
+Reach for it only when you want none of Warp's styling anywhere. You rarely need
+to, because the stylesheet keeps its cosmetic rules in a `warp` cascade layer that
+any ordinary rule of yours already beats, and every class it targets is
+addressable from the builders. A single page can also opt out on its own with
+`renderCss: false` on the builder call. The full story is in
+[styling and overriding](templates.md#styling-and-overriding).
+
+There is no equivalent for Warp's JavaScript. The two scripts are the affordance
+rather than decoration, so they always load; a site wanting different markup
+writes its own template against the
+[DOM contract](templates.md#writing-your-own-markup).
 
 ## Geo database (MMDB)
 

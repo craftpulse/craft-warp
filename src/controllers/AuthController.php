@@ -418,8 +418,9 @@ class AuthController extends Controller
     }
 
     /**
-     * Validates a raw return-URL parameter as same-site, returning it when safe
-     * or null when absent, non-string, or an open-redirect attempt.
+     * Validates a raw return-URL parameter against the install's site base URLs,
+     * returning it when safe or null when absent, non-string, or an
+     * open-redirect attempt.
      *
      * @param mixed $param the raw query or body parameter
      * @return string|null

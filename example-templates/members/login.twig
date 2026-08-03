@@ -11,6 +11,16 @@
    craft.warp.registrationEnabled, so a closed-registration site never promises
    an account it will not create.
 
+   The form itself is rendered by Warp's builder:
+
+     {{ craft.warp.requestForm({ ... }).render() }}
+
+   which outputs the post to warp/auth/request with CSRF, the labelled email
+   field, the channel choice when both login methods are enabled, and the submit
+   button. Every class it carries below is this bundle's, passed in through the
+   per-element attrs options; prefer hand-writing the form? The endpoints doc has
+   the POST contract.
+
    Posts to:  warp/auth/request      (POST, anonymous, rate-limited)
    Optional passkey button talks to Craft core's anonymous endpoints:
               auth/passkey-request-options  +  users/login-with-passkey
@@ -29,7 +39,8 @@
 {% set title = 'Sign in'|t('warp') %}
 
 {# A ?returnUrl= sends the member back where re-auth interrupted them. The
-   endpoint re-validates the posted copy as same-site, but the passkey script
+   endpoint re-validates the posted copy against the install's site base URLs,
+   but the passkey script
    below also assigns it to window.location.href, so it is constrained HERE
    too: only a site-relative path is accepted (no scheme, so a javascript: or
    protocol-relative URL can never reach the redirect), anything else falls

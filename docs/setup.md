@@ -4,7 +4,8 @@ This guide takes a fresh Warp install to a working member area: copying the
 example templates, wiring your page URLs, customizing the emails, and turning on
 the flows you want. For the meaning of each setting, see the
 [configuration reference](configuration.md). For the Twig surface the templates
-read, see the [template reference](templates.md).
+read, see the [template reference](templates.md), and for the routes they post
+to, the [endpoints reference](endpoints.md).
 
 ## The shape of Warp
 
@@ -75,6 +76,14 @@ integration paths, and both are cheap:
   (skip link, nav, flash notices) lives in the shell rather than in each page,
   re-homing it is a one-liner per page.
 
+Two of the pages render their form through a Warp builder rather than by hand, and
+pass their Tailwind classes into it. Those classes are the bundle's, not Warp's:
+every element the builders emit takes your attributes and every string takes your
+copy, your CSS beats Warp's baseline whatever the source order, and `renderCss`
+turns Warp's stylesheet off entirely. If you would rather write the markup
+yourself, the [template reference](templates.md#writing-your-own-markup) has the
+DOM contract and the [endpoints reference](endpoints.md) has the POST contract.
+
 The bundle assumes it lives at `templates/members/`: every template path and
 URL in it starts with `members/`. If you rename the folder after installing,
 update those references throughout the bundle.
@@ -90,9 +99,10 @@ Two behaviors worth knowing:
 
 - **The post-sign-in destination** is `members/account`, passed as a hashed
   `redirect` and a `returnUrl`. It is where a clicked magic link, a verified
-  code, or a passkey login lands the member. Warp validates it as same-site
-  before honouring it, so an open-redirect attempt is dropped and the member
-  lands on the site root instead.
+  code, or a passkey login lands the member. Warp validates the `returnUrl`
+  against the install's site base URLs before honouring it, so an open-redirect
+  attempt is dropped and the member lands on the site root instead. See
+  [return URLs](endpoints.md#return-urls).
 - **`link-sent` and `otp-verify`** are the neutral pages the request form
   redirects to. They must read the same whether the address was known,
   unknown, or garbage, and the example copy already does. Do not add "we could
@@ -231,10 +241,13 @@ has no registry row and renders as "Unknown device" with no per-row button. It
 carries no handle to target individually, but "Sign out everywhere else" still
 clears it.
 
-Both revoke endpoints are recent-auth gated: signing sessions out is sensitive,
-so a stale session gets a `reauthRequired` response the template catches, showing
-a "please sign in again" prompt. Signing in again is the re-authentication;
-passwordless members have no password to re-confirm.
+Neither revoke endpoint is recent-auth gated, deliberately. Signing a device out
+is defensive and reversible, so a member who spots something suspicious can act
+immediately however old their own session is. The step-up stays on passkey
+management, where the action is destructive: those endpoints answer
+`reauthRequired` and the example `account/passkeys.twig` page handles it. Signing
+in again is the re-authentication; passwordless members have no password to
+re-confirm.
 
 ## Multi-site notes
 
@@ -248,10 +261,13 @@ Two consequences for a multi-site member area:
 - Serve the copied templates on each site that offers passwordless login, at the
   URLs that site expects. The post-sign-in destination and the page routing are
   per-template, so a site-specific template can point at site-specific routes.
-- The same-site `returnUrl` validation is scoped to the issuing site's base URL,
-  so a `returnUrl` pointing at another site in the group is dropped as an
-  open-redirect attempt. Keep post-login destinations on the same site as the
-  form.
+- `returnUrl` validation is scoped to **the install**, not to one site: a
+  `returnUrl` is honoured when it sits under any configured site's base URL, so a
+  form on your Dutch site can send a member to your French one. Nothing outside
+  the install is ever accepted. Keep post-login destinations on the site that
+  served the form anyway, because sessions are per cookie domain: a member sent to
+  a site on a different domain arrives signed out. See
+  [return URLs](endpoints.md#return-urls).
 
 ## Privacy disclosure
 
