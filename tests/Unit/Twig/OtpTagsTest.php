@@ -109,6 +109,28 @@ it('hands the box and group attributes to the client script', function() {
         ->and($html)->toContain('Box {n}/{count}');
 });
 
+it('always emits the three attributes the client script has no fallback for', function() {
+    // The script carries no class name of its own, so builder output must name
+    // every one it depends on, even when the render was given no options at all.
+    $html = (string)(new OtpInputTag());
+
+    expect($html)->toContain('data-warp-otp-enhanced-class="warp-otp--enhanced"')
+        ->and($html)->toContain('data-warp-otp-boxes="')
+        ->and($html)->toContain('data-warp-otp-box="')
+        ->and($html)->toContain('warp-otp__boxes')
+        ->and($html)->toContain('warp-otp__box');
+});
+
+it('leaves every class name to the markup rather than falling back to one', function() {
+    $js = (string)file_get_contents(dirname(__DIR__, 3) . '/src/web/assets/warpotp/warp-otp.js');
+
+    expect($js)->not->toContain('warp-otp__boxes')
+        ->and($js)->not->toContain('warp-otp__box')
+        ->and($js)->not->toContain('warp-otp--enhanced')
+        // And it does not add an empty class either, which throws.
+        ->and($js)->toContain('if (enhancedClass) {');
+});
+
 it('registers the stylesheet and the script by default', function() {
     $bundles = warpRegisteredBundles(fn() => (string)(new OtpInputTag()));
 

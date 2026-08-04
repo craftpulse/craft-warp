@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+> [!WARNING]
+> Hand-written code-input markup that relied on `warp-otp.js` supplying its own class names must now name them itself: add `data-warp-otp-boxes`, `data-warp-otp-box`, and `data-warp-otp-enhanced-class`, as documented in the template reference. Markup built by `craft.warp.otpInput()` or `craft.warp.otpForm()` is unaffected.
+
+- Removed the class names `warp-otp.js` fell back to when markup omitted `data-warp-otp-boxes`, `data-warp-otp-box`, or `data-warp-otp-enhanced-class`, so the script now carries no class name of its own and markup that omits an attribute gets the behavior without it: bare elements, and an original input that stays visible beside the boxes.
 - Added the `craft.warp.passkeyButton()` render builder, which renders the passkey sign-in section: the button that runs the WebAuthn ceremony, the line that replaces it in a browser without passkey support, the live region a failure is announced in, and the CSRF field the ceremony needs. It loads both scripts the ceremony runs on, so a page no longer needs a script tag or an inline handler of its own.
 - Added `attrs`, `buttonAttrs`, `cancelledText`, `failedText`, `fallbackAttrs`, `fallbackText`, `label`, `renderCss`, `returnUrl`, and `statusAttrs` options to `craft.warp.passkeyButton()`, so every element it emits and every string it renders is overridable.
 - `craft.warp.passkeyButton()` validates its `returnUrl` the way the endpoints validate a posted one, because the client script assigns it to `window.location.href`, and logs a warning and lands on the site root when it is refused.

@@ -440,9 +440,9 @@ one plain field: nothing is loaded to build the boxes.
 | `data-warp-otp` | Required. The number of digit boxes to build. The script does nothing without it. |
 | `data-warp-otp-label` | The accessible name given to the box group. |
 | `data-warp-otp-digit-label` | The per-box accessible name. `{n}` and `{count}` are replaced. |
-| `data-warp-otp-enhanced-class` | The class added to your input once it is enhanced, which is what hides it. Defaults to `warp-otp--enhanced`. |
-| `data-warp-otp-boxes` | A JSON object of attributes to apply to the box group. Defaults to `{"class": "warp-otp__boxes", "role": "group"}`. |
-| `data-warp-otp-box` | A JSON object of attributes to apply to each digit box. Defaults to `{"type": "text", "class": "warp-otp__box", "inputmode": "numeric"}`. |
+| `data-warp-otp-enhanced-class` | The class added to your input once it is enhanced, which is what hides it. Omitted, no class is added and your input stays visible beside the boxes, so name one. |
+| `data-warp-otp-boxes` | A JSON object of attributes to apply to the box group, such as `{"class": "warp-otp__boxes", "role": "group"}`. Omitted, the group is created bare: no class and no `role`. |
+| `data-warp-otp-box` | A JSON object of attributes to apply to each digit box, such as `{"type": "text", "class": "warp-otp__box", "inputmode": "numeric"}`. Omitted, the boxes are created bare: no class, and no numeric keyboard on a phone. |
 | `aria-describedby` | Copied onto the box group, so a hint of yours describes the boxes too. |
 | `maxlength` | Set it to the same number as `data-warp-otp`. |
 | `name` | `code`, which is what `warp/auth/verify-code` reads. |
@@ -451,11 +451,18 @@ one plain field: nothing is loaded to build the boxes.
 The script inserts the box group immediately before your input, hides your input
 with the enhanced class, drops its `required` (an invalid unfocusable control
 would block submission invisibly), and keeps writing the joined value back into
-it. So your form posts exactly what an unenhanced page would post, and the two
-class names the boxes carry are whatever you named them.
+it. So your form posts exactly what an unenhanced page would post.
 
-Two attributes it manages itself, because they vary per box: each box's
-`aria-label` and the first box's `autocomplete="one-time-code"`.
+**The script carries no class name of its own.** The three attributes above are
+the only source of the classes on the group, on the boxes, and on your hidden
+input, so hand-written markup that omits them renders an unstyled widget with a
+still-visible original input. That is the trade for owning the names outright, and
+it is why `otpInput()` always writes all three: builder output is unaffected.
+
+Two attributes the script manages itself, because they vary per box: each box's
+`aria-label` and the first box's `autocomplete="one-time-code"`. It also sets each
+box's `maxlength`, so a platform autofill dropping a whole code into one box is
+redistributed rather than truncated.
 
 ### The request form's DOM contract
 

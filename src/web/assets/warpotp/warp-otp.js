@@ -7,12 +7,14 @@
  * hidden but keeps carrying the submitted value, so the form posts exactly
  * what an unenhanced page would; with no JavaScript the plain input stays.
  *
- * The markup this creates is not fixed here. `craft.warp.otpInput()` resolves
- * the group's and the boxes' attributes server-side (`boxesAttrs`, `boxAttrs`)
- * and hands them over as `data-warp-otp-boxes` and `data-warp-otp-box` JSON, so
- * a site owns those class names. The literals below are only reached by markup
- * that carries `data-warp-otp` without them, i.e. hand-written rather than
- * built by the render builder.
+ * The markup this creates is not fixed here, and there is no class name of
+ * Warp's anywhere in this file. `craft.warp.otpInput()` resolves the group's and
+ * the boxes' attributes server-side (`boxesAttrs`, `boxAttrs`) and hands them
+ * over as `data-warp-otp-boxes` and `data-warp-otp-box` JSON, along with the
+ * class that hides the enhanced input as `data-warp-otp-enhanced-class`, so a
+ * site owns every one of those names. Markup that omits an attribute gets the
+ * behavior without it: no attributes on the elements this creates, and no class
+ * on the original input, which then stays visible beside the boxes.
  */
 (function () {
     'use strict';
@@ -47,16 +49,9 @@
         }
 
         var digitLabel = source.getAttribute('data-warp-otp-digit-label') || 'Digit {n} of {count}';
-        var enhancedClass = source.getAttribute('data-warp-otp-enhanced-class') || 'warp-otp--enhanced';
-        var groupAttrs = parseAttrs(source.getAttribute('data-warp-otp-boxes')) || {
-            'class': 'warp-otp__boxes',
-            role: 'group'
-        };
-        var boxAttrs = parseAttrs(source.getAttribute('data-warp-otp-box')) || {
-            type: 'text',
-            'class': 'warp-otp__box',
-            inputmode: 'numeric'
-        };
+        var enhancedClass = source.getAttribute('data-warp-otp-enhanced-class') || '';
+        var groupAttrs = parseAttrs(source.getAttribute('data-warp-otp-boxes')) || {};
+        var boxAttrs = parseAttrs(source.getAttribute('data-warp-otp-box')) || {};
 
         var group = document.createElement('div');
         applyAttrs(group, groupAttrs);
@@ -83,10 +78,13 @@
 
         source.insertAdjacentElement('beforebegin', group);
 
-        // The original input keeps carrying the submitted value, hidden via
-        // CSS (a display:none control still submits). Required must come off:
-        // an invalid unfocusable control would block submission invisibly.
-        source.classList.add(enhancedClass);
+        // The original input keeps carrying the submitted value, hidden via the
+        // class the markup named (a display:none control still submits) and left
+        // visible when it named none. Required must come off either way: an
+        // invalid unfocusable control would block submission invisibly.
+        if (enhancedClass) {
+            source.classList.add(enhancedClass);
+        }
         source.setAttribute('aria-hidden', 'true');
         source.tabIndex = -1;
         source.required = false;
