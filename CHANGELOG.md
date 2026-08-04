@@ -1,5 +1,13 @@
 # Release Notes for Warp
 
+## Unreleased
+
+- Fixed a bug where the digit boxes on the example code-entry page rendered as invisible white squares, as the bundle's CSS reset zeroes `border-width` on every element, which beats the border Warp's layered baseline gives them, and the template named a border colour without a width. Re-copy the example templates with `php craft warp/example-templates` to pick this up.
+- The example templates now load Tailwind CSS v4 from its Play CDN instead of the obsolete Tailwind CSS 2 build, and their utility classes have been updated for v4. Re-copy the example templates with `php craft warp/example-templates` to pick this up.
+- Documented the asset-bundle registration a page needs to load `warp-otp.js` when it carries the segmented code input as hand-written markup, with no render builder on the page to load it.
+- Documented that `warp/auth/verify-code` reads a plain, validated `returnUrl` body param and never Craft's hashed `redirect`, so a `redirectInput()` written into a hand-written code form is ignored and the member lands on the site root.
+- Documented that a site reset zeroing `border-width`, such as Tailwind's preflight, beats Warp's layered baseline and strips the digit boxes' borders, and that the fix is to give the boxes a border explicitly.
+
 ## 5.0.0-rc.1 - 2026-08-03
 
 ### Authentication
