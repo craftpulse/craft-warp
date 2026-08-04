@@ -1,8 +1,9 @@
 # Templates
 
 Warp exposes its front-end surface through the single `craft.warp` Twig variable:
-data accessors for the state a member area needs, and three render builders for
-the forms. A template never reaches a Warp service or record directly.
+data accessors for the state a member area needs, and four render builders for
+the forms and the passkey button. A template never reaches a Warp service or
+record directly.
 
 Data accessors are read as properties, because Twig resolves the `get` prefix
 itself. The render builders are called as functions and terminated with
@@ -67,11 +68,12 @@ it is documented here only so you know what it is if you find it.
 
 ## Render builders
 
-Three builders render Warp's forms: `requestForm()` for the sign-in and sign-up
-email form, `otpForm()` for the code-entry form, and `otpInput()` for the
-segmented code input alone. Together they cover both steps of the email flow.
+Four builders render Warp's front-end controls: `requestForm()` for the sign-in
+and sign-up email form, `otpForm()` for the code-entry form, `otpInput()` for the
+segmented code input alone, and `passkeyButton()` for the passkey sign-in section
+beside them. The first three cover both steps of the email flow.
 
-All three are fluent: every key in the options array matches a setter that can
+All four are fluent: every key in the options array matches a setter that can
 also be chained, and an unknown key throws, so a mistyped option fails loudly
 instead of being ignored.
 
@@ -223,6 +225,55 @@ input below the length of a valid code and makes signing in impossible. Warp log
 a warning when the two differ. Change the `otpDigits` setting instead, and let
 both the builders and the issuer follow it.
 
+### `passkeyButton()`
+
+The passkey sign-in section for a member who already enrolled one. It belongs
+beside the email form, never instead of it: the ceremony runs in the browser, so
+a member on a device without a passkey still needs the email path.
+
+```twig
+{{ craft.warp.passkeyButton({
+    returnUrl: url('members/account'),
+}).render() }}
+```
+
+That call outputs the container the client script binds to, the button that runs
+the ceremony, the line that replaces the button in a browser without passkey
+support, the live region a failure is announced in, and Craft's own CSRF field for
+the two core endpoints the ceremony posts to
+(`auth/passkey-request-options` and `users/login-with-passkey`). It also loads
+both scripts the ceremony needs, so there is no `<script>` tag to write yourself.
+
+| Option | Description |
+|---|---|
+| `attrs` | Merges attributes into the container `<div>`. Its `data` attributes are the client script's contract, and a `data` array of yours merges key by key, so it can never take `data-warp-passkey` with it. |
+| `buttonAttrs` | Merges attributes into the `<button>`. |
+| `cancelledText` | Sets the message announced when the member cancels the browser prompt or lets it time out, defaulting to "Passkey sign-in was cancelled or timed out. Try again, or use your email above instead." |
+| `failedText` | Sets the message announced when the ceremony fails for any other reason and carries no message of its own, defaulting to "Passkey sign-in failed. Please try your email instead." |
+| `fallbackAttrs` | Merges attributes into the fallback `<p>`. |
+| `fallbackText` | Sets the fallback line's text, defaulting to "Passkeys are not available in this browser. Use your email above instead." |
+| `label` | Sets the button label, defaulting to "Sign in with a passkey". |
+| `renderCss` | Set to `false` to leave Warp's stylesheet out of this render. |
+| `returnUrl` | Sets where a completed ceremony lands the member. Validated exactly as a posted `returnUrl` is, see [return URLs](endpoints.md#return-urls), and a refused value is logged and replaced with the site root. Defaults to the site root. |
+| `statusAttrs` | Merges attributes into the status `<p>`. It carries `role="alert"` and `tabindex="-1"` so a failure is announced and can take focus, so replace those only with equivalents. |
+
+The heading above the section, and any divider around it, stay yours: they are
+page furniture rather than part of the control. The example bundle's login page
+shows the shape.
+
+`returnUrl` is validated here and not only at an endpoint, because this one is
+assigned to `window.location.href` in the browser rather than posted anywhere. A
+value that does not belong to the site the page was served from never reaches the
+page, so a `javascript:` URL or another site's host cannot ride in on a
+`?returnUrl=` of a visitor's own choosing.
+
+The CSRF field is the one element with no `*Attrs` option, because Craft owns its
+markup: with `asyncCsrfInputs` on, Craft renders a placeholder and swaps in the
+real field from its own endpoint, which drops anything you had put on it. Warp
+emits it through Craft's own helper for exactly that reason, so a statically
+cached page still posts a fresh token, and the script reads the field by name when
+the button is clicked rather than when the page loads.
+
 ## Styling and overriding
 
 Warp ships one small stylesheet and two small scripts, and none of it is a
@@ -331,10 +382,15 @@ hides the original input, since that is the one rule the widget depends on.
 
 There is no switch for Warp's JavaScript. The scripts are the affordance rather
 than decoration: `warp-otp.js` is what turns the code input into per-digit boxes
-with paste and arrow-key handling, and `warp-request.js` is what keeps the request
-form's redirect in step with the selected channel. Switching them off would leave
-a working but plainer form, which is what a page gets anyway when JavaScript is
-unavailable.
+with paste and arrow-key handling, `warp-request.js` is what keeps the request
+form's redirect in step with the selected channel, and `warp-passkey.js` is the
+passkey ceremony itself. Switching the first two off would leave a working but
+plainer form, which is what a page gets anyway when JavaScript is unavailable, and
+switching the third off would leave a button that does nothing.
+
+`passkeyButton()` also loads Auth Kit's own WebAuthn client script, the one
+`craft.warp.webauthnJsUrl` names, since that is what runs the ceremony. A page
+that wires the ceremony by hand loads it itself, from that variable.
 
 If you want different markup, write your own template against the DOM contract
 below rather than turning the script off.
@@ -414,3 +470,35 @@ different destination pages. It enhances every `form[data-warp-request]`.
 
 Radios without `data-warp-redirect` are left alone, so a form that posts one
 fixed redirect needs none of this.
+
+### The passkey button's DOM contract
+
+`warp-passkey.js` runs the ceremony from every `[data-warp-passkey]` container on
+the page. `passkeyButton()` emits all of this for you; these are the attributes to
+write yourself if you are not using it. A page with no builder on it registers
+nothing, so register both scripts as well:
+
+```twig
+{% do view.registerJsFile(craft.warp.webauthnJsUrl) %}
+{% do view.registerAssetBundle('craftpulse\\warp\\assetbundles\\warppasskey\\WarpPasskeyAsset') %}
+```
+
+| Attribute | Description |
+|---|---|
+| `data-warp-passkey` | Required, on the container. The script binds to nothing without it. |
+| `data-warp-passkey-button` | Required, on the `<button>` inside the container. Nothing happens without it. |
+| `data-warp-passkey-options-url` | The request-options endpoint, from `{{ actionUrl('auth/passkey-request-options') }}`. |
+| `data-warp-passkey-login-url` | The login endpoint, from `{{ actionUrl('users/login-with-passkey') }}`. |
+| `data-warp-passkey-return-url` | Where a completed ceremony lands the member. Omitted, the page reloads itself. Validate it server-side: it is assigned to `window.location.href`. |
+| `data-warp-passkey-csrf-field` | The name of the CSRF field to read, from `{{ craft.app.request.csrfParam }}`. The field itself, `{{ csrfInput() }}`, must sit inside the container. Omitted, no token is sent and the endpoints refuse the request. |
+| `data-warp-passkey-cancelled-text` | The message shown when the member cancels the prompt or lets it time out. Omitted, nothing is announced. |
+| `data-warp-passkey-failed-text` | The message shown when the ceremony fails for another reason and carries no message of its own. Omitted, nothing is announced. |
+| `data-warp-passkey-fallback` | On an element that replaces the button in a browser without passkey support. Omitted, the button is hidden with nothing shown in its place. |
+| `data-warp-passkey-status` | On the element a failure is written into. Give it `role="alert"` so it is announced and `tabindex="-1"` so the script can focus it. Omitted, failures are silent. |
+
+The script hides the button and shows the fallback when the browser cannot do
+passkeys or Auth Kit's script is missing, disables the button for the duration of
+the ceremony, and on failure writes the message into the status element, unhides
+it and moves focus to it. The container is bound once, so a second script pass
+leaves it alone, and nothing here falls back to a class name or a string of its
+own.

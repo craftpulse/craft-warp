@@ -19,6 +19,7 @@ use craftpulse\warp\models\Settings;
 use craftpulse\warp\services\Passwordless;
 use craftpulse\warp\twig\tags\OtpFormTag;
 use craftpulse\warp\twig\tags\OtpInputTag;
+use craftpulse\warp\twig\tags\PasskeyButtonTag;
 use craftpulse\warp\twig\tags\RequestFormTag;
 use craftpulse\warp\Warp;
 
@@ -31,10 +32,11 @@ use craftpulse\warp\Warp;
  * ([[getLoginMethods()]]), the one-time-code length ([[getOtpDigits()]]), the
  * session-carried code-entry prefill ([[getRequestedEmail()]]), the current
  * user's active sessions ([[getSessions()]]), and the show-once
- * passkey-enrollment nudge ([[getShowPasskeyNudge()]]); plus the three render
+ * passkey-enrollment nudge ([[getShowPasskeyNudge()]]); plus the four render
  * builders ([[requestForm()]], [[otpForm()]], [[otpInput()]]) covering both
- * steps of the email flow. It is the whole front-end contract — templates never
- * reach a Warp service or record directly.
+ * steps of the email flow, and [[passkeyButton()]] for the passkey sign-in
+ * section beside it. It is the whole front-end contract — templates never reach
+ * a Warp service or record directly.
  *
  * The passkey passthroughs delegate to Auth Kit's own variable, so templates
  * never need to know where the split falls — Warp owns the front-end handle,
@@ -228,6 +230,27 @@ class WarpVariable
     public function otpInput(array $params = []): OtpInputTag
     {
         return new OtpInputTag($params);
+    }
+
+    /**
+     * Returns the fluent builder for the passkey sign-in section —
+     * `craft.warp.passkeyButton({ returnUrl: url('members/account') }).render()`
+     * renders the button that starts the WebAuthn ceremony, the line that
+     * replaces it in a browser without passkey support, the live region a failure
+     * is announced in, and Craft's CSRF field for the two core endpoints the
+     * ceremony posts to. Progressive enhancement beside the email form, never a
+     * replacement for it.
+     *
+     * @param array<string, mixed> $params builder options; each key matches a
+     * chainable setter on [[PasskeyButtonTag]]
+     * @return PasskeyButtonTag
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function passkeyButton(array $params = []): PasskeyButtonTag
+    {
+        return new PasskeyButtonTag($params);
     }
 
     /**

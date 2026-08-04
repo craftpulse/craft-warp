@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added the `craft.warp.passkeyButton()` render builder, which renders the passkey sign-in section: the button that runs the WebAuthn ceremony, the line that replaces it in a browser without passkey support, the live region a failure is announced in, and the CSRF field the ceremony needs. It loads both scripts the ceremony runs on, so a page no longer needs a script tag or an inline handler of its own.
+- Added `attrs`, `buttonAttrs`, `cancelledText`, `failedText`, `fallbackAttrs`, `fallbackText`, `label`, `renderCss`, `returnUrl`, and `statusAttrs` options to `craft.warp.passkeyButton()`, so every element it emits and every string it renders is overridable.
+- `craft.warp.passkeyButton()` validates its `returnUrl` the way the endpoints validate a posted one, because the client script assigns it to `window.location.href`, and logs a warning and lands on the site root when it is refused.
+- Warp's baseline stylesheet now carries a neutral baseline for the passkey section, with the button, the fallback line, and the status message in the `warp` cascade layer and only the rule keeping those elements hidden outside it.
+- The example login template now renders its passkey section through `craft.warp.passkeyButton()`, passing its own classes into the per-element options, and carries no inline script. Re-copy the example templates with `php craft warp/example-templates` to pick this up.
 - `returnUrl` validation is now scoped to the site the request was made against rather than to the install, so a destination on another site of a multi-site install is refused like any other untrusted value and the member lands on the fallback instead. Which site a URL belongs to is resolved the way Craft resolves the site of an incoming request, so two sites sharing a host and differing only by path prefix each own their own URLs.
 
 ## 5.0.0-rc.2 - 2026-08-04

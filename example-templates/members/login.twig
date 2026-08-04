@@ -11,18 +11,21 @@
    craft.warp.registrationEnabled, so a closed-registration site never promises
    an account it will not create.
 
-   The form itself is rendered by Warp's builder:
+   Both controls on this page are rendered by Warp's builders:
 
      {{ craft.warp.requestForm({ ... }).render() }}
+     {{ craft.warp.passkeyButton({ ... }).render() }}
 
-   which outputs the post to warp/auth/request with CSRF, the labelled email
+   The first outputs the post to warp/auth/request with CSRF, the labelled email
    field, the channel choice when both login methods are enabled, and the submit
-   button. Every class it carries below is this bundle's, passed in through the
-   per-element attrs options; prefer hand-writing the form? The endpoints doc has
-   the POST contract.
+   button. The second outputs the passkey button, its fallback line, its status
+   live region, and the CSRF field the ceremony needs, and loads both scripts
+   that ceremony runs on. Every class either one carries below is this bundle's,
+   passed in through the per-element attrs options; prefer hand-writing them? The
+   endpoints doc has the POST contract and the templates doc has the DOM one.
 
    Posts to:  warp/auth/request      (POST, anonymous, rate-limited)
-   Optional passkey button talks to Craft core's anonymous endpoints:
+   The passkey button talks to Craft core's anonymous endpoints:
               auth/passkey-request-options  +  users/login-with-passkey
 
    The bundle assumes it lives at templates/members/ (see the layout header).
@@ -38,12 +41,13 @@
 
 {% set title = 'Sign in'|t('warp') %}
 
-{# A ?returnUrl= sends the member back where re-auth interrupted them. The
-   endpoint re-validates the posted copy against the install's site base URLs,
-   but the passkey script
-   below also assigns it to window.location.href, so it is constrained HERE
-   too: only a site-relative path is accepted (no scheme, so a javascript: or
-   protocol-relative URL can never reach the redirect), anything else falls
+{# A ?returnUrl= sends the member back where re-auth interrupted them. Warp
+   re-validates it on every path that honours it — the endpoints validate the
+   posted copy, and craft.warp.passkeyButton() validates the one it hands its
+   script — against the base URL of the site the request was made against. It is
+   constrained HERE too, so a hostile value never reaches the page at all: only a
+   site-relative path is accepted (no scheme, so a javascript: or
+   protocol-relative URL can never reach the redirect), and anything else falls
    back to the account page. #}
 {%- set requestedReturnUrl = craft.app.request.getParam('returnUrl') -%}
 {%- set afterSignInUrl = requestedReturnUrl is not empty
@@ -109,56 +113,25 @@
         submitAttrs: { class: 'w-full bg-blue-600 text-white font-medium rounded-sm px-4 py-2 cursor-pointer hover:bg-blue-700 focus:outline-hidden focus:ring-3 focus:ring-blue-500' },
     }).render() }}
 
-    {# --- Passkey sign-in (optional, progressive enhancement). ------------- #}
+    {# --- Passkey sign-in (optional, progressive enhancement). -------------
+
+       craft.warp.passkeyButton() renders the whole section's controls: the
+       button that runs the WebAuthn ceremony, the line that replaces it in a
+       browser without passkey support, the live region a failure is announced
+       in, and the CSRF field the two core endpoints need. Warp also loads both
+       scripts the ceremony needs, so there is no <script> tag to write here.
+
+       The heading and the divider stay ours, since they are page furniture
+       rather than part of the control, and every class below is ours too: each
+       *Attrs option merges onto Warp's own class rather than replacing it. #}
     <section class="mt-8 pt-6 border-t border-gray-200" aria-labelledby="warp-passkey-heading">
         <h2 class="text-lg font-semibold text-gray-900 mb-3" id="warp-passkey-heading">{{ 'Already set up a passkey?'|t('warp') }}</h2>
 
-        <button class="w-full bg-white border border-gray-300 text-gray-800 font-medium rounded-sm px-4 py-2 cursor-pointer hover:bg-gray-100 focus:outline-hidden focus:ring-3 focus:ring-blue-500" type="button" id="warp-passkey-login">
-            {{ 'Sign in with a passkey'|t('warp') }}
-        </button>
-
-        {# Live regions must exist in the DOM before status is injected. #}
-        <p class="mt-3 text-sm text-gray-500" id="warp-passkey-fallback" hidden>
-            {{ 'Passkeys are not available in this browser. Use your email above instead.'|t('warp') }}
-        </p>
-        <p class="mt-3 text-sm text-red-700" id="warp-passkey-status" role="alert" tabindex="-1" hidden></p>
+        {{ craft.warp.passkeyButton({
+            returnUrl: afterSignInUrl,
+            buttonAttrs: { class: 'w-full bg-white border border-gray-300 text-gray-800 font-medium rounded-sm px-4 py-2 cursor-pointer hover:bg-gray-100 focus:outline-hidden focus:ring-3 focus:ring-blue-500' },
+            fallbackAttrs: { class: 'mt-3 text-sm text-gray-500' },
+            statusAttrs: { class: 'mt-3 text-sm text-red-700' },
+        }).render() }}
     </section>
-
-    <script src="{{ craft.warp.webauthnJsUrl }}"></script>
-    <script>
-        (function () {
-            var button = document.getElementById('warp-passkey-login');
-            var fallback = document.getElementById('warp-passkey-fallback');
-            var status = document.getElementById('warp-passkey-status');
-
-            if (!window.AuthKit || !window.AuthKit.supportsWebAuthn()) {
-                button.hidden = true;
-                fallback.hidden = false;
-                return;
-            }
-
-            button.addEventListener('click', function () {
-                status.hidden = true;
-                button.disabled = true;
-
-                window.AuthKit.loginWithPasskey({
-                    optionsUrl: '{{ actionUrl('auth/passkey-request-options')|e('js') }}',
-                    loginUrl: '{{ actionUrl('users/login-with-passkey')|e('js') }}',
-                    csrfToken: '{{ craft.app.request.csrfToken|e('js') }}'
-                }).then(function () {
-                    window.location.href = '{{ afterSignInUrl|e('js') }}';
-                }).catch(function (error) {
-                    // A cancelled or timed-out browser ceremony throws a DOMException
-                    // whose message is written for developers, not members.
-                    var ceremonyFailed = error && (error.name === 'NotAllowedError' || error.name === 'AbortError');
-                    status.textContent = ceremonyFailed
-                        ? '{{ 'Passkey sign-in was cancelled or timed out. Try again, or use your email above instead.'|t('warp')|e('js') }}'
-                        : (error.message || '{{ 'Passkey sign-in failed. Please try your email instead.'|t('warp')|e('js') }}');
-                    status.hidden = false;
-                    status.focus();
-                    button.disabled = false;
-                });
-            });
-        })();
-    </script>
 {% endblock %}
