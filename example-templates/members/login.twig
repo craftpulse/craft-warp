@@ -93,27 +93,27 @@
        Warp's own class rather than replacing it, so these Tailwind utilities and
        Warp's warp-request-form__* hooks both land on the element; add
        resetClass: true to any of them to drop Warp's class entirely. Warp's
-       stylesheet keeps its rules in a `warp` cascade layer, so ordinary CSS of
+       stylesheet keeps its rules in a `warp` cascade layer, so un-layered CSS of
        yours always wins, and renderCss: false leaves it out altogether. #}
     {{ craft.warp.requestForm({
         linkSentUrl: 'members/link-sent',
         otpVerifyUrl: 'members/otp-verify',
         returnUrl: afterSignInUrl,
-        attrs: { class: 'bg-white border border-gray-200 rounded p-6 space-y-5', id: 'warp-login-form' },
+        attrs: { class: 'bg-white border border-gray-200 rounded-sm p-6 space-y-5', id: 'warp-login-form' },
         fieldAttrs: { class: 'mb-0' },
         labelAttrs: { class: 'block text-sm font-medium text-gray-700 mb-1' },
-        emailAttrs: { class: 'w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400' },
+        emailAttrs: { class: 'w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-hidden focus:ring-3 focus:ring-blue-500 focus:border-blue-400' },
         channelsAttrs: { class: 'mb-0' },
         legendAttrs: { class: 'text-sm font-medium text-gray-700 mb-2' },
         choiceAttrs: { class: 'flex items-center space-x-2 mb-1' },
-        submitAttrs: { class: 'w-full bg-blue-600 text-white font-medium rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring' },
+        submitAttrs: { class: 'w-full bg-blue-600 text-white font-medium rounded-sm px-4 py-2 cursor-pointer hover:bg-blue-700 focus:outline-hidden focus:ring-3 focus:ring-blue-500' },
     }).render() }}
 
     {# --- Passkey sign-in (optional, progressive enhancement). ------------- #}
     <section class="mt-8 pt-6 border-t border-gray-200" aria-labelledby="warp-passkey-heading">
         <h2 class="text-lg font-semibold text-gray-900 mb-3" id="warp-passkey-heading">{{ 'Already set up a passkey?'|t('warp') }}</h2>
 
-        <button class="w-full bg-white border border-gray-300 text-gray-800 font-medium rounded px-4 py-2 hover:bg-gray-100 focus:outline-none focus:ring" type="button" id="warp-passkey-login">
+        <button class="w-full bg-white border border-gray-300 text-gray-800 font-medium rounded-sm px-4 py-2 cursor-pointer hover:bg-gray-100 focus:outline-hidden focus:ring-3 focus:ring-blue-500" type="button" id="warp-passkey-login">
             {{ 'Sign in with a passkey'|t('warp') }}
         </button>
 

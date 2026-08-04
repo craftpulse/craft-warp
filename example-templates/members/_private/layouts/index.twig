@@ -5,10 +5,12 @@
    skip link, a small header nav, and the flash notices Warp's controllers set,
    so the bundle renders valid, styled pages the moment it is copied in.
 
-   Styling is Tailwind CSS from a CDN, the same approach as Craft Commerce's
-   example templates: utility classes on the markup, one stylesheet link below.
-   Swap the link for your own build (or replace this layout entirely with your
-   site's) when you integrate.
+   Styling is Tailwind CSS v4 from its Play CDN, the same approach as Craft
+   Commerce's example templates: utility classes on the markup, one script tag
+   below that compiles them in the browser. Tailwind documents the Play CDN as
+   development-only, which is exactly what these templates are: swap it for your
+   own Tailwind build (or replace this layout entirely with your site's) when you
+   integrate.
 
    The bundle assumes it lives at templates/members/ — every template path and
    URL in it starts with members/. If you rename the folder, update those
@@ -34,14 +36,14 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <title>{{ (title ?? 'Members'|t('warp')) ~ ' - ' ~ siteName }}</title>
 
-    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
     {% if extraHead is defined %}
         {{ extraHead }}
     {% endif %}
 </head>
 <body class="min-h-screen flex flex-col bg-gray-50 text-gray-800 leading-relaxed antialiased">
-    <a class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-white focus:px-3 focus:py-2 focus:rounded focus:shadow" href="#main-content">
+    <a class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-white focus:px-3 focus:py-2 focus:rounded-sm focus:shadow-sm" href="#main-content">
         {{ 'Skip to content'|t('warp') }}
     </a>
 
@@ -49,14 +51,14 @@
 
     <main class="flex-1 w-full max-w-xl mx-auto px-6 py-10" id="main-content" tabindex="-1">
         {% if flashError %}
-            <div class="mb-6 rounded border border-red-300 bg-red-50 px-4 py-3 text-red-800" role="alert" id="warp-flash-error" tabindex="-1">
+            <div class="mb-6 rounded-sm border border-red-300 bg-red-50 px-4 py-3 text-red-800" role="alert" id="warp-flash-error" tabindex="-1">
                 <strong class="font-semibold">{{ 'Error'|t('warp') }}:</strong>
                 {{ flashError }}
             </div>
         {% endif %}
 
         {% if flashNotice %}
-            <div class="mb-6 rounded border border-blue-300 bg-blue-50 px-4 py-3 text-blue-800" role="status">
+            <div class="mb-6 rounded-sm border border-blue-300 bg-blue-50 px-4 py-3 text-blue-800" role="status">
                 <strong class="font-semibold">{{ 'Notice'|t('warp') }}:</strong>
                 {{ flashNotice }}
             </div>

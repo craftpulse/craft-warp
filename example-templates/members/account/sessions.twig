@@ -66,7 +66,7 @@
         {% if sessions|length %}
             <ul class="space-y-4">
                 {% for session in sessions %}
-                    <li class="flex items-start bg-white border {{ session.isCurrent ? 'border-blue-300' : 'border-gray-200' }} rounded p-5">
+                    <li class="flex items-start bg-white border {{ session.isCurrent ? 'border-blue-300' : 'border-gray-200' }} rounded-sm p-5">
                         <span class="text-gray-400 mr-4 mt-1" aria-hidden="true">
                             {{ (warpDeviceIcons[session.deviceType] ?? warpDeviceIcons.unknown)|raw }}
                         </span>
@@ -113,7 +113,7 @@
                                 <span class="text-xs text-gray-400">{{ 'Use “Sign out” to end this session.'|t('warp') }}</span>
                             {% elseif session.uid %}
                                 <button
-                                    class="text-sm text-red-600 border border-red-200 rounded px-3 py-1 hover:bg-red-50 focus:outline-none focus:ring"
+                                    class="text-sm text-red-600 border border-red-200 rounded-sm px-3 py-1 cursor-pointer hover:bg-red-50 focus:outline-hidden focus:ring-3 focus:ring-blue-500"
                                     type="button"
                                     data-warp-revoke
                                     data-uid="{{ session.uid }}"
@@ -136,11 +136,11 @@
 
     {# --- Sign out everywhere else -------------------------------------------- #}
     {% if otherCount > 0 %}
-        <footer class="bg-white border border-gray-200 rounded p-5">
+        <footer class="bg-white border border-gray-200 rounded-sm p-5">
             <p class="text-gray-600 mb-3">
                 {{ 'Sign out of every device except this one. You will stay signed in here.'|t('warp') }}
             </p>
-            <button class="bg-red-600 text-white font-medium rounded px-4 py-2 hover:bg-red-700 focus:outline-none focus:ring" type="button" id="warp-sessions-revoke-others">
+            <button class="bg-red-600 text-white font-medium rounded-sm px-4 py-2 cursor-pointer hover:bg-red-700 focus:outline-hidden focus:ring-3 focus:ring-blue-500" type="button" id="warp-sessions-revoke-others">
                 {{ 'Sign out everywhere else'|t('warp') }}
             </button>
         </footer>
