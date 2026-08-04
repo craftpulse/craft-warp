@@ -287,6 +287,22 @@ If your own stylesheet uses cascade layers, remember that a layer of yours
 declared before `warp` loses to it. Declare yours after, or leave the rules that
 must win un-layered.
 
+The same rule cuts the other way for a reset. Anything that zeroes `border-width`
+across the board, Tailwind's preflight and some normalize builds do, beats Warp's
+layered baseline and takes the digit boxes' borders with it, which leaves white
+boxes on a white card. Give the boxes a border explicitly rather than relying on
+Warp's, as the example bundle now does:
+
+```twig
+{{ craft.warp.otpForm({
+    boxAttrs: { class: 'border border-gray-300' },
+}).render() }}
+```
+
+An un-layered reset always wins that fight; a layered one wins whenever its layer
+is declared after `warp`. Either way the explicit border is the fix, and it is
+worth writing even on a page you believe has no reset.
+
 ### Turning Warp's CSS off
 
 To leave the stylesheet out of one render, pass `renderCss: false`:
@@ -335,11 +351,32 @@ To roll your own, take the POST contract from the
 satisfy the DOM contract below. Or keep `craft.warp.otpInput()` for that one part
 and hand-write everything around it, which is the shortest path.
 
+**Post `returnUrl`, not Craft's `redirect`, to `warp/auth/verify-code`.** That
+action reads a plain `returnUrl` body param and validates it against the
+install's site base URLs; it never consumes Craft's hashed `redirect`, so a
+`{{ redirectInput('members/account') }}` written out of habit is ignored and the
+member lands on the site root instead. The asymmetry is deliberate:
+`warp/auth/request` does use Craft's hashed `redirect`, because that is what the
+channel swap rewrites to send a magic-link post and a code post to different
+pages, while a verified code goes straight to the destination the credential was
+issued for.
+
 ### The code input's DOM contract
 
 `warp-otp.js` enhances every `input[data-warp-otp]` on the page. `otpInput()`
 emits all of this for you; these are the attributes to write yourself if you are
 not using it.
+
+The script normally rides along with a builder: `otpInput()` registers it, and so
+does `otpForm()`, which renders that input. A page built entirely by hand, with no
+builder on it at all, has nothing to register the bundle, so register it yourself:
+
+```twig
+{% do view.registerAssetBundle('craftpulse\\warp\\assetbundles\\warpotp\\WarpOtpAsset') %}
+```
+
+Without that line the markup below still posts correctly, but the code input stays
+one plain field: nothing is loaded to build the boxes.
 
 | Attribute | Description |
 |---|---|

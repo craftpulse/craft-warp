@@ -18,7 +18,8 @@ Warp ships two halves:
   ships a complete member area as copy-in templates under
   `example-templates/members/`, following the same model as Craft Commerce's
   example templates: full pages extending a bundled layout, styled with
-  Tailwind CSS from a CDN, rendering the moment the folder is copied in.
+  Tailwind CSS v4 from its Play CDN, rendering the moment the folder is copied
+  in.
 
 So the pages a member visits are templates you own; the endpoints those
 templates post to are Warp's.
@@ -64,13 +65,14 @@ URL under `/members` is a valid, styled page out of the box. Each file carries
 a header comment explaining what it posts to and its accessibility contract.
 
 The bundle is meant to be edited, not treated as vendor code. Styling is
-Tailwind CSS loaded from a CDN in the layout head, the same approach Commerce's
-example templates take, so it looks right with no buildchain. You have two
-integration paths, and both are cheap:
+Tailwind CSS v4, loaded from its Play CDN in the layout head, the same approach
+Commerce's example templates take, so it looks right with no buildchain. Tailwind
+documents that CDN as development-only, which is what these pages are until you
+integrate them. You have two integration paths, and both are cheap:
 
 - **Restyle in place.** Edit the utility classes on the pages and the shell, and
-  swap the CDN link for your own build. The markup, routing, and interactions
-  keep working.
+  swap the CDN script for your own Tailwind build. The markup, routing, and
+  interactions keep working.
 - **Swap the shell.** Change the one `{% extends %}` line per page to your
   site's layout and keep the `{% block main %}` content. Because the chrome
   (skip link, nav, flash notices) lives in the shell rather than in each page,

@@ -53,6 +53,14 @@ POST, anonymous. Consumes a one-time code and signs the member in.
 | `code` | The code the member typed. |
 | `returnUrl` | Where a verified code lands the member. Validated, see [return URLs](#return-urls). |
 
+This action reads `returnUrl` and **not** Craft's hashed `redirect`. A
+`{{ redirectInput('members/account') }}` in a hand-written code form is ignored,
+and the member lands on the site root instead. The asymmetry with
+`warp/auth/request`, which does honour Craft's `redirect`, is deliberate: the
+request form's redirect is what the channel swap rewrites to route a magic-link
+post and a code post to different pages, while a verified code goes straight to
+the destination the credential was issued for.
+
 Success answers `{"success": true, "returnUrl": "..."}` or redirects to the
 validated `returnUrl`, falling back to the site root. Failure answers
 `{"success": false}` with the message "That code is invalid or has expired.
@@ -169,4 +177,7 @@ on a different domain arrives signed out.
 
 `returnUrl` is separate from Craft's own `redirect` param. `redirect` is hashed
 and decides where the browser goes when the form posts; `returnUrl` is plain and
-decides where the emailed credential lands. A form can post both.
+decides where the emailed credential lands. A request form can post both.
+`warp/auth/request` is the only route that reads `redirect`, so
+[`warp/auth/verify-code`](#warpauthverify-code) needs `returnUrl` and ignores
+anything `redirectInput()` writes.
