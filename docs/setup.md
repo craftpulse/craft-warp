@@ -102,8 +102,9 @@ Two behaviors worth knowing:
 - **The post-sign-in destination** is `members/account`, passed as a hashed
   `redirect` and a `returnUrl`. It is where a clicked magic link, a verified
   code, or a passkey login lands the member. Warp validates the `returnUrl`
-  against the install's site base URLs before honouring it, so an open-redirect
-  attempt is dropped and the member lands on the site root instead. See
+  against the base URL of the site the request was made against before honouring
+  it, so an open-redirect attempt, or a destination on another site of the
+  install, is dropped and the member lands on the site root instead. See
   [return URLs](endpoints.md#return-urls).
 - **`link-sent` and `otp-verify`** are the neutral pages the request form
   redirects to. They must read the same whether the address was known,

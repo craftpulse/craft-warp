@@ -2,7 +2,10 @@
 /**
  * Warp plugin for Craft CMS 5.x
  *
- * Open-redirect matrix for the same-site return URL validator.
+ * Open-redirect matrix for the same-site return URL validator, plus the per-site
+ * enforcement: a destination is honoured only when it belongs to the site the
+ * request was made against, whether the sites differ by host or only by path
+ * prefix.
  *
  * @link      https://craft-pulse.com
  * @copyright Copyright (c) 2026 CraftPulse
@@ -48,4 +51,78 @@ it('rejects URLs containing control characters', function() {
 it('passes empty values through as null', function() {
     expect(Redirect::validateReturnUrl(null))->toBeNull()
         ->and(Redirect::validateReturnUrl(''))->toBeNull();
+});
+
+it('rejects a destination on another site of the install', function() {
+    $other = warpMakeSite('warpother', 'https://other.example.test/');
+
+    try {
+        expect(Redirect::validateReturnUrl('https://other.example.test/members'))->toBeNull()
+            // The same URL is honoured for a request served by that site.
+            ->and(warpWithCurrentSite($other, fn() => Redirect::validateReturnUrl('https://other.example.test/members')))
+            ->toBe('https://other.example.test/members');
+    } finally {
+        warpDeleteSite($other);
+    }
+});
+
+it('rejects a destination on a path-prefixed site sharing the host', function() {
+    $base = rtrim((string)Craft::$app->getSites()->getPrimarySite()->getBaseUrl(), '/');
+    $fr = warpMakeSite('warpfr', "{$base}/fr/", 'fr');
+
+    try {
+        expect(Redirect::validateReturnUrl("{$base}/fr/members"))->toBeNull()
+            ->and(Redirect::validateReturnUrl("{$base}/members"))->toBe("{$base}/members")
+            // And the other way around: the prefixed site owns its own URLs and
+            // not the ones above its prefix.
+            ->and(warpWithCurrentSite($fr, fn() => Redirect::validateReturnUrl("{$base}/fr/members")))
+            ->toBe("{$base}/fr/members")
+            ->and(warpWithCurrentSite($fr, fn() => Redirect::validateReturnUrl("{$base}/members")))
+            ->toBeNull();
+    } finally {
+        warpDeleteSite($fr);
+    }
+});
+
+it('enforces the path prefix on site-relative paths too', function() {
+    $base = rtrim((string)Craft::$app->getSites()->getPrimarySite()->getBaseUrl(), '/');
+    $fr = warpMakeSite('warpfr', "{$base}/fr/", 'fr');
+
+    try {
+        expect(Redirect::validateReturnUrl('/members'))->toBe('/members')
+            ->and(Redirect::validateReturnUrl('/fr/members'))->toBeNull()
+            ->and(warpWithCurrentSite($fr, fn() => Redirect::validateReturnUrl('/fr/members')))
+            ->toBe('/fr/members')
+            ->and(warpWithCurrentSite($fr, fn() => Redirect::validateReturnUrl('/members')))
+            ->toBeNull();
+    } finally {
+        warpDeleteSite($fr);
+    }
+});
+
+it('does not mistake a path prefix for a partial segment match', function() {
+    $base = rtrim((string)Craft::$app->getSites()->getPrimarySite()->getBaseUrl(), '/');
+    $fr = warpMakeSite('warpfr', "{$base}/fr/", 'fr');
+
+    try {
+        // /french belongs to the primary site, not to the site at /fr.
+        expect(Redirect::validateReturnUrl('/french/members'))->toBe('/french/members')
+            ->and(warpWithCurrentSite($fr, fn() => Redirect::validateReturnUrl('/french/members')))
+            ->toBeNull();
+    } finally {
+        warpDeleteSite($fr);
+    }
+});
+
+it('honours an explicitly named site over the current one', function() {
+    $other = warpMakeSite('warpother', 'https://other.example.test/');
+
+    try {
+        expect(Redirect::validateReturnUrl('https://other.example.test/members', $other))
+            ->toBe('https://other.example.test/members')
+            ->and(Redirect::validateReturnUrl('https://other.example.test/members', Craft::$app->getSites()->getPrimarySite()))
+            ->toBeNull();
+    } finally {
+        warpDeleteSite($other);
+    }
 });

@@ -119,7 +119,7 @@ code, and the submit button.
 | `otpVerifyUrl` | Sets the page a one-time-code request lands on after posting, your code-entry page, posted as Craft's hashed `redirect`. |
 | `radioAttrs` | Merges attributes into each channel radio. |
 | `renderCss` | Set to `false` to leave Warp's stylesheet out of this render. See [turning Warp's CSS off](#turning-warps-css-off). |
-| `returnUrl` | Sets where the emailed credential lands the member once they use it, posted as `returnUrl`. Defaults to none, which lands on the site root. |
+| `returnUrl` | Sets where the emailed credential lands the member once they use it, posted as `returnUrl`. Honoured only when it belongs to the site the request was made against, see [return URLs](endpoints.md#return-urls). Defaults to none, which lands on the site root. |
 | `submitAttrs` | Merges attributes into the submit button. |
 | `submitLabel` | Sets the submit button label, defaulting to the only enabled channel's own label, or "Continue" when the visitor is choosing. |
 
@@ -164,7 +164,7 @@ segmented code input, its hint, and the submit button.
 | `labelAttrs` | Merges attributes into each `<label>`. |
 | `renderCss` | Set to `false` to leave Warp's stylesheet out of this render. |
 | `requestUrl` | Sets the URL of the request form, used by the "use a different address" link. Defaults to Craft's `loginPath`, and the link is omitted when none is available. |
-| `returnUrl` | Sets where a verified code lands the member, posted as `returnUrl`. Defaults to none, which lands on the site root. |
+| `returnUrl` | Sets where a verified code lands the member, posted as `returnUrl`. Honoured only when it belongs to the site the request was made against, see [return URLs](endpoints.md#return-urls). Defaults to none, which lands on the site root. |
 | `sentAttrs` | Merges attributes into the "your code was sent to" line. |
 | `sentText` | Sets that line, defaulting to "Your code was sent to {email}." `{email}` is replaced. |
 | `submitAttrs` | Merges attributes into the submit button. |
@@ -352,10 +352,11 @@ satisfy the DOM contract below. Or keep `craft.warp.otpInput()` for that one par
 and hand-write everything around it, which is the shortest path.
 
 **Post `returnUrl`, not Craft's `redirect`, to `warp/auth/verify-code`.** That
-action reads a plain `returnUrl` body param and validates it against the
-install's site base URLs; it never consumes Craft's hashed `redirect`, so a
-`{{ redirectInput('members/account') }}` written out of habit is ignored and the
-member lands on the site root instead. The asymmetry is deliberate:
+action reads a plain `returnUrl` body param and validates it against the base URL
+of the site the request was made against; it never consumes Craft's hashed
+`redirect`, so a `{{ redirectInput('members/account') }}` written out of habit is
+ignored and the member lands on the site root instead. The asymmetry is
+deliberate:
 `warp/auth/request` does use Craft's hashed `redirect`, because that is what the
 channel swap rewrites to send a magic-link post and a code post to different
 pages, while a verified code goes straight to the destination the credential was

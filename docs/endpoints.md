@@ -164,16 +164,26 @@ validates it before honouring it and drops anything it does not trust, falling
 back to the site root.
 
 Accepted: site-relative paths such as `/members/account`, and absolute URLs that
-sit under one of the install's site base URLs. Rejected: protocol-relative URLs,
-backslash tricks, control characters, and any host that is not a configured site.
-Prefix tricks are covered too, so a site at `https://example.test` does not
-accept `https://example.test.attacker.test`.
+sit under the base URL of the site the request was made against. Rejected:
+protocol-relative URLs, backslash tricks, control characters, and any host that
+is not that site. Prefix tricks are covered too, so a site at
+`https://example.test` does not accept `https://example.test.attacker.test`.
 
-Validation is scoped to **the install**, not to one site. On a multi-site install
-a `returnUrl` pointing at another site in the group is honoured, because that
-site is a configured base URL. Keep post-sign-in destinations on the site the
-form was served from: sessions are per cookie domain, so a member sent to a site
-on a different domain arrives signed out.
+Validation is scoped to **one site**, not to the install. On a multi-site install
+a `returnUrl` pointing at another site is refused exactly like any other untrusted
+value, and the member lands on the fallback instead: sessions are per cookie
+domain, so a member sent to a site on another domain would have arrived signed
+out anyway.
+
+Which site a URL belongs to is resolved the way Craft resolves the site of an
+incoming request: every site's base URL is matched and the longest match wins. So
+two sites sharing a host and differing only by path prefix each own their own
+URLs. With `https://example.test/` and `https://example.test/fr/` configured, a
+request served by the first accepts `/members/account` and refuses
+`/fr/members/account`, and a request served by the second does the opposite. A
+base URL set through an environment variable or an alias is compared in its
+resolved form, so `$PRIMARY_SITE_URL` and `@web` behave like the URL they expand
+to.
 
 `returnUrl` is separate from Craft's own `redirect` param. `redirect` is hashed
 and decides where the browser goes when the form posts; `returnUrl` is plain and

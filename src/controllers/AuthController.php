@@ -418,12 +418,15 @@ class AuthController extends Controller
     }
 
     /**
-     * Validates a raw return-URL parameter against the install's site base URLs,
-     * returning it when safe or null when absent, non-string, or an
-     * open-redirect attempt.
+     * Validates a raw return-URL parameter against the base URL of the site this
+     * request was made against, returning it when safe or null when absent,
+     * non-string, an open-redirect attempt, or a destination on another site of
+     * the install. A null lands the member on the fallback the calling action
+     * names — the account page or the site root.
      *
      * @param mixed $param the raw query or body parameter
      * @return string|null
+     * @throws \craft\errors\SiteNotFoundException if no sites exist
      *
      * @author CraftPulse
      * @since 5.0.0

@@ -301,8 +301,8 @@ class RequestFormTag extends BaseTag
 
     /**
      * Sets where the emailed credential lands the member once they use it,
-     * posted as `returnUrl`. The endpoint honours it only when it sits under one
-     * of the install's site base URLs. Default: none, which lands on the site
+     * posted as `returnUrl`. The endpoint honours it only when it belongs to the
+     * site the request was made against. Default: none, which lands on the site
      * root.
      *
      * @param string $url

@@ -335,8 +335,8 @@ class OtpFormTag extends BaseTag
 
     /**
      * Sets where a verified code lands the member, posted as `returnUrl`. The
-     * endpoint honours it only when it sits under one of the install's site base
-     * URLs. Default: none, which lands on the site root.
+     * endpoint honours it only when it belongs to the site the request was made
+     * against. Default: none, which lands on the site root.
      *
      * @param string $url
      * @return $this

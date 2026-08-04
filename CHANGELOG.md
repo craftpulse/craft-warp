@@ -1,5 +1,9 @@
 # Release Notes for Warp
 
+## Unreleased
+
+- `returnUrl` validation is now scoped to the site the request was made against rather than to the install, so a destination on another site of a multi-site install is refused like any other untrusted value and the member lands on the fallback instead. Which site a URL belongs to is resolved the way Craft resolves the site of an incoming request, so two sites sharing a host and differing only by path prefix each own their own URLs.
+
 ## 5.0.0-rc.2 - 2026-08-04
 
 - Fixed a bug where the digit boxes on the example code-entry page rendered as invisible white squares, as the bundle's CSS reset zeroes `border-width` on every element, which beats the border Warp's layered baseline gives them, and the template named a border colour without a width. Re-copy the example templates with `php craft warp/example-templates` to pick this up.

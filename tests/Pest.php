@@ -19,6 +19,8 @@ use markhuot\craftpest\test\RefreshesDatabase;
 use markhuot\craftpest\test\TestCase;
 use yii\caching\ArrayCache;
 
+require_once __DIR__ . '/Support/site-helpers.php';
+
 /**
  * Silences every audit surface Warp's flows can reach: Auth Kit's own legacy
  * sink registry, and the bus a bridge plugin (Audit Kit's AuthKitBridge, if
