@@ -5,7 +5,8 @@
 > [!WARNING]
 > Hand-written code-input markup that relied on `warp-otp.js` supplying its own class names must now name them itself: add `data-warp-otp-boxes`, `data-warp-otp-box`, and `data-warp-otp-enhanced-class`, as documented in the template reference. Markup built by `craft.warp.otpInput()` or `craft.warp.otpForm()` is unaffected.
 
-- The sign-in link, one-time code, and sign-up emails now state exactly how long their credential lasts ("It expires in 15 minutes and can be used only once") instead of saying it expires shortly, following Warp's own `tokenTtl` setting. That copy belongs to Auth Kit's system messages, so it arrives with Auth Kit 1.8.0; a body you have already rewritten keeps your copy and can quote the expiry with the new `{{ expiresIn }}` variable.
+- Auth Kit 1.8.0 or later is now required.
+- The sign-in link, one-time code, and sign-up emails now state exactly how long their credential lasts ("It expires in 15 minutes and can be used only once") instead of saying it expires shortly, following Warp's own `tokenTtl` setting. That copy belongs to Auth Kit's system messages, hence the new version floor; a body you have already rewritten keeps your copy and can quote the expiry with the new `{{ expiresIn }}` variable.
 - Added `craft.warp.tokenLifetime`, which returns how long an issued magic link or one-time code stays valid, formatted for reading ("15 minutes", "1 hour"), so a page can state the exact expiry.
 - The example "check your email" page now states the exact expiry rather than saying the link expires shortly. Re-copy the example templates with `php craft warp/example-templates` to pick this up.
 - The passkey nudge now holds for the rest of the session instead of vanishing the first time it is read, so a page reload or a form post that lands the member back on the account page no longer consumes it.

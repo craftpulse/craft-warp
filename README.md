@@ -25,7 +25,7 @@ Warp requires Craft CMS 5.10.0 or greater.
 Warp requires PHP 8.2 or greater.
 
 ### Auth Kit
-Warp requires `craftpulse/craft-auth-kit` 1.7.0 or greater, which Composer installs automatically as a dependency. Auth Kit is a library rather than a plugin, so there is nothing to install or enable and it never appears in your plugins list.
+Warp requires `craftpulse/craft-auth-kit` 1.8.0 or greater, which Composer installs automatically as a dependency. Auth Kit is a library rather than a plugin, so there is nothing to install or enable and it never appears in your plugins list.
 
 ## Installation
 
