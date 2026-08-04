@@ -69,7 +69,13 @@ it('renders the code-entry page for a visitor whose address is carried in the se
 it('renders the sign-in email input at full width, lifting the baseline max-width cap', function() {
     // Warp's baseline caps the email input at 24rem inside its cascade layer, and
     // w-full sets width, not max-width, so the cap survives it and the input stops
-    // short of the full-width submit button. The bundle passes max-w-none for that.
+    // short of the full-width submit button.
+    //
+    // The utility must be the IMPORTANT form. A plain max-w-none only wins when
+    // Tailwind's utilities layer is declared after `warp` in the final document,
+    // which the runtime-injected Play CDN does not guarantee and in practice does
+    // not do. An important declaration beats a normal one whatever the layer order,
+    // so the trailing bang is what actually lifts the cap.
     $response = $this->get('/' . BUNDLE_FOLDER . '/login');
 
     expect($response->getStatusCode())->toBe(200);
@@ -77,7 +83,7 @@ it('renders the sign-in email input at full width, lifting the baseline max-widt
     preg_match('/<input[^>]+name="email"[^>]*>/', (string)$response->content, $matches);
 
     expect($matches[0] ?? '')->toContain('warp-request-form__email')
-        ->and($matches[0] ?? '')->toContain('max-w-none');
+        ->and($matches[0] ?? '')->toContain('max-w-none!');
 });
 
 it('keeps the code-entry page reachable after a wrong code, never looping back to login', function() {

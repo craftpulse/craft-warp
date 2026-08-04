@@ -59,10 +59,14 @@
        strips the borders Warp's own baseline gives the digit boxes. Any page
        with a reset of its own wants the same explicit width.
 
-       emailAttrs carries max-w-none for the same class of reason: Warp's baseline
-       caps the email input at 24rem, and w-full does not lift that (it sets
-       width, not max-width), so without it the input stops short of the
-       full-width submit button. #}
+       emailAttrs carries max-w-none! for the same class of reason: Warp's
+       baseline caps the email input at 24rem, and w-full does not lift that (it
+       sets width, not max-width), so without it the input stops short of the
+       full-width submit button. The trailing bang is Tailwind v4's important
+       modifier, and it is the right tool rather than a hack: an important
+       declaration always beats a normal one whatever the layer order, while a
+       plain utility only wins when Tailwind's layers happen to be declared after
+       `warp`, which with the runtime-injected Play CDN is not guaranteed. #}
     {{ craft.warp.otpForm({
         returnUrl: url('members/account'),
         requestUrl: url('members/login'),
@@ -71,7 +75,7 @@
         hintAttrs: { class: 'block mt-2 text-sm text-gray-500' },
         sentAttrs: { class: 'mb-5 text-sm text-gray-600' },
         changeAttrs: { class: 'text-blue-600 hover:underline' },
-        emailAttrs: { class: 'w-full max-w-none border border-gray-300 rounded-sm px-3 py-2 focus:outline-hidden focus:ring-3 focus:ring-blue-500 focus:border-blue-400' },
+        emailAttrs: { class: 'w-full max-w-none! border border-gray-300 rounded-sm px-3 py-2 focus:outline-hidden focus:ring-3 focus:ring-blue-500 focus:border-blue-400' },
         boxesAttrs: { class: 'gap-2' },
         boxAttrs: { class: 'border border-gray-300 rounded-sm' },
         submitAttrs: { class: 'mt-5 w-full bg-blue-600 text-white font-medium rounded-sm px-4 py-2 cursor-pointer hover:bg-blue-700 focus:outline-hidden focus:ring-3 focus:ring-blue-500' },

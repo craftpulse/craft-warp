@@ -343,9 +343,29 @@ input once the script has replaced it with the digit boxes. That is behavior
 rather than style, and leaving it layered would show the raw input and the boxes
 at once in a browser without cascade-layer support.
 
-If your own stylesheet uses cascade layers, remember that a layer of yours
-declared before `warp` loses to it. Declare yours after, or leave the rules that
-must win un-layered.
+**That promise covers un-layered CSS only.** Between two layers, the cascade goes
+by declaration order in the final document: the layer declared *later* wins for
+normal declarations. So a layer of yours declared before `warp` loses to it, and
+one declared after beats it.
+
+Do not count on that order when the layers come from a framework that injects
+its stylesheet at runtime. Tailwind CSS 4's Play CDN declares
+`@layer theme, base, components, utilities` from script, and where that lands
+relative to Craft's own injected `<link>` is not something either side
+guarantees. In practice `warp` is often the last layer declared and beats
+Tailwind's utilities, which is why a plain utility can silently lose to Warp's
+baseline.
+
+Two things do hold whatever the order, so reach for one of them when a rule of
+yours must win from inside a layer:
+
+- **An un-layered rule.** It beats every layer, `warp` included.
+- **The important modifier.** An important declaration always beats a normal one
+  in the same origin, whatever the layers, so the framework's important form is
+  enough: Tailwind 4 spells it as a trailing `!` on the utility
+  (`max-w-none!`), documented under
+  [the important modifier](https://tailwindcss.com/docs/styling-with-utility-classes#using-the-important-modifier).
+  Reserve it for the properties Warp actually sets, listed below.
 
 The same rule cuts the other way for a reset. Anything that zeroes `border-width`
 across the board, Tailwind's preflight and some normalize builds do, beats Warp's
@@ -367,17 +387,53 @@ The email inputs carry the same class of surprise from the other direction. Warp
 baseline caps `warp-request-form__email` and `warp-otp-form__email` at
 `max-width: 24rem`, a sane reading width for bare markup on a full-width page. A
 width utility does not lift a cap, so `w-full` alone leaves the input stopping
-short of a full-width submit button. Pass a max-width alongside it, as the example
-bundle does:
+short of a full-width submit button, and a plain `max-w-none` only lifts it when
+your utilities layer happens to be declared after `warp`. Make it important, as
+the example bundle does:
 
 ```twig
 {{ craft.warp.requestForm({
-    emailAttrs: { class: 'w-full max-w-none' },
+    emailAttrs: { class: 'w-full max-w-none!' },
 }).render() }}
 ```
 
-Your own `max-width` rule works the same way, un-layered or in a layer declared
-after `warp`.
+An un-layered `max-width` rule of your own does the same job without the modifier.
+
+### What Warp's baseline actually sets
+
+This is the whole list, so you can tell at a glance whether a class of yours is
+competing with Warp or landing on a property Warp leaves alone. Only a competing
+property needs the important modifier.
+
+| Element | Class | Properties Warp sets |
+|---|---|---|
+| Request or code form | `warp-request-form`, `warp-otp-form` | none |
+| Field wrapper | `warp-*-form__field` | `margin-bottom` |
+| Label | `warp-*-form__label` | `display`, `margin-bottom`, `font-weight` |
+| Hint | `warp-otp-form__hint` | `display`, `margin-top`, `font-size`, `opacity` |
+| "Code sent to" line | `warp-otp-form__sent` | `margin-bottom`, `font-size`, `opacity` |
+| "Use a different address" link | `warp-otp-form__change` | none |
+| Email input | `warp-*-form__email` | `display`, `width`, `max-width`, `padding`, `font`, `color`, `background`, `border`, `border-radius`; on `:focus` `outline`, `outline-offset`, `border-color` |
+| Digit box group | `warp-otp__boxes` | `display`, `gap` |
+| Digit box | `warp-otp__box` | `width`, `height`, `text-align`, `font-size`, `font-variant-numeric`, `color`, `background`, `border`, `border-radius`; on `:focus` `outline`, `outline-offset`, `border-color` |
+| Submit button | `warp-*-form__submit` | `padding`, `font`, `font-weight`, `color`, `background`, `border`, `border-radius`, `cursor`; on `:hover` `background`; on `:focus` `outline`, `outline-offset` |
+| Channel fieldset | `warp-request-form__channels` | `margin`, `padding`, `border` |
+| Channel legend | `warp-request-form__legend` | `margin-bottom`, `padding`, `font-weight` |
+| One channel choice | `warp-request-form__choice` | `display`, `align-items`, `gap`, `margin-bottom` |
+| Passkey button | `warp-passkey__button` | `padding`, `font`, `font-weight`, `color`, `background`, `border`, `border-radius`, `cursor`; on `:hover` `background`; on `:focus` `outline`, `outline-offset` |
+| Passkey fallback line | `warp-passkey__fallback` | `margin`, `font-size`, `opacity` |
+| Passkey status line | `warp-passkey__status` | `margin`, `font-size`, `color` |
+| Passkey section | `warp-passkey` | `display` on its `[hidden]` descendants, and that rule is un-layered on purpose |
+
+Note what no baseline rule sets: `width` and `max-width` on any button, and
+`width` on the inputs. That is why `w-full` works on a submit button with no
+modifier, and why the email input's `max-width` needed one.
+
+`warp-otp--enhanced` is the other un-layered rule, the one hiding the original
+code input once the script has replaced it with the digit boxes. Both un-layered
+rules are behaviour rather than style, so overriding them needs an un-layered rule
+or an important declaration of your own, and doing that shows an element the
+widget means to keep hidden.
 
 ### Turning Warp's CSS off
 

@@ -133,8 +133,8 @@ headless), they fall back to the site root.
 ## Customizing the emails
 
 Warp sends through Auth Kit's three editable system messages. Their default copy
-ships ready to use; to change it, open the control panel and go to **Settings**,
-then **Email**, then **System Messages**:
+ships ready to use; to change it, open the control panel and go to
+**Utilities**, then **System Messages** (Craft Pro):
 
 | Message key | Sent when |
 |---|---|
@@ -150,8 +150,8 @@ token store, one set of messages.
 These are all standard Craft system messages, so everything that applies to
 core's own emails (account activation, password reset) applies here:
 
-- **Copy** is edited per site and language under **Settings** > **Email** >
-  **System Messages**, with Markdown supported. Each message receives Twig
+- **Copy** is edited under **Utilities** > **System Messages**, per language on a
+  multi-site install, with Markdown supported. Each message receives Twig
   variables you can use in the subject and body: the magic-link message gets
   `{{ link }}` and `{{ user }}`, the one-time code gets `{{ code }}` and
   `{{ user }}`, the signup link gets `{{ link }}` and `{{ email }}`, and the
@@ -171,6 +171,12 @@ core's own emails (account activation, password reset) applies here:
   configuration is involved, and the plain-text alternative Craft generates
   stays intact. Without a custom template, or on Craft Solo, emails use Craft's
   plain default wrapper.
+
+The three sign-in messages are Auth Kit's, so the levers on them are documented
+in full over there: editing the copy, translating the defaults through the
+`auth-kit` translation category, and which language an email renders in. See
+[Auth Kit's email documentation](https://github.com/craftpulse/craft-auth-kit/blob/v5/docs/feature-tour/templates.md#emails).
+The `warp_new_location` alert is Warp's own and works the same way.
 
 ### Styling the emails
 
