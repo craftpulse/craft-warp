@@ -1,10 +1,11 @@
 # Release Notes for Warp
 
-## Unreleased
+## 5.0.0-rc.3 - 2026-08-04
 
 > [!WARNING]
 > Hand-written code-input markup that relied on `warp-otp.js` supplying its own class names must now name them itself: add `data-warp-otp-boxes`, `data-warp-otp-box`, and `data-warp-otp-enhanced-class`, as documented in the template reference. Markup built by `craft.warp.otpInput()` or `craft.warp.otpForm()` is unaffected.
 
+- Removed the class names `warp-otp.js` fell back to when markup omitted `data-warp-otp-boxes`, `data-warp-otp-box`, or `data-warp-otp-enhanced-class`, so the script now carries no class name of its own and markup that omits an attribute gets the behavior without it: bare elements, and an original input that stays visible beside the boxes.
 - Auth Kit 1.8.0 or later is now required.
 - The sign-in link, one-time code, and sign-up emails now state exactly how long their credential lasts ("It expires in 15 minutes and can be used only once") instead of saying it expires shortly, following Warp's own `tokenTtl` setting. That copy belongs to Auth Kit's system messages, hence the new version floor; a body you have already rewritten keeps your copy and can quote the expiry with the new `{{ expiresIn }}` variable.
 - Added `craft.warp.tokenLifetime`, which returns how long an issued magic link or one-time code stays valid, formatted for reading ("15 minutes", "1 hour"), so a page can state the exact expiry.
@@ -18,7 +19,6 @@
 - Documented that Warp's baseline caps the email inputs at 24rem, that a `w-full`-style width utility does not lift a max-width cap, and that lifting it from inside your own cascade layer takes the framework's important modifier (Tailwind 4's trailing `!`) or an un-layered rule.
 - Corrected the claim that a cascade layer of yours declared after `warp` reliably wins: layer order is the final document's declaration order, which a framework injecting its stylesheet at runtime (Tailwind 4's Play CDN) does not guarantee, and in practice `warp` often lands last. Un-layered rules and important declarations are the two things that hold whatever the order.
 - Documented every property Warp's baseline sets, per element, so you can tell whether a class of yours competes with Warp or lands on a property Warp leaves alone.
-- Removed the class names `warp-otp.js` fell back to when markup omitted `data-warp-otp-boxes`, `data-warp-otp-box`, or `data-warp-otp-enhanced-class`, so the script now carries no class name of its own and markup that omits an attribute gets the behavior without it: bare elements, and an original input that stays visible beside the boxes.
 - Added the `craft.warp.passkeyButton()` render builder, which renders the passkey sign-in section: the button that runs the WebAuthn ceremony, the line that replaces it in a browser without passkey support, the live region a failure is announced in, and the CSRF field the ceremony needs. It loads both scripts the ceremony runs on, so a page no longer needs a script tag or an inline handler of its own.
 - Added `attrs`, `buttonAttrs`, `cancelledText`, `failedText`, `fallbackAttrs`, `fallbackText`, `label`, `renderCss`, `returnUrl`, and `statusAttrs` options to `craft.warp.passkeyButton()`, so every element it emits and every string it renders is overridable.
 - `craft.warp.passkeyButton()` validates its `returnUrl` the way the endpoints validate a posted one, because the client script assigns it to `window.location.href`, and logs a warning and lands on the site root when it is refused.
