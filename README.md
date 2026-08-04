@@ -80,7 +80,7 @@ The [setup guide](docs/setup.md) walks through each step.
 
 - [Setup](docs/setup.md): copying the example templates, page routing, system messages, registration, the passkey nudge, sessions, and multi-site notes.
 - [Configuration](docs/configuration.md): every setting, the geo database, the control panel permission, read-only mode, and password handling.
-- [Templates](docs/templates.md): the `craft.warp` variable, the three render builders, and how to restyle or replace everything Warp renders.
+- [Templates](docs/templates.md): the `craft.warp` variable, the four render builders, and how to restyle or replace everything Warp renders.
 - [Endpoints](docs/endpoints.md): the nine action routes, their parameters, response shapes, and rate limits.
 - [Console commands](docs/console-commands.md): installing the example templates and refreshing the geo database.
 - [Privacy and GDPR](docs/privacy.md): what Warp stores, for how long, on what lawful basis, and what to disclose.

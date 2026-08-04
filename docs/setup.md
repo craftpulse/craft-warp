@@ -264,12 +264,13 @@ Two consequences for a multi-site member area:
 - Serve the copied templates on each site that offers passwordless login, at the
   URLs that site expects. The post-sign-in destination and the page routing are
   per-template, so a site-specific template can point at site-specific routes.
-- `returnUrl` validation is scoped to **the install**, not to one site: a
-  `returnUrl` is honoured when it sits under any configured site's base URL, so a
-  form on your Dutch site can send a member to your French one. Nothing outside
-  the install is ever accepted. Keep post-login destinations on the site that
-  served the form anyway, because sessions are per cookie domain: a member sent to
-  a site on a different domain arrives signed out. See
+- `returnUrl` validation is scoped to **one site**, not to the install: a
+  `returnUrl` is honoured only when it belongs to the site the request was made
+  against, so a form on your Dutch site cannot send a member to your French one.
+  It is refused like any other untrusted value and the member lands on the
+  fallback instead. That is also what you want: sessions are per cookie domain, so
+  a member sent to a site on another domain would have arrived signed out. Sites
+  sharing a host and differing only by path prefix each own their own URLs. See
   [return URLs](endpoints.md#return-urls).
 
 ## Privacy disclosure
