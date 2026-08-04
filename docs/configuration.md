@@ -44,6 +44,10 @@ Shorter is safer, at the cost of members who read email slowly, or on another
 device, finding their link expired. Fifteen minutes is a reasonable balance for
 a consumer member area; shorten it for higher-value accounts.
 
+The emails state this value outright ("It expires in 15 minutes and can be used
+only once"), so changing it changes what members are told, with no copy to keep in
+sync. `craft.warp.tokenLifetime` gives your own templates the same phrase.
+
 #### Code length (`otpDigits`)
 
 The number of digits in an issued one-time code. Defaults to `6`, and accepts 4
@@ -117,12 +121,14 @@ rejected at save time.
 
 #### Passkey nudge (`enablePasskeyNudge`)
 
-Whether to show the one-time "add a passkey" nudge after a member signs in over
-an email flow while holding no passkey. On by default.
+Whether to show the "add a passkey" nudge after a member signs in over an email
+flow while holding no passkey. On by default.
 
-The nudge is surfaced once per triggering login through
-`craft.warp.showPasskeyNudge`, which clears the flag as it reads it. Turning it
-off means the nudge is never flagged. Leave it on unless your member area
+The nudge is surfaced through `craft.warp.showPasskeyNudge`, which reads the flag
+without clearing it, so it holds for the whole session and survives reloads and
+posts. It ends when the member dismisses it, when they enroll a passkey, or when
+the session does. See [the passkey nudge](setup.md#the-passkey-nudge). Turning
+this off means the nudge is never flagged. Leave it on unless your member area
 already promotes passkeys somewhere better placed.
 
 ### Location

@@ -5,8 +5,10 @@
    =========================================================================
    The page a member lands on after signing in. Links out to the two management
    screens Warp ships examples for: passkeys and sessions. It also hosts the
-   one-time passkey enrollment nudge, so a first-time email-flow sign-in is
-   invited to add a passkey.
+   passkey enrollment nudge, so a member who signed in over an email flow with
+   no passkey is invited to add one. The nudge survives reloads and posts (the
+   name form below included) and goes away only when it is dismissed, when a
+   passkey is enrolled, or when the session ends.
 
    Requires a signed-in user ({% requireLogin %} sends guests to the login page).
    ========================================================================= #}

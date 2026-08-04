@@ -3,9 +3,13 @@
  * Warp plugin for Craft CMS 5.x
  *
  * Tests for the passkey-enrollment nudge: an email-flow login by a user with no
- * passkey flags the nudge, a user who already has one is never flagged, the flag
- * is suppressed when the setting is off, and the flag is show-once — cleared the
- * first time the Twig variable reads it.
+ * passkey flags the nudge, a user who already has one is never flagged, and the
+ * flag is suppressed when the setting is off.
+ *
+ * The rest of the file pins the nudge's lifecycle, which is deliberately NOT
+ * show-once: the flag survives every read, so the nudge holds across reloads and
+ * posts for the rest of the session, and only a dismissal, an enrolled passkey,
+ * or a new session ends it.
  *
  * The login is driven through the real magic-link verify endpoint so the flag is
  * written and read within one genuine web-session lifecycle, exactly as the
@@ -123,12 +127,50 @@ it('does not flag the nudge when the setting is disabled', function() {
     expect((new WarpVariable())->getShowPasskeyNudge())->toBeFalse();
 });
 
-it('clears the nudge flag after a single read', function() {
+it('keeps showing the nudge across repeated reads, so a reload does not consume it', function() {
     $user = nudgeUser();
     loginViaMagicLink($user);
 
     $variable = new WarpVariable();
 
+    // Michael's case: saving a name reloads the account page. Reading the flag
+    // must not be what takes the nudge away.
     expect($variable->getShowPasskeyNudge())->toBeTrue()
-        ->and($variable->getShowPasskeyNudge())->toBeFalse();
+        ->and($variable->getShowPasskeyNudge())->toBeTrue()
+        ->and((new WarpVariable())->getShowPasskeyNudge())->toBeTrue();
+});
+
+it('stops showing the nudge once the member dismisses it', function() {
+    $user = nudgeUser();
+    loginViaMagicLink($user);
+
+    expect((new WarpVariable())->getShowPasskeyNudge())->toBeTrue();
+
+    Warp::$plugin->getPasswordless()->dismissPasskeyNudge();
+
+    expect((new WarpVariable())->getShowPasskeyNudge())->toBeFalse();
+});
+
+it('stops showing the nudge the moment a passkey exists, without waiting for a new login', function() {
+    $user = nudgeUser();
+    loginViaMagicLink($user);
+
+    expect((new WarpVariable())->getShowPasskeyNudge())->toBeTrue();
+
+    // The member enrolls one on the passkeys page and comes back.
+    stubPasskeys(true);
+
+    expect((new WarpVariable())->getShowPasskeyNudge())->toBeFalse();
+});
+
+it('flags the nudge again on the next sign-in after a dismissal', function() {
+    $user = nudgeUser();
+    loginViaMagicLink($user);
+    Warp::$plugin->getPasswordless()->dismissPasskeyNudge();
+
+    expect((new WarpVariable())->getShowPasskeyNudge())->toBeFalse();
+
+    loginViaMagicLink($user);
+
+    expect((new WarpVariable())->getShowPasskeyNudge())->toBeTrue();
 });

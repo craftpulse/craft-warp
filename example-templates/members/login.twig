@@ -98,7 +98,11 @@
        Warp's warp-request-form__* hooks both land on the element; add
        resetClass: true to any of them to drop Warp's class entirely. Warp's
        stylesheet keeps its rules in a `warp` cascade layer, so un-layered CSS of
-       yours always wins, and renderCss: false leaves it out altogether. #}
+       yours always wins, and renderCss: false leaves it out altogether.
+
+       emailAttrs carries max-w-none on purpose: Warp's baseline caps the email
+       input at 24rem, which w-full does not lift (it sets width, not max-width),
+       so without it the input stops short of the full-width submit button. #}
     {{ craft.warp.requestForm({
         linkSentUrl: 'members/link-sent',
         otpVerifyUrl: 'members/otp-verify',
@@ -106,7 +110,7 @@
         attrs: { class: 'bg-white border border-gray-200 rounded-sm p-6 space-y-5', id: 'warp-login-form' },
         fieldAttrs: { class: 'mb-0' },
         labelAttrs: { class: 'block text-sm font-medium text-gray-700 mb-1' },
-        emailAttrs: { class: 'w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-hidden focus:ring-3 focus:ring-blue-500 focus:border-blue-400' },
+        emailAttrs: { class: 'w-full max-w-none border border-gray-300 rounded-sm px-3 py-2 focus:outline-hidden focus:ring-3 focus:ring-blue-500 focus:border-blue-400' },
         channelsAttrs: { class: 'mb-0' },
         legendAttrs: { class: 'text-sm font-medium text-gray-700 mb-2' },
         choiceAttrs: { class: 'flex items-center space-x-2 mb-1' },

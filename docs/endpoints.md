@@ -1,6 +1,6 @@
 # Endpoints
 
-Warp registers nine action routes. They are the fixed half of the plugin: you
+Warp registers ten action routes. They are the fixed half of the plugin: you
 post to them, you never define them. The
 [render builders](templates.md#render-builders) already post to the first three
 correctly, so read this page when you are writing your own markup, posting over
@@ -156,6 +156,20 @@ message as a flash. Revocation is scoped to the signed-in member.
 
 POST. Takes no params. Signs out every session the member holds except the one
 making the request, and answers `{"success": true, "count": 3}`.
+
+## The passkey nudge
+
+### `warp/nudge/dismiss`
+
+POST. Takes no params. Requires a signed-in member and is **not** recent-auth
+gated: declining a suggestion is not a credential change, so it must never demand
+a fresh sign-in.
+
+Clears the passkey-enrollment nudge for the rest of the session, so
+`craft.warp.showPasskeyNudge` reads false until the member's next passwordless
+sign-in. Answers `{"success": true}`; a plain form post redirects back to the
+posted `redirect` (or the referring page) and sets no flash, since the nudge
+disappearing is the feedback. It is safe to post when no nudge is flagged.
 
 ## Return URLs
 

@@ -1,32 +1,43 @@
 {# =========================================================================
    Warp example — passkey enrollment nudge include
    =========================================================================
-   Surfaces once, right after a user signs in over an email flow (magic link,
-   code, or a fresh registration) while holding no passkey yet. Reading
-   craft.warp.showPasskeyNudge CLEARS the flag, so the nudge appears exactly once
-   per triggering login: include it on the first signed-in page a user lands on
-   (account/index.twig does). Do not render it more than once per request or the
-   second read will always be false.
+   Shown to a member who signed in over an email flow (magic link, code, or a
+   fresh registration) while holding no passkey yet.
+
+   craft.warp.showPasskeyNudge is a plain read: it does NOT clear the flag, so
+   the nudge stays put for the rest of the session. A reload, a form post that
+   lands the member back here (saving their name, for instance), or including
+   this partial twice all still render it. Three things end it: the member
+   posting "Not now", which clears the session flag through
+   warp/nudge/dismiss; enrolling a passkey, which the variable re-checks on
+   every read; and the session ending. The next email-flow sign-in flags it
+   again if they still hold no passkey.
 
    Usage:
      {% include 'members/account/_includes/passkey-nudge' only %}
 
-   The dismiss control is a real <button>.
+   The dismiss control is a real form, so it works with no JavaScript: it posts
+   the dismissal and lands back on this page, now without the nudge. The script
+   below upgrades that to a background post that removes the section in place,
+   and falls back to the plain submit if the post fails.
    ========================================================================= #}
 
-{%- set showNudge = craft.warp.showPasskeyNudge -%}
-
-{%- if showNudge -%}
+{%- if craft.warp.showPasskeyNudge -%}
     <section class="mb-6 rounded-sm border border-green-200 bg-green-50 p-5" id="warp-passkey-nudge" role="region" aria-label="{{ 'Passkey suggestion'|t('warp') }}">
         <p class="text-gray-700 mb-3">
             {{ 'Want a faster, safer sign-in next time? Add a passkey and skip the email step.'|t('warp') }}
         </p>
-        <p class="flex items-center space-x-4">
+        <div class="flex items-center space-x-4">
             <a class="text-blue-600 font-medium hover:underline" href="{{ url('members/account/passkeys') }}">{{ 'Add a passkey'|t('warp') }}</a>
-            <button class="text-sm text-gray-500 cursor-pointer hover:text-gray-700 hover:underline" type="button" data-warp-nudge-dismiss>
-                {{ 'Not now'|t('warp') }}
-            </button>
-        </p>
+            <form method="post" accept-charset="UTF-8" data-warp-nudge-dismiss>
+                {{ csrfInput() }}
+                {{ actionInput('warp/nudge/dismiss') }}
+                {{ redirectInput(craft.app.request.pathInfo) }}
+                <button class="text-sm text-gray-500 cursor-pointer hover:text-gray-700 hover:underline" type="submit">
+                    {{ 'Not now'|t('warp') }}
+                </button>
+            </form>
+        </div>
     </section>
 
     <script>
@@ -35,12 +46,40 @@
             if (!nudge) {
                 return;
             }
-            var dismiss = nudge.querySelector('[data-warp-nudge-dismiss]');
-            if (dismiss) {
-                dismiss.addEventListener('click', function () {
-                    nudge.parentNode.removeChild(nudge);
-                });
+
+            var form = nudge.querySelector('[data-warp-nudge-dismiss]');
+            if (!form) {
+                return;
             }
+
+            var csrfToken = '{{ craft.app.request.csrfToken|e('js') }}';
+            var dismissUrl = '{{ actionUrl('warp/nudge/dismiss')|e('js') }}';
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                fetch(dismissUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    credentials: 'same-origin',
+                    body: '{}'
+                }).then(function (response) {
+                    if (response.ok) {
+                        nudge.parentNode.removeChild(nudge);
+                        return;
+                    }
+                    // The dismissal still has to land, so fall back to the plain
+                    // post the form would have made on its own.
+                    form.submit();
+                }).catch(function () {
+                    form.submit();
+                });
+            });
         })();
     </script>
 {%- endif -%}

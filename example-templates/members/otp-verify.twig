@@ -11,15 +11,27 @@
      {{ craft.warp.otpForm({ ... }).render() }}
 
    which outputs the whole thing: the post to warp/auth/verify-code with CSRF,
-   the session-carried email prefill (or a visible email input on a direct
-   visit), the segmented code input (one paste-aware square per digit, sized
-   to the otpDigits setting), its hint, and the submit button. Prefer building
-   your own markup? craft.warp.otpInput().render() gives you just the
+   the session-carried email prefill (or a visible email input when there is no
+   carried address), the segmented code input (one paste-aware square per digit,
+   sized to the otpDigits setting), its hint, and the submit button. Prefer
+   building your own markup? craft.warp.otpInput().render() gives you just the
    segmented input to compose into your own form.
 
    Reached via:  the hashed "redirect" the login form posts. Warp fixes the
    action route, not this page URL.
+
+   A visitor with no carried address is sent to the request form instead of
+   being shown this page: "we emailed you a code" plus a bare email field reads
+   as nonsense to someone nobody emailed, and anyone genuinely stranded here
+   just needs a fresh code. The builder still renders its email-field variant,
+   so a custom template that wants to accept the address here can. A wrong code
+   is unaffected: the address stays in the session until a code verifies, so a
+   failed attempt bounces back to the sent-to variant, never into this redirect.
    ========================================================================= #}
+
+{% if not craft.warp.requestedEmail %}
+    {% redirect url('members/login') %}
+{% endif %}
 
 {% set title = 'Enter your sign-in code'|t('warp') %}
 
@@ -45,7 +57,12 @@
        boxAttrs spells out `border` as well as its colour on purpose: Tailwind's
        preflight zeroes border-width on every element, and a reset like that
        strips the borders Warp's own baseline gives the digit boxes. Any page
-       with a reset of its own wants the same explicit width. #}
+       with a reset of its own wants the same explicit width.
+
+       emailAttrs carries max-w-none for the same class of reason: Warp's baseline
+       caps the email input at 24rem, and w-full does not lift that (it sets
+       width, not max-width), so without it the input stops short of the
+       full-width submit button. #}
     {{ craft.warp.otpForm({
         returnUrl: url('members/account'),
         requestUrl: url('members/login'),
@@ -54,7 +71,7 @@
         hintAttrs: { class: 'block mt-2 text-sm text-gray-500' },
         sentAttrs: { class: 'mb-5 text-sm text-gray-600' },
         changeAttrs: { class: 'text-blue-600 hover:underline' },
-        emailAttrs: { class: 'w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-hidden focus:ring-3 focus:ring-blue-500 focus:border-blue-400' },
+        emailAttrs: { class: 'w-full max-w-none border border-gray-300 rounded-sm px-3 py-2 focus:outline-hidden focus:ring-3 focus:ring-blue-500 focus:border-blue-400' },
         boxesAttrs: { class: 'gap-2' },
         boxAttrs: { class: 'border border-gray-300 rounded-sm' },
         submitAttrs: { class: 'mt-5 w-full bg-blue-600 text-white font-medium rounded-sm px-4 py-2 cursor-pointer hover:bg-blue-700 focus:outline-hidden focus:ring-3 focus:ring-blue-500' },

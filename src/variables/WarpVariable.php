@@ -12,6 +12,7 @@ namespace craftpulse\warp\variables;
 
 use Craft;
 use craft\elements\User;
+use craftpulse\authkit\helpers\Duration;
 use craftpulse\authkit\variables\AuthKitVariable;
 use craftpulse\warp\controllers\AuthController;
 use craftpulse\warp\models\SessionInfo;
@@ -31,7 +32,8 @@ use craftpulse\warp\Warp;
  * open ([[getRegistrationEnabled()]]), the enabled login methods
  * ([[getLoginMethods()]]), the one-time-code length ([[getOtpDigits()]]), the
  * session-carried code-entry prefill ([[getRequestedEmail()]]), the current
- * user's active sessions ([[getSessions()]]), and the show-once
+ * user's active sessions ([[getSessions()]]), the credential lifetime a
+ * confirmation page quotes ([[getTokenLifetime()]]), and the
  * passkey-enrollment nudge ([[getShowPasskeyNudge()]]); plus the four render
  * builders ([[requestForm()]], [[otpForm()]], [[otpInput()]]) covering both
  * steps of the email flow, and [[passkeyButton()]] for the passkey sign-in
@@ -162,10 +164,20 @@ class WarpVariable
     }
 
     /**
-     * Returns whether the passkey-enrollment nudge should be shown, clearing the
-     * flag as it reads it so the nudge surfaces exactly once per triggering
-     * login. Set by [[Passwordless::loginUser()]] after an email-flow login by a
-     * user who holds no passkey.
+     * Returns whether the passkey-enrollment nudge should be shown.
+     *
+     * Reading it is non-destructive: the flag [[Passwordless::loginUser()]] sets
+     * after an email-flow login by a user holding no passkey survives every read,
+     * so the nudge renders on every page view for the rest of the session. A page
+     * reload, a form post that lands the member back on the same page, or a
+     * second read in one request all still show it — only a deliberate dismissal
+     * or an enrolled passkey takes it away.
+     *
+     * Three things end it: [[Passwordless::dismissPasskeyNudge()]] clearing the
+     * flag when the member posts "not now"; enrolling a passkey, which this
+     * method re-checks on every read so the nudge dies the moment a credential
+     * exists, without waiting for the next login; and the session itself ending.
+     * The next email-flow login flags it again if the member still holds none.
      *
      * @return bool
      *
@@ -174,11 +186,31 @@ class WarpVariable
      */
     public function getShowPasskeyNudge(): bool
     {
-        $session = $this->_session();
-        $show = (bool)$session->get(Passwordless::SESSION_PASSKEY_NUDGE_KEY);
-        $session->remove(Passwordless::SESSION_PASSKEY_NUDGE_KEY);
+        if (!$this->_session()->get(Passwordless::SESSION_PASSKEY_NUDGE_KEY)) {
+            return false;
+        }
 
-        return $show;
+        // Checked only behind the flag, so an ordinary guest or a member who was
+        // never nudged never pays for the passkey lookup.
+        return !$this->getHasPasskeys();
+    }
+
+    /**
+     * Returns how long an issued magic link or one-time code stays valid, already
+     * formatted for reading — "15 minutes", "1 hour", "1 day" — so a page can
+     * state the exact expiry instead of hedging with "shortly". It resolves the
+     * `tokenTtl` setting on every read, so the phrasing follows the install's
+     * configuration, and it is formatted by the same helper Auth Kit's emails use,
+     * so a confirmation page and the email it refers to never disagree.
+     *
+     * @return string
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function getTokenLifetime(): string
+    {
+        return Duration::human($this->_settings()->getTokenTtl());
     }
 
     /**

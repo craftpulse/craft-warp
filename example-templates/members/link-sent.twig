@@ -26,8 +26,11 @@
         {{ 'If an account or a new registration matches that address, we have sent you an email with a secure sign-in link. Open it on this device and click the link to continue.'|t('warp') }}
     </p>
 
+    {# craft.warp.tokenLifetime resolves the tokenTtl setting and formats it the
+       way the email does ("15 minutes", "1 hour"), so this page and the email it
+       refers to always quote the same lifetime. #}
     <p class="text-sm text-gray-500 mb-6">
-        {{ 'The link expires shortly and can be used once. If it does not arrive within a few minutes, check your spam folder or request a new one.'|t('warp') }}
+        {{ 'The link expires in {duration} and can be used once. If it does not arrive within a few minutes, check your spam folder or request a new one.'|t('warp', { duration: craft.warp.tokenLifetime }) }}
     </p>
 
     <p>

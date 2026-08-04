@@ -219,7 +219,8 @@ trait PluginTrait
 
     /**
      * Registers Warp's site URL rules — the front-end passwordless endpoints:
-     * the auth flows, passkey management, and session management.
+     * the auth flows, passkey management, session management, and the
+     * passkey-nudge dismissal.
      *
      * @author CraftPulse
      * @since 5.0.0
@@ -239,6 +240,7 @@ trait PluginTrait
                 $event->rules['warp/passkeys/delete'] = 'warp/passkeys/delete';
                 $event->rules['warp/sessions/revoke'] = 'warp/sessions/revoke';
                 $event->rules['warp/sessions/revoke-others'] = 'warp/sessions/revoke-others';
+                $event->rules['warp/nudge/dismiss'] = 'warp/nudge/dismiss';
             },
         );
     }

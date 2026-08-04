@@ -44,8 +44,9 @@ class Passwordless extends Component
 
     /**
      * @var string The session key set after an email-flow login by a user who
-     * holds no passkey, read once and cleared by
-     * [[\craftpulse\warp\variables\WarpVariable::getShowPasskeyNudge()]].
+     * holds no passkey. It is read non-destructively by
+     * [[\craftpulse\warp\variables\WarpVariable::getShowPasskeyNudge()]] and lives
+     * for the rest of the session, until [[dismissPasskeyNudge()]] clears it.
      *
      * @since 5.0.0
      */
@@ -62,6 +63,23 @@ class Passwordless extends Component
 
     // Public Methods
     // =========================================================================
+
+    /**
+     * Clears the passkey-enrollment nudge for the rest of the session, so a
+     * member who answered "not now" is not asked again until their next
+     * passwordless sign-in.
+     *
+     * The flag lives in the session and nowhere else, so the dismissal is
+     * deliberately not a stored preference: it costs nothing, needs no schema,
+     * and the next email-flow login is a fair moment to ask again.
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    public function dismissPasskeyNudge(): void
+    {
+        $this->_session()->remove(self::SESSION_PASSKEY_NUDGE_KEY);
+    }
 
     /**
      * Logs a user into a front-end session, honouring Craft's configured
@@ -156,9 +174,10 @@ class Passwordless extends Component
 
     /**
      * Flags the passkey-enrollment nudge for a user who just logged in over an
-     * email flow and holds no passkey, when the nudge setting is on. Read once
-     * and cleared by the Twig variable, so it surfaces exactly once per
-     * triggering login.
+     * email flow and holds no passkey, when the nudge setting is on. The flag
+     * then stands for the rest of the session: the Twig variable reads it without
+     * consuming it, so the nudge survives reloads and posts and ends only on a
+     * dismissal, an enrolled passkey, or a new session.
      *
      * @param User $user the user who just logged in
      *

@@ -26,7 +26,8 @@ it is documented here only so you know what it is if you find it.
 | `craft.warp.otpDigits` | Returns the configured one-time-code length, for sizing a custom code input to match the setting instead of hardcoding it. |
 | `craft.warp.requestedEmail` | Returns the email address the visitor last requested a credential for, or `null`. It is the visitor's own input echoed back from the session, so it reveals nothing, and the verify endpoint clears it on a successful sign-in. |
 | `craft.warp.sessions` | Returns the current user's active sessions, with the current session flagged and each other device labelled, and an empty array for a guest. See [session shape](#the-session-shape). |
-| `craft.warp.showPasskeyNudge` | Returns whether to show the one-time passkey-enrollment nudge. Reading it clears the flag, so the nudge surfaces exactly once per triggering sign-in. |
+| `craft.warp.showPasskeyNudge` | Returns whether to show the passkey-enrollment nudge. Reading it changes nothing, so the nudge holds for the whole session and survives reloads and posts. See [the passkey nudge](setup.md#the-passkey-nudge). |
+| `craft.warp.tokenLifetime` | Returns how long an issued magic link or one-time code stays valid, formatted for reading ("15 minutes", "1 hour"), so a confirmation page can state the exact expiry. It resolves the `tokenTtl` setting on every read and is formatted the way the emails format it, so a page and the email it refers to never disagree. |
 
 ### The session shape
 
@@ -142,8 +143,16 @@ right choice unless you need to compose your own form around the input.
 ```
 
 That one call outputs the post to `warp/auth/verify-code` with CSRF, the
-session-carried email prefill (or a visible email input on a direct visit), the
-segmented code input, its hint, and the submit button.
+session-carried email prefill (or a visible email input when no address is
+carried), the segmented code input, its hint, and the submit button.
+
+The email-field variant exists for pages that want to accept the address here,
+and the builder always offers it. The shipped example page takes the other route:
+it redirects a visitor with no carried address to the request form, because "we
+emailed you a code" above an unexplained email field reads as nonsense to someone
+nobody emailed, and anyone genuinely stranded there just needs a fresh code. A
+wrong code is unaffected either way, since the carried address survives a failed
+attempt and only a successful verify clears it.
 
 | Option | Description |
 |---|---|
@@ -353,6 +362,22 @@ Warp's, as the example bundle now does:
 An un-layered reset always wins that fight; a layered one wins whenever its layer
 is declared after `warp`. Either way the explicit border is the fix, and it is
 worth writing even on a page you believe has no reset.
+
+The email inputs carry the same class of surprise from the other direction. Warp's
+baseline caps `warp-request-form__email` and `warp-otp-form__email` at
+`max-width: 24rem`, a sane reading width for bare markup on a full-width page. A
+width utility does not lift a cap, so `w-full` alone leaves the input stopping
+short of a full-width submit button. Pass a max-width alongside it, as the example
+bundle does:
+
+```twig
+{{ craft.warp.requestForm({
+    emailAttrs: { class: 'w-full max-w-none' },
+}).render() }}
+```
+
+Your own `max-width` rule works the same way, un-layered or in a layer declared
+after `warp`.
 
 ### Turning Warp's CSS off
 

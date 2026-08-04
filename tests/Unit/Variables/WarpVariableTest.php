@@ -104,6 +104,24 @@ it('does not flag the nudge for a fresh guest render', function() {
     expect((new WarpVariable())->getShowPasskeyNudge())->toBeFalse();
 });
 
+it('reports the configured credential lifetime as a readable duration', function() {
+    $original = Warp::$plugin->getSettings()->tokenTtl;
+
+    try {
+        Warp::$plugin->getSettings()->tokenTtl = 900;
+        expect((new WarpVariable())->getTokenLifetime())->toBe('15 minutes');
+
+        Warp::$plugin->getSettings()->tokenTtl = 3600;
+        expect((new WarpVariable())->getTokenLifetime())->toBe('1 hour');
+
+        Warp::$plugin->getSettings()->tokenTtl = 86400;
+        expect((new WarpVariable())->getTokenLifetime())->toBe('1 day')
+            ->and(trim(Craft::$app->getView()->renderString('{{ craft.warp.tokenLifetime }}')))->toBe('1 day');
+    } finally {
+        Warp::$plugin->getSettings()->tokenTtl = $original;
+    }
+});
+
 it('returns no sessions for a guest', function() {
     expect((new WarpVariable())->getSessions())->toBe([]);
 });
@@ -124,6 +142,7 @@ it('resolves every craft.warp accessor the example templates call through Twig',
         otpdigits:{{ craft.warp.otpDigits }}
         sessions:{{ craft.warp.sessions|length }}
         requested:{{ craft.warp.requestedEmail ?? 'none' }}
+        lifetime:{{ craft.warp.tokenLifetime }}
         TWIG;
 
     $out = Craft::$app->getView()->renderString($template);
@@ -137,5 +156,6 @@ it('resolves every craft.warp accessor the example templates call through Twig',
         ->toContain('nudge:no')
         ->toContain('otpdigits:6')
         ->toContain('sessions:0')
-        ->toContain('requested:none');
+        ->toContain('requested:none')
+        ->toContain('lifetime:');
 });

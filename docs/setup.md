@@ -54,7 +54,7 @@ otp-verify.twig                enter the emailed one-time code
 account/index.twig             signed-in landing, hosts the passkey nudge
 account/passkeys.twig          enroll / name / delete passkeys
 account/sessions.twig          list and revoke active sessions
-account/_includes/passkey-nudge.twig   the show-once "add a passkey" nudge
+account/_includes/passkey-nudge.twig   the "add a passkey" nudge and its dismissal
 _private/layouts/index.twig    the shared HTML shell (head, nav, flashes)
 _private/layouts/includes/header.twig  the member-area nav
 ```
@@ -111,6 +111,13 @@ Two behaviors worth knowing:
   unknown, or garbage, and the example copy already does. Do not add "we could
   not find that account" messaging, which would defeat the enumeration safety
   the endpoint is built for.
+- **A cold visit to `otp-verify` redirects to `login`.** The page is only
+  coherent for a visitor who just asked for a code, so when no address is carried
+  in the session it sends the visitor to the request form rather than showing
+  "we emailed you a code" above an unexplained email field. A wrong code still
+  lands back on the page normally, since the carried address survives a failed
+  attempt. `craft.warp.otpForm()` keeps its email-field variant for custom
+  templates that do want to accept the address there.
 
 ### Pointing Craft at the login page
 
@@ -150,6 +157,13 @@ core's own emails (account activation, password reset) applies here:
   `{{ user }}`, the signup link gets `{{ link }}` and `{{ email }}`, and the
   new-location alert gets `{{ user }}`, `{{ city }}`, `{{ country }}`,
   `{{ location }}`, and `{{ sessionsUrl }}`.
+- **The expiry is stated, not hedged.** The three Auth Kit messages also get
+  `{{ expiresIn }}`, the credential's lifetime formatted for reading, and the
+  default copy uses it: "It expires in 15 minutes and can be used only once." It
+  follows the `tokenTtl` setting, so raising the TTL updates the emails with it.
+  If you have already rewritten a body, add `{{ expiresIn }}` to your version to
+  state the expiry there too. `craft.warp.tokenLifetime` gives your templates the
+  same phrase, which is how the example "check your email" page quotes it.
 - **Visual styling** comes from Craft's own email template setting
   (**Settings** > **Email** > **HTML Email Template**, project-config
   tracked, Craft Pro only). Point it at a site Twig template and every system
@@ -220,15 +234,26 @@ password; verifying the signup link is the proof.
 ## The passkey nudge
 
 After a member signs in over an email flow (magic link, code, or a fresh signup)
-while holding no passkey, Warp flags a one-time nudge inviting them to add one.
-The nudge is surfaced by `account/_includes/passkey-nudge.twig`, which
-`account/index.twig` includes on the signed-in landing page.
+while holding no passkey, Warp flags a nudge inviting them to add one. The nudge
+is surfaced by `account/_includes/passkey-nudge.twig`, which `account/index.twig`
+includes on the signed-in landing page.
 
-Reading `craft.warp.showPasskeyNudge` **clears** the flag, so the nudge appears
-exactly once per triggering login. Include the partial on the first signed-in
-page a member lands on, and only once per request: a second read in the same
-request is always false. Turn the nudge off entirely with the
-`enablePasskeyNudge` setting.
+Reading `craft.warp.showPasskeyNudge` does **not** clear the flag. The nudge holds
+for the rest of the session, so a page reload, a form post that lands the member
+back on the same page (saving their name, for instance), and a second read in one
+request all still show it. Three things end it:
+
+- **"Not now."** The include posts to
+  [`warp/nudge/dismiss`](endpoints.md#warpnudgedismiss), which clears the session
+  flag. The control is a real form, so it works with no JavaScript; the script in
+  the include upgrades it to a background post that removes the section in place.
+- **Enrolling a passkey.** The variable re-checks that on every read, so the
+  nudge disappears the moment a credential exists, without waiting for the next
+  sign-in.
+- **The session ending.** The next email-flow sign-in flags it again if the
+  member still holds no passkey.
+
+Turn the nudge off entirely with the `enablePasskeyNudge` setting.
 
 ## The sessions page
 
