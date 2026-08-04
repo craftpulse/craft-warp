@@ -1,6 +1,6 @@
 # Release Notes for Warp
 
-## Unreleased
+## 5.0.0-rc.2 - 2026-08-04
 
 - Fixed a bug where the digit boxes on the example code-entry page rendered as invisible white squares, as the bundle's CSS reset zeroes `border-width` on every element, which beats the border Warp's layered baseline gives them, and the template named a border colour without a width. Re-copy the example templates with `php craft warp/example-templates` to pick this up.
 - The example templates now load Tailwind CSS v4 from its Play CDN instead of the obsolete Tailwind CSS 2 build, and their utility classes have been updated for v4. Re-copy the example templates with `php craft warp/example-templates` to pick this up.
