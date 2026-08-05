@@ -307,10 +307,12 @@ also accepts an environment-variable reference:
 ```php
 <?php
 
+use craft\helpers\App;
+
 return [
     // Where `warp/geo/refresh` downloads the city database from. Defaults to
     // the keyless ip-location-db city database.
-    'geoDatabaseUrl' => getenv('WARP_GEO_DATABASE_URL'),
+    'geoDatabaseUrl' => App::env('WARP_GEO_DATABASE_URL'),
 ];
 ```
 
