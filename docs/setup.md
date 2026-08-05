@@ -226,8 +226,8 @@ Passwordless registration turns on only when **both** switches are on:
 2. **Craft's public-registration switch.** This is the core
    `users.allowPublicRegistration` value in project config, the same switch
    Craft's own front-end registration checks. It is not a `config/general.php`
-   setting: set it through the control panel where Craft exposes user settings,
-   or in `project.yaml` under `users.allowPublicRegistration`.
+   setting: set it in the control panel under **Settings** > **Users** >
+   **Settings**.
 
 When either switch is off, the unified email form silently degrades to
 login-only: an unknown address is emailed nothing, and the HTTP response is

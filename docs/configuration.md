@@ -1,8 +1,7 @@
 # Configuration
 
 Warp's settings are project-config tracked, so they sync across environments.
-Edit them in the control panel under **Warp** > **Settings**, or manage them in
-`project.yaml`.
+Edit them in the control panel under **Warp** > **Settings**.
 
 Warp applies its settings to the shared token store per request, so another
 plugin using the same store keeps its own configuration and there is nothing to
