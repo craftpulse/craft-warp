@@ -1,5 +1,9 @@
 # Release Notes for Warp
 
+## 5.0.0 - 2026-08-05
+
+- Initial stable release.
+
 ## 5.0.0-rc.3 - 2026-08-04
 
 > [!WARNING]
