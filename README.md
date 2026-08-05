@@ -16,6 +16,8 @@ Warp makes a Craft site's front-end member area passwordless, with magic-link an
 - A control panel settings screen with environment-variable support, and an overview of recent sign-ins.
 - A copy-in member area of complete, styled front-end templates.
 
+![The example login page, with both email channels and the passkey button](./resources/img/docs/login.png)
+
 ## Requirements
 
 ### Craft CMS

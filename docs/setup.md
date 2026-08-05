@@ -244,6 +244,8 @@ while holding no passkey, Warp flags a nudge inviting them to add one. The nudge
 is surfaced by `account/_includes/passkey-nudge.twig`, which `account/index.twig`
 includes on the signed-in landing page.
 
+![A first sign-in after registration: the name prompt with the passkey nudge below it](../resources/img/docs/register-nudge.png)
+
 Reading `craft.warp.showPasskeyNudge` does **not** clear the flag. The nudge holds
 for the rest of the session, so a page reload, a form post that lands the member
 back on the same page (saving their name, for instance), and a second read in one

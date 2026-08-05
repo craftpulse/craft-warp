@@ -23,6 +23,8 @@ message. In code, read the resolved value through the typed getters
 
 ## Settings
 
+![Warp's settings screen in the control panel, on the Login methods tab](../resources/img/docs/cp-settings.png)
+
 ### Sign-in
 
 #### Login methods

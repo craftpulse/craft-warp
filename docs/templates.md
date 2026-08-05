@@ -187,6 +187,8 @@ Use the input alone when the page composes its own form around it, for example t
 add your own fields or your own submit chrome. You are then responsible for the
 rest of the [`warp/auth/verify-code` contract](endpoints.md#warpauthverify-code).
 
+![The segmented code input mid-entry, with the focus ring on the active box](../resources/img/docs/otp-input.png)
+
 ```twig
 {{ craft.warp.otpInput({
     name: 'code',
@@ -288,6 +290,8 @@ the button is clicked rather than when the page loads.
 Warp ships one small stylesheet and two small scripts, and none of it is a
 decision you are stuck with. Nothing is hardcoded that you cannot replace, add
 to, or switch off.
+
+![The request form and code input fully restyled by a site's own design system, with resetClass swapping every class for the site's own](../resources/img/docs/theme-takeover.png)
 
 ### Your classes are added, not swapped in
 
