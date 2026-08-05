@@ -11,7 +11,7 @@ Warp makes a Craft site's front-end member area passwordless, with magic-link an
 - Passkey enrollment, naming, and deletion from a front-end account screen, plus passkey sign-in.
 - Passwordless registration from the same email form that signs existing members in.
 - Session and device management, with per-device sign-out and a sign-out-everywhere-else action.
-- Optional coarse location on sign-ins, with a new-location badge in the control panel and an optional alert email.
+- Optional coarse location on sign-ins, with new-location detection and an optional alert email.
 - Sign-in history kept for account security, pruned after 90 days, with optional IP anonymization.
 - A control panel settings screen with environment-variable support, and an overview of recent sign-ins.
 - A copy-in member area of complete, styled front-end templates.
