@@ -1,11 +1,7 @@
 # Configuration
 
-Warp's settings are project-config tracked, so they sync across environments.
+Warp keeps its settings in sync across environments through project config.
 Edit them in the control panel under **Warp** > **Settings**.
-
-Warp applies its settings to the shared token store per request, so another
-plugin using the same store keeps its own configuration and there is nothing to
-reconcile between the two.
 
 ## Environment variables
 
