@@ -1,7 +1,10 @@
 # Configuration
 
 Warp keeps its settings in sync across environments through project config.
-Edit them in the control panel under **Warp** > **Settings**.
+Edit them in the control panel under **Warp** > **Settings**. Two settings
+never appear there: [`renderCss`](#front-end-assets-rendercss) and
+[`geoDatabaseUrl`](#choosing-a-database-geodatabaseurl) are code-level
+decisions, so they live in `config/warp.php`.
 
 ## Environment variables
 
@@ -15,6 +18,18 @@ and an environment variable are held to the same bounds, and a variable that
 resolves to a non-number (an undefined or misspelled name) fails with a clear
 message. In code, read the resolved value through the typed getters
 (`getTokenTtl()`, `getOtpDigits()`, and so on), never the raw property.
+
+For example, to give each environment its own token lifetime, define the
+variable in that environment's `.env` file:
+
+```shell
+WARP_TOKEN_TTL=1800
+```
+
+Then enter `$WARP_TOKEN_TTL` in the **Token lifetime** field; the field
+suggests defined variables as you type. Project config carries the reference
+rather than the number, so staging and production each resolve their own value
+from their own `.env`.
 
 ## Settings
 
@@ -135,8 +150,8 @@ already promotes passkeys somewhere better placed.
 Whether to email a member when they sign in from a country and city they have
 never signed in from before. On by default.
 
-Detection requires a geo database: with none installed, no location is ever
-resolved, so nothing is flagged and no alert is sent. A member's first-ever
+Detection requires a [geo database](#geo-database-mmdb): with none installed,
+no location is ever resolved, so nothing is flagged and no alert is sent. A member's first-ever
 sign-in never counts as new, because there is no baseline to compare against.
 The alert copy is the editable `warp_new_location` system message.
 
@@ -183,26 +198,111 @@ writes its own template against the
 
 ## Geo database (MMDB)
 
-Location awareness is optional and degrades silently. With no database
-installed, logins record no city or country, the overview's Location column
-shows a muted "Location unknown" badge, no sign-in is flagged as a new location,
-and no alert email is sent. Installing a database lights all of that up with no
-further configuration.
+Location awareness is optional, and all of it hangs off one file: a city-level
+MaxMind-format database (`.mmdb`) that Warp reads from
+`storage/warp/geo/city.mmdb`. When the file is present, every recorded sign-in
+resolves its IP address to a coarse city and ISO country, and that single
+lookup powers everything location-shaped in the plugin:
 
-Warp reads a city-level MaxMind-format database (`.mmdb`) from
-`storage/warp/geo/city.mmdb`. Both the flat ip-location-db record shape and the
-nested MaxMind GeoIP2 or GeoLite2 shape are understood, so either can be dropped
-in.
+- The **Location** column on the overview screen shows a "Rotterdam, NL" style
+  label for each sign-in instead of the muted "Location unknown" badge.
+- Each login-log row stores the resolved city and country.
+- A sign-in from a country and city the member has never signed in from before
+  is flagged as a new location in the log.
+- That flag triggers the alert email, the editable `warp_new_location` system
+  message, whenever
+  [new-location alerts](#new-location-alerts-notifyonnewlocation) are on.
+- The front-end session list learns the `city` each active session signed in
+  from.
 
-The supported way to populate it is the
-[`warp/geo/refresh` command](console-commands.md#warpgeorefresh), which downloads
-the database and installs it atomically. Run it on deploy or on a schedule.
+With no database, all of that degrades silently: no location is recorded,
+nothing is flagged, no alert is sent, and nothing errors. A project that does
+not want location awareness installs nothing and is done.
 
-The download URL is the `geoDatabaseUrl` setting. It defaults to the openly
-licensed, keyless ip-location-db city database and is not surfaced in the
-control panel. Point it at a different, licence-appropriate database (for
-example a MaxMind GeoLite2-City URL with your account key) in `config/warp.php`,
-where it also accepts an environment-variable reference:
+> [!NOTE]
+> The default download URL points at the openly licensed, keyless
+> [ip-location-db](https://github.com/sapics/ip-location-db)
+> `geo-whois-asn-city` database, so the steps below work with no account and no
+> license key. MaxMind GeoLite2-City and GeoIP2-City files work equally well:
+> Warp understands both the flat ip-location-db record shape and the nested
+> MaxMind shape, so either can be dropped in.
+
+### Installing the database
+
+1. Run the refresh command:
+
+   ```shell
+   php craft warp/geo/refresh
+   ```
+
+   ```shell
+   ddev craft warp/geo/refresh
+   ```
+
+2. On success the command prints:
+
+   ```
+   Geo database refreshed.
+   ```
+
+   The download streams to a temporary file first, and only a complete
+   download is renamed into place at `storage/warp/geo/city.mmdb`, so a
+   request in flight never reads a half-written database.
+
+3. Verify it in the control panel: the next passwordless sign-in shows a city
+   and country in the overview's **Location** column. Rows recorded before the
+   database was installed keep their "Location unknown" badge, because a
+   location is resolved once, when the login is recorded, never retroactively.
+
+> [!TIP]
+> Local sign-ins usually stay "Location unknown" even with a database
+> installed. Requests in local development (DDEV included) arrive from private
+> network addresses, which no public IP database covers. That is expected, not
+> a broken install.
+
+A failed download never touches the installed database. If the URL is
+unreachable or the server errors, the command reports the failure and exits
+nonzero, and the current file stays exactly where it was:
+
+```
+Could not refresh the geo database: <reason>
+```
+
+One failure mode is quieter: Warp does not inspect the downloaded bytes, so a
+URL that responds successfully with something other than a valid MMDB installs
+an unreadable file, and lookups silently return no location again. If locations
+stop resolving after a refresh, confirm the configured URL actually serves an
+`.mmdb` file.
+
+### Keeping it fresh
+
+IP-to-city allocations drift slowly, so a monthly refresh is plenty for the
+coarse location Warp records. A crontab entry on the production host:
+
+```
+0 4 1 * * /usr/bin/php /var/www/project/craft warp/geo/refresh
+```
+
+That runs the refresh at 04:00 on the first of every month. Adjust the PHP
+binary and project path to your server.
+
+Also run the command in your deploy script, right after `php craft up`, so a
+fresh environment starts with a database instead of waiting for the first cron
+run.
+
+> [!WARNING]
+> The database lives under `storage/`, so hosts that rebuild the filesystem on
+> every deploy (containerized platforms and other ephemeral-storage setups)
+> lose it with each release. On those hosts the deploy-script refresh is not an
+> optimization; it is the only thing keeping location awareness on.
+
+### Choosing a database (`geoDatabaseUrl`)
+
+The download URL is the `geoDatabaseUrl` setting. It defaults to the keyless
+ip-location-db city database and is not surfaced in the control panel. Point it
+at a different, license-appropriate database (for example a MaxMind
+GeoLite2-City URL carrying your account key) in `config/warp.php`, where it
+also accepts an environment-variable reference:
 
 ```php
 <?php
@@ -214,11 +314,17 @@ return [
 ];
 ```
 
-The IP address is read only to derive the coarse city and country. It is not
-persisted by the geo lookup itself, and the lookup runs entirely against the
-local file, so no member IP is ever sent to a third party. This is deliberately
-coarse location, never fingerprinting, and the label never influences
-authorization.
+### Privacy
+
+The IP address is read only to derive the coarse city and country. The lookup
+runs entirely against the local file, so no member IP is ever sent to a third
+party, and the lookup itself persists nothing. This is deliberately coarse
+location, never fingerprinting, and the label never influences authorization.
+
+With [`anonymizeIp`](#anonymize-ip-addresses-anonymizeip) on, the lookup still
+runs on the full address and only the stored copy is coarsened, so location
+quality does not change. The [privacy guide](privacy.md) covers what is stored,
+for how long, and the disclosure that belongs in your privacy policy.
 
 ## Control panel permissions
 
