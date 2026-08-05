@@ -9,7 +9,7 @@ installer should add to your own privacy documentation.
 
 | Store | Contents | Retention |
 |---|---|---|
-| Login log (`warp_logins`) | user id, sign-in method, truncated user-agent, IP address, coarse city and ISO country (only when a geo database is installed), new-location flag, timestamp | Pruned after 90 days on Craft's garbage-collection pass. The window is a fixed constant, deliberately not a setting. |
+| Login log (`warp_logins`) | user id, sign-in method, truncated user-agent, IP address, coarse city and ISO country (only when a geo database is installed), new-location flag, timestamp | Pruned after 90 days on Craft's garbage-collection pass. The window is a [fixed constant](configuration.md#fixed-values), deliberately not a setting. |
 | Session registry (`warp_sessions`) | user id, a sha256 hash of the Craft session token (never the token itself), truncated user-agent, IP address, coarse city and country | Lives exactly as long as the core Craft session it describes: logout deletes the row synchronously, and garbage collection sweeps any row whose core session has died. There is no independent retention. |
 
 Both tables reference the user with an `ON DELETE CASCADE` foreign key, so
@@ -43,20 +43,20 @@ It is operational mail, not marketing, and needs no marketing consent.
   local MMDB file and yields a city name and a two-letter country code only.
   No coordinates are stored, and no member IP is ever sent to a third party at
   lookup time. (Refreshing the database downloads a file from the configured
-  URL; no member data travels with that request.)
+  URL; no member data travels with that request.) See
+  [the geo database](configuration.md#geo-database-mmdb) for how the file is
+  installed and refreshed.
 - **Device labels are not fingerprints.** The user-agent is truncated and
   reduced to a coarse "Chrome on macOS" label for display. Two different
   phones can share a label; the label never influences authorization.
 - **Session tokens are stored as hashes.** A leak of the registry yields no
   usable session token.
-- **Optional IP anonymization.** The `anonymizeIp` setting (default off)
-  zeroes the final octet of each IPv4 address (an IPv6 address keeps only its
-  /48 network prefix) before a row is written, so a stored address covers a
-  whole network rather than one connection. The geo lookup runs on the full
-  address first, so city-level location and new-location detection are
-  unaffected. It applies to new rows only; rows already stored keep their
-  captured address until pruned. Turn it on when your privacy posture prefers
-  coarser addresses over the sharper forensic value of full ones.
+- **Optional IP anonymization.** With the
+  [`anonymizeIp` setting](configuration.md#anonymize-ip-addresses-anonymizeip)
+  on (it is off by default), a stored IPv4 address has its final octet zeroed
+  and an IPv6 address keeps only its /48 network prefix, so a row covers a
+  whole network rather than one connection. It applies to new rows only, and
+  location detection is unaffected.
 
 ## What you should put in your privacy policy
 

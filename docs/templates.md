@@ -24,7 +24,7 @@ it is documented here only so you know what it is if you find it.
 | `craft.warp.registrationEnabled` | Returns whether passwordless registration is currently open, meaning Warp's `enableRegistration` setting and Craft's `users.allowPublicRegistration` are both on. |
 | `craft.warp.loginMethods` | Returns the enabled login channels as a subset of `magic-link` and `otp`, so a template renders only the channels the site offers. |
 | `craft.warp.otpDigits` | Returns the configured one-time-code length, for sizing a custom code input to match the setting instead of hardcoding it. |
-| `craft.warp.requestedEmail` | Returns the email address the visitor last requested a credential for, or `null`. It is the visitor's own input echoed back from the session, so it reveals nothing, and the verify endpoint clears it on a successful sign-in. |
+| `craft.warp.requestedEmail` | Returns the email address the visitor last requested a credential for, or `null`. It is the visitor's own input echoed back from the session, so it reveals nothing, and a successful code verify clears it. |
 | `craft.warp.sessions` | Returns the current user's active sessions, with the current session flagged and each other device labelled, and an empty array for a guest. See [session shape](#the-session-shape). |
 | `craft.warp.showPasskeyNudge` | Returns whether to show the passkey-enrollment nudge. Reading it changes nothing, so the nudge holds for the whole session and survives reloads and posts. See [the passkey nudge](setup.md#the-passkey-nudge). |
 | `craft.warp.tokenLifetime` | Returns how long an issued magic link or one-time code stays valid, formatted for reading ("15 minutes", "1 hour"), so a confirmation page can state the exact expiry. It resolves the `tokenTtl` setting on every read and is formatted the way the emails format it, so a page and the email it refers to never disagree. |
@@ -429,9 +429,9 @@ property needs the important modifier.
 | Passkey status line | `warp-passkey__status` | `margin`, `font-size`, `color` |
 | Passkey section | `warp-passkey` | `display` on its `[hidden]` descendants, and that rule is un-layered on purpose |
 
-Note what no baseline rule sets: `width` and `max-width` on any button, and
-`width` on the inputs. That is why `w-full` works on a submit button with no
-modifier, and why the email input's `max-width` needed one.
+Note what no baseline rule sets: `width` or `max-width` on any button. That is
+why `w-full` works on a submit button with no modifier, while the email input,
+whose `max-width` Warp does set, needed the important form.
 
 `warp-otp--enhanced` is the other un-layered rule, the one hiding the original
 code input once the script has replaced it with the digit boxes. Both un-layered

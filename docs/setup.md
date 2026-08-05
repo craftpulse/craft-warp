@@ -36,10 +36,21 @@ php craft warp/example-templates
 ddev craft warp/example-templates
 ```
 
-It prompts for a folder name (default `members`) and copies the bundle into
-your `templates/` directory. Choosing a different folder name rewrites the
-bundle's internal `members/...` template paths and URLs to match, so the copy
-works wherever it lands. See the
+It prompts for a folder name (default `members`), copies the bundle into your
+`templates/` directory, and names the one step left:
+
+```
+The example templates will be copied into your templates directory.
+Choose a folder name: [members]
+The example templates were installed at /path/to/project/templates/members.
+
+Next step: point the loginPath general config setting at your login page,
+for example ->loginPath('members/login') in config/general.php.
+```
+
+Choosing a different folder name rewrites the bundle's internal `members/...`
+template paths and URLs to match, so the copy works wherever it lands, and an
+existing folder is refused unless you pass `--overwrite`. See the
 [console command reference](console-commands.md#warpexample-templates) for the
 options. Copying `example-templates/members/` into `templates/` by hand works
 just as well.
@@ -132,8 +143,8 @@ headless), they fall back to the site root.
 
 ## Customizing the emails
 
-Warp sends through Auth Kit's three editable system messages. Their default copy
-ships ready to use; to change it, open the control panel and go to
+Warp's emails are four editable system messages, three of them Auth Kit's. Their
+default copy ships ready to use; to change it, open the control panel and go to
 **Utilities**, then **System Messages** (Craft Pro):
 
 | Message key | Sent when |
@@ -232,6 +243,13 @@ Passwordless registration turns on only when **both** switches are on:
 When either switch is off, the unified email form silently degrades to
 login-only: an unknown address is emailed nothing, and the HTTP response is
 unchanged, so the form still never reveals whether registration is open.
+
+> [!WARNING]
+> The silence is the enumeration safety working, which makes a half-configured
+> install invisible from the browser: with only one switch on, a sign-up attempt
+> still answers "If an account matches that address, a sign-in message is on its
+> way." and no email is ever sent. If sign-up emails never arrive, check both
+> switches before anything else.
 
 New members join the group named by Warp's `registrationGroupUid` setting, or
 Craft's default user group when that is unset. They are created active with no
