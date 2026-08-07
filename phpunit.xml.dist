@@ -76,19 +76,28 @@
             Craft's project-config lock is a MySQL GET_LOCK (see
             craft\helpers\App::dbMutexConfig), and GET_LOCK names are scoped to
             the MySQL *server*, not to a database. The only thing separating
-            one install's locks from another's is the key prefix, which is
-            Craft::$app->getEnvId(): CRAFT_APP_ID joined to CRAFT_ENVIRONMENT.
-            Both are unset in the DDEV container, so every plugin suite in the
-            estate boots under the same default app id and takes the same
-            server-wide lock. A private database does not help; the second
-            suite to reach project config still dies with
-            BusyResourceException. Naming the app after this suite gives it a
-            lock namespace of its own.
+            one install's locks from another's is the key prefix,
+            Craft::$app->getEnvId(). Every plugin suite in the estate otherwise
+            boots under the same env id and takes the same server-wide lock, so
+            a private database on its own does not help: the second suite to
+            reach project config still dies with BusyResourceException.
+
+            It has to be CRAFT_ENVIRONMENT, not CRAFT_APP_ID. Core reads
+            CRAFT_ENVIRONMENT in bootstrap/bootstrap.php, whereas its own
+            src/config/app.php hard-codes 'id' => 'CraftCMS'; the
+            App::env('CRAFT_APP_ID') line belongs to the craftcms/craft starter
+            project's config/app.php, which a plugin repo does not have. Setting
+            CRAFT_APP_ID here is inert, and was, until this was corrected.
+
+            This also outranks craft-pest-core, whose bootstrap defines
+            CRAFT_ENVIRONMENT as 'production' for every suite in the estate:
+            InstallsCraft::loadPhpunitXmlEnvironmentVariables() pins $_SERVER
+            first, and App::env() checks $_SERVER ahead of defined constants.
 
             getEnvId() reaches nothing else that outlives the process: the
             mutex key prefix, the session state key prefix, and the web-user
             state key prefix are its only readers in core.
         -->
-        <env name="CRAFT_APP_ID" value="warp-test" force="true"/>
+        <env name="CRAFT_ENVIRONMENT" value="warp-test" force="true"/>
     </php>
 </phpunit>
