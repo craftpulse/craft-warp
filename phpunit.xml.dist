@@ -39,18 +39,56 @@
             playground's console pest command with a configuration flag
             pointing at this file, which leaves getcwd() at the playground
             root and silently defeats this override so Craft boots against
-            the live db instead.
+            the live db instead. tests/Bootstrap.php asks the connection
+            which database it landed on and aborts the run when the answer is
+            not the name below, so that failure is loud rather than silent.
+
+            warp_test is Warp's own test database, deliberately not the
+            estate-shared db_test. A shared database is also a shared
+            project-config mutex namespace, so two plugin suites running at
+            the same time deadlock each other with BusyResourceException,
+            "1213 Deadlock found" and "1412 Table definition has changed"
+            long before either one asserts anything. Provision it once:
+
+                ddev exec -s db -u root mysql -uroot -proot -e
+                  "CREATE DATABASE IF NOT EXISTS warp_test
+                   CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+                   GRANT ALL ON warp_test.* TO 'db'@'%';"
 
             Only CRAFT_DB_DATABASE and CRAFT_DB_TABLE_PREFIX are forced here:
             those are the only two values DDEV's ambient environment gets
             wrong for a suite that needs its own schema (DDEV already exports
-            the correct driver/server/port/user/password for db_test, which
-            lives on the same MySQL instance as the playground's live db).
+            the correct driver/server/port/user/password, and warp_test lives
+            on the same MySQL instance as the playground's live db).
             Deliberately NOT forcing driver/server/port/user/password keeps
             this file portable to CI, which provisions its own MySQL service
             on its own host/credentials via ordinary (non-forced) job env.
+
+            Keep this value in step with WARP_TEST_DATABASE in
+            tests/Bootstrap.php and MYSQL_DATABASE in
+            .github/workflows/tests.yaml.
         -->
-        <env name="CRAFT_DB_DATABASE" value="db_test" force="true"/>
+        <env name="CRAFT_DB_DATABASE" value="warp_test" force="true"/>
         <env name="CRAFT_DB_TABLE_PREFIX" value="" force="true"/>
+
+        <!--
+            Mutex isolation, and the other half of running two suites at once.
+            Craft's project-config lock is a MySQL GET_LOCK (see
+            craft\helpers\App::dbMutexConfig), and GET_LOCK names are scoped to
+            the MySQL *server*, not to a database. The only thing separating
+            one install's locks from another's is the key prefix, which is
+            Craft::$app->getEnvId(): CRAFT_APP_ID joined to CRAFT_ENVIRONMENT.
+            Both are unset in the DDEV container, so every plugin suite in the
+            estate boots under the same default app id and takes the same
+            server-wide lock. A private database does not help; the second
+            suite to reach project config still dies with
+            BusyResourceException. Naming the app after this suite gives it a
+            lock namespace of its own.
+
+            getEnvId() reaches nothing else that outlives the process: the
+            mutex key prefix, the session state key prefix, and the web-user
+            state key prefix are its only readers in core.
+        -->
+        <env name="CRAFT_APP_ID" value="warp-test" force="true"/>
     </php>
 </phpunit>

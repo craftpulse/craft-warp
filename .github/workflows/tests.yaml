@@ -26,7 +26,10 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: db_test
+          # Keep in step with CRAFT_DB_DATABASE in phpunit.xml.dist and
+          # WARP_TEST_DATABASE in tests/Bootstrap.php. The suite's bootstrap
+          # aborts the run if the connection lands anywhere else.
+          MYSQL_DATABASE: warp_test
         ports:
           - 3306:3306
         options: >-
