@@ -199,8 +199,10 @@ writes its own template against the
 ## Geo database (MMDB)
 
 Location awareness is optional, and all of it hangs off one file: a city-level
-MaxMind-format database (`.mmdb`) that Warp reads from
-`storage/warp/geo/city.mmdb`. When the file is present, every recorded sign-in
+MaxMind-format database (`.mmdb`) at `storage/auth-kit/geo/city.mmdb`. The file
+is shared with every other CraftPulse security plugin on the install, so it is
+downloaded and kept current once rather than once per plugin. When the file is
+present, every recorded sign-in
 resolves its IP address to a coarse city and ISO country, and that single
 lookup powers everything location-shaped in the plugin:
 
@@ -219,13 +221,26 @@ With no database, all of that degrades silently: no location is recorded,
 nothing is flagged, no alert is sent, and nothing errors. A project that does
 not want location awareness installs nothing and is done.
 
-> [!NOTE]
-> The default download URL points at the openly licensed, keyless
-> [ip-location-db](https://github.com/sapics/ip-location-db)
-> `geo-whois-asn-city` database, so the steps below work with no account and no
-> license key. MaxMind GeoLite2-City and GeoIP2-City files work equally well:
-> Warp understands both the flat ip-location-db record shape and the nested
-> MaxMind shape, so either can be dropped in.
+> [!IMPORTANT]
+> The default download URL is a keyless mirror of MaxMind's **GeoLite2 City**
+> database, so the steps below work with no account and no license key.
+> GeoLite2 is free of charge but not public domain, and using it puts two
+> obligations on you:
+>
+> - **Attribution.** State, somewhere reasonable in your product or its
+>   documentation: "This product includes GeoLite2 data created by MaxMind,
+>   available from [https://www.maxmind.com](https://www.maxmind.com)."
+> - **Refresh at least every 30 days, destroying the copy you replace.** The
+>   GeoLite2 End User Licence Agreement does not permit retaining an outdated
+>   copy. The refresh command overwrites in place, so the monthly cron below
+>   satisfies both halves on its own; a database installed once and never
+>   touched again does not.
+>
+> Both are conditions of the licence, not suggestions. If neither suits you,
+> point [`geoDatabaseUrl`](#choosing-a-database-geodatabaseurl) at a
+> differently licensed database. Warp understands both the flat
+> `country_code` / `city_name` record shape and the nested MaxMind
+> `country.iso_code` / `city.names.en` shape, so either can be dropped in.
 
 ### Installing the database
 
@@ -246,7 +261,7 @@ not want location awareness installs nothing and is done.
    ```
 
    The download streams to a temporary file first, and only a complete
-   download is renamed into place at `storage/warp/geo/city.mmdb`, so a
+   download is renamed into place at `storage/auth-kit/geo/city.mmdb`, so a
    request in flight never reads a half-written database.
 
 3. Verify it in the control panel: the next passwordless sign-in shows a city
@@ -276,8 +291,9 @@ stop resolving after a refresh, confirm the configured URL actually serves an
 
 ### Keeping it fresh
 
-IP-to-city allocations drift slowly, so a monthly refresh is plenty for the
-coarse location Warp records. A crontab entry on the production host:
+A monthly refresh is both plenty for the coarse location Warp records and the
+minimum the GeoLite2 licence allows, since it does not permit keeping a copy
+more than 30 days old. A crontab entry on the production host:
 
 ```
 0 4 1 * * /usr/bin/php /var/www/project/craft warp/geo/refresh
@@ -298,11 +314,11 @@ run.
 
 ### Choosing a database (`geoDatabaseUrl`)
 
-The download URL is the `geoDatabaseUrl` setting. It defaults to the keyless
-ip-location-db city database and is not surfaced in the control panel. Point it
-at a different, license-appropriate database (for example a MaxMind
-GeoLite2-City URL carrying your account key) in `config/warp.php`, where it
-also accepts an environment-variable reference:
+The download URL is the `geoDatabaseUrl` setting. It defaults to a keyless
+GeoLite2 City mirror and is not surfaced in the control panel. Point it at a
+different, licence-appropriate database (for example a MaxMind URL carrying
+your own account key) in `config/warp.php`, where it also accepts an
+environment-variable reference:
 
 ```php
 <?php
@@ -311,10 +327,19 @@ use craft\helpers\App;
 
 return [
     // Where `warp/geo/refresh` downloads the city database from. Defaults to
-    // the keyless ip-location-db city database.
+    // a keyless GeoLite2 City mirror.
     'geoDatabaseUrl' => App::env('WARP_GEO_DATABASE_URL'),
 ];
 ```
+
+> [!NOTE]
+> Warp 5.0.0 shipped a different default, an `@ip-location-db` package that has
+> since been withdrawn from npm. That URL 404s, so the refresh command could
+> never have worked on a stock install of that release. An install still
+> carrying it in project config resolves to the current default automatically:
+> upgrading is all it takes. The stored value is deliberately left alone rather
+> than rewritten, because project config is often committed to version control
+> and a plugin upgrade has no business editing your tracked YAML.
 
 ### Privacy
 
@@ -372,6 +397,11 @@ Two retention windows are constants rather than settings:
   whose core session has vanished is swept up, and logout forgets the exact row
   synchronously. There is no separate retention knob, because the registry
   tracks live core sessions only.
+
+One more window belongs to the shared new-location history rather than to Warp:
+once a member has been alerted about a place, no plugin on the install alerts
+them about that same place again for 24 hours. That is what keeps two
+CraftPulse security plugins from both emailing about one trip.
 
 ## Password handling
 

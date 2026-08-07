@@ -13,6 +13,7 @@ namespace craftpulse\warp\models;
 use Craft;
 use craft\base\Model;
 use craft\helpers\App;
+use craftpulse\authkit\services\Geo as AuthKitGeo;
 
 /**
  * Settings holds Warp's passwordless tunables. Auth Kit owns the token store;
@@ -38,6 +39,22 @@ class Settings extends Model
      * @since 5.0.0
      */
     public const CHANNEL_MAGIC_LINK = 'magic-link';
+
+    /**
+     * @var string The [[$geoDatabaseUrl]] default Warp shipped at 5.0.0. The npm
+     * package it named was withdrawn and the URL 404s, so the refresh command
+     * could never have worked on a stock install. [[getGeoDatabaseUrl()]]
+     * resolves it to the current default instead of handing a caller a URL that
+     * is known to fail.
+     *
+     * Coerced at read time rather than rewritten by a migration on purpose: an
+     * install's project config is often committed to version control, and a
+     * plugin upgrade has no business editing a developer's tracked YAML to
+     * repair a default the plugin itself got wrong.
+     *
+     * @since 5.0.1
+     */
+    public const DEAD_GEO_DATABASE_URL = 'https://cdn.jsdelivr.net/npm/@ip-location-db/geo-whois-asn-city-mmdb/geo-whois-asn-city.mmdb';
 
     /**
      * @var string The one-time-code login channel — an emailed short numeric
@@ -89,12 +106,17 @@ class Settings extends Model
      * command. Accepts a literal URL or an environment-variable reference; resolve
      * it through [[getGeoDatabaseUrl()]]. This setting is not surfaced in the
      * control panel — set it in `config/warp.php` when you need to point at a
-     * different, licence-appropriate database. Defaults to the openly licensed,
-     * keyless ip-location-db city database.
+     * different, licence-appropriate database.
+     *
+     * Defaults to a keyless mirror of MaxMind's GeoLite2 City database. GeoLite2
+     * is free but not public domain: crediting MaxMind and refreshing at least
+     * every 30 days (destroying the copy you replace) are conditions of using it,
+     * both of which a scheduled `warp/geo/refresh` satisfies. See the privacy
+     * guide for the disclosure that goes with it.
      *
      * @since 5.0.0
      */
-    public string $geoDatabaseUrl = 'https://cdn.jsdelivr.net/npm/@ip-location-db/geo-whois-asn-city-mmdb/geo-whois-asn-city.mmdb';
+    public string $geoDatabaseUrl = AuthKitGeo::DEFAULT_DATABASE_URL;
 
     /**
      * @var array<int, string> The passwordless login channels Warp offers, a
@@ -201,6 +223,11 @@ class Settings extends Model
     /**
      * Returns the resolved URL a fresh city MMDB is downloaded from.
      *
+     * An install still carrying [[DEAD_GEO_DATABASE_URL]] — the 5.0.0 default,
+     * which 404s — gets the current default instead, so upgrading is all it
+     * takes to make `warp/geo/refresh` work. Any other stored value is a
+     * deliberate choice and is returned untouched.
+     *
      * @return string
      *
      * @author CraftPulse
@@ -208,7 +235,9 @@ class Settings extends Model
      */
     public function getGeoDatabaseUrl(): string
     {
-        return (string)App::parseEnv($this->geoDatabaseUrl);
+        $url = (string)App::parseEnv($this->geoDatabaseUrl);
+
+        return $url === self::DEAD_GEO_DATABASE_URL ? AuthKitGeo::DEFAULT_DATABASE_URL : $url;
     }
 
     /**

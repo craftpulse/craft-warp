@@ -10,45 +10,23 @@
 
 namespace craftpulse\warp\records;
 
-use craft\db\ActiveRecord;
-use craftpulse\warp\db\Table;
+use craftpulse\authkit\records\Session as AuthKitSession;
 
 /**
- * Session record maps the `warp_sessions` table — the device registry Warp keeps
- * alongside core's `{{%sessions}}` table, which stores only a token and its
- * timestamps and so carries no device information of its own.
+ * Session record maps the shared device registry Warp keeps alongside core's
+ * `{{%sessions}}` table, which stores only a token and its timestamps and so
+ * carries no device information of its own.
  *
- * Each row pins the sha256 hash of a Craft auth-session token to the device that
- * produced it (a truncated user-agent and IP, for display only). Listing joins
- * these rows back to the user's live core sessions by re-hashing each core
- * token; revocation deletes the core row via that same hash, then the registry
- * row. Only the hash is stored, never the token itself, so a registry leak
- * yields nothing usable.
- *
- * @property int $id
- * @property int $userId
- * @property string $tokenHash
- * @property string|null $userAgent
- * @property string|null $ip
- * @property string|null $city
- * @property string|null $country
- * @property string $dateCreated
- * @property string $dateUpdated
- * @property string $uid
+ * The table moved out of Warp and into the shared
+ * `craftpulse/craft-auth-kit` module — see
+ * [[\craftpulse\authkit\records\Session]] for the row's shape and the reasoning.
+ * This subclass is the name Warp published, kept working and pointed at the
+ * shared table, so every `Session::find()` call site reads the same rows it
+ * always did.
  *
  * @author CraftPulse
  * @since 5.0.0
  */
-class Session extends ActiveRecord
+class Session extends AuthKitSession
 {
-    // Public Methods
-    // =========================================================================
-
-    /**
-     * @inheritdoc
-     */
-    public static function tableName(): string
-    {
-        return Table::SESSIONS;
-    }
 }

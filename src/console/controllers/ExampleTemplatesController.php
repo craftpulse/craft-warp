@@ -19,9 +19,9 @@ use yii\console\ExitCode;
 use yii\helpers\Console;
 
 /**
- * ExampleTemplatesController installs Warp's example member-area templates
- * into the project's templates directory, the same convenience Craft
- * Commerce ships as `commerce/example-templates`. Run:
+ * Installs Warp's example member-area templates into the project's templates directory.
+ *
+ * The same convenience Craft Commerce ships as `commerce/example-templates`. Run:
  *
  * ```
  * php craft warp/example-templates

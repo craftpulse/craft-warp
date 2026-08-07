@@ -20,12 +20,11 @@ use craftpulse\warp\db\Table;
  * Install sets up Warp's database schema on a fresh install and tears it down
  * on uninstall.
  *
- * Warp owns the append-only login log (`warp_logins`, Phase 6) that backs the
- * overview screen and the device registry (`warp_sessions`, Phase 7) that backs
- * the front-end session-management screen — the passwordless token store lives
- * in the shared `craftpulse/craft-auth-kit` package. Warp is unreleased
- * throughout, so this migration is edited freely per phase (reinstall in the
- * playground) until 5.0.0 tags.
+ * Warp owns one table: the append-only login log (`warp_logins`) that backs the
+ * overview screen. The passwordless token store, the device registry behind the
+ * front-end session-management screen, and the shared new-location history all
+ * live in the `craftpulse/craft-auth-kit` package and are created by its
+ * migrator in [[_adoptAuthKit()]].
  *
  * Auth Kit is a library-shipped Yii module rather than a Craft plugin, so
  * nothing installs it and Craft never runs its migrations: every consumer
@@ -58,13 +57,14 @@ class Install extends Migration
     /**
      * @inheritdoc
      *
-     * Only Warp's own tables are dropped. Auth Kit's schema is shared with
-     * every other consumer on the install and outlives any one of them, so
-     * uninstalling Warp must never take the token store with it.
+     * Only Warp's own table is dropped. Auth Kit's schema is shared with every
+     * other consumer on the install and outlives any one of them, so
+     * uninstalling Warp must never take the token store, the device registry,
+     * or the location history with it — which is also why [[Table::SESSIONS]],
+     * a name that now points at Auth Kit's table, must not appear here.
      */
     public function safeDown(): bool
     {
-        $this->dropTableIfExists(Table::SESSIONS);
         $this->dropTableIfExists(Table::LOGINS);
 
         return true;
@@ -121,61 +121,43 @@ class Install extends Migration
     }
 
     /**
-     * Creates Warp's tables, skipping any that already exist.
+     * Creates Warp's login log, skipping it if it already exists.
      *
      * @author CraftPulse
      * @since 5.0.0
      */
     private function _createTables(): void
     {
-        if (!$this->db->tableExists(Table::LOGINS)) {
-            $this->createTable(Table::LOGINS, [
-                'id' => $this->primaryKey(),
-                'userId' => $this->integer()->notNull(),
-                'method' => $this->string()->notNull(),
-                'userAgent' => $this->string(255),
-                'ip' => $this->string(45),
-                // Coarse location resolved from the IP when a geo database is
-                // present; both stay null with no database. ISO 3166-1 alpha-2.
-                'city' => $this->string(255),
-                'country' => $this->char(2),
-                // Whether this login's location is one the user had never signed
-                // in from before. A first-ever login is never "new" (no baseline).
-                'isNewLocation' => $this->boolean()->notNull()->defaultValue(false),
-                'dateCreated' => $this->dateTime()->notNull(),
-                'dateUpdated' => $this->dateTime()->notNull(),
-                'uid' => $this->uid(),
-            ]);
+        if ($this->db->tableExists(Table::LOGINS)) {
+            return;
         }
 
-        if (!$this->db->tableExists(Table::SESSIONS)) {
-            $this->createTable(Table::SESSIONS, [
-                'id' => $this->primaryKey(),
-                'userId' => $this->integer()->notNull(),
-                'tokenHash' => $this->char(64)->notNull(),
-                'userAgent' => $this->string(255),
-                'ip' => $this->string(45),
-                // Coarse location captured at session registration, for the
-                // member's device cards; both stay null with no geo database.
-                'city' => $this->string(255),
-                'country' => $this->char(2),
-                'dateCreated' => $this->dateTime()->notNull(),
-                'dateUpdated' => $this->dateTime()->notNull(),
-                'uid' => $this->uid(),
-            ]);
-        }
+        $this->createTable(Table::LOGINS, [
+            'id' => $this->primaryKey(),
+            'userId' => $this->integer()->notNull(),
+            'method' => $this->string()->notNull(),
+            'userAgent' => $this->string(255),
+            'ip' => $this->string(45),
+            // Coarse location resolved from the IP when a geo database is
+            // present; both stay null with no database. ISO 3166-1 alpha-2.
+            'city' => $this->string(255),
+            'country' => $this->char(2),
+            // Whether this login's location is one the user had never signed
+            // in from before. A first-ever login is never "new" (no baseline).
+            'isNewLocation' => $this->boolean()->notNull()->defaultValue(false),
+            'dateCreated' => $this->dateTime()->notNull(),
+            'dateUpdated' => $this->dateTime()->notNull(),
+            'uid' => $this->uid(),
+        ]);
     }
 
     /**
      * Creates the indexes backing Warp's query patterns.
      *
      * The overview lists the most recent rows across all users, so
-     * `dateCreated` is indexed for the ordered scan; `userId` backs the FK and
-     * the per-user lookups a future account screen may want.
-     *
-     * The session registry is looked up by `userId` (the per-user session list)
-     * and by `tokenHash` (the current-session match and prune-by-token path);
-     * the hash is unique, so no two logins can register the same Craft token.
+     * `dateCreated` is indexed for the ordered scan; `userId` backs the FK, the
+     * per-user lookups a future account screen may want, and the new-location
+     * rule's baseline reads.
      *
      * Every call goes through [[craft\db\Migration::createIndexIfMissing()]]
      * rather than a bare `createIndex()`, because this migration's `safeUp()`
@@ -194,19 +176,15 @@ class Install extends Migration
     {
         $this->createIndexIfMissing(Table::LOGINS, ['dateCreated']);
         $this->createIndexIfMissing(Table::LOGINS, ['userId']);
-        $this->createIndexIfMissing(Table::SESSIONS, ['tokenHash'], true);
-        $this->createIndexIfMissing(Table::SESSIONS, ['userId']);
     }
 
     /**
-     * Adds the foreign keys tying Warp's login log to Craft's users.
+     * Adds the foreign key tying Warp's login log to Craft's users.
      *
      * A login row is owned by its user — CASCADE, so deleting a user clears
-     * their audit trail with them. A session-registry row is likewise owned by
-     * its user, and CASCADE keeps it in step with core's own `{{%sessions}}`
-     * rows, which core deletes the same way when a user is removed.
+     * their audit trail with them.
      *
-     * Each call is guarded by [[_addForeignKeyIfMissing()]] for the same reason
+     * The call is guarded by [[_addForeignKeyIfMissing()]] for the same reason
      * [[_createIndexes()]] guards every index it creates: this migration's
      * `safeUp()` can run against a database that already carries these tables
      * and their foreign keys, and `addForeignKey()` given a null name generates
@@ -220,7 +198,6 @@ class Install extends Migration
     private function _addForeignKeys(): void
     {
         $this->_addForeignKeyIfMissing(Table::LOGINS, ['userId'], CraftTable::USERS, ['id'], 'CASCADE');
-        $this->_addForeignKeyIfMissing(Table::SESSIONS, ['userId'], CraftTable::USERS, ['id'], 'CASCADE');
     }
 
     /**

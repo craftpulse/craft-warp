@@ -80,7 +80,7 @@ class Warp extends Plugin
      *
      * @since 5.0.1
      */
-    public string $schemaVersion = '5.0.1';
+    public string $schemaVersion = '5.0.2';
 
     // Public Methods
     // =========================================================================

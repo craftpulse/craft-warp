@@ -17,10 +17,19 @@ use yii\console\ExitCode;
 use yii\helpers\Console;
 
 /**
- * GeoController downloads and installs the optional city MMDB that backs Warp's
- * location awareness. It is the supported way to populate the database: run
- * `warp/geo/refresh` on deploy or on a schedule, from a licence-appropriate URL
- * configured via `config/warp.php`.
+ * Installs and refreshes the optional city geo database Warp reads locations from.
+ *
+ * Run warp/geo/refresh on deploy or on a schedule. The database is shared with
+ * every other CraftPulse security plugin on the install, so refreshing it here
+ * refreshes it for all of them; auth-kit/geo/refresh does exactly the same
+ * thing, differing only in which plugin's configured URL it downloads from.
+ *
+ * The default download URL is a keyless mirror of MaxMind's GeoLite2 City
+ * database. GeoLite2 is free but not public domain: crediting MaxMind and
+ * refreshing at least every 30 days (destroying the copy you replace) are
+ * conditions of using it. Refreshing overwrites in place, so a scheduled run
+ * satisfies both halves. Set geoDatabaseUrl in config/warp.php to use a
+ * differently licensed database.
  *
  * With no database installed everything degrades silently (no location, no
  * new-location detection, no alerts), so running this is entirely optional.
@@ -34,8 +43,7 @@ class GeoController extends Controller
     // =========================================================================
 
     /**
-     * Downloads a fresh city MMDB from the configured URL and installs it,
-     * replacing any current database.
+     * Downloads a fresh city database from the configured URL and installs it, replacing any current database.
      *
      * @return int a `yii\console\ExitCode` value
      *

@@ -44,7 +44,10 @@ bundle contains and how to restyle it.
 ## `warp/geo/refresh`
 
 Downloads a fresh city MMDB from the configured URL and installs it at
-`storage/warp/geo/city.mmdb`, replacing any current database.
+`storage/auth-kit/geo/city.mmdb`, replacing any current database. The file is
+shared with every other CraftPulse security plugin on the install, so
+`auth-kit/geo/refresh` does exactly the same thing; the two differ only in
+which plugin's configured URL they download from, and running either is enough.
 
 ```shell
 php craft warp/geo/refresh
@@ -56,10 +59,12 @@ ddev craft warp/geo/refresh
 
 The command takes no options. On success it prints `Geo database refreshed.`;
 a failed download reports the error, exits nonzero, and leaves any installed
-database untouched. Run it on deploy or on a schedule to keep the database
-current; see [the geo database](configuration.md#geo-database-mmdb) for the
-full walkthrough, a crontab example, and the `geoDatabaseUrl` setting the
-download URL comes from.
+database untouched. Run it on deploy and at least monthly: the default database
+is MaxMind's GeoLite2 City, whose licence requires both crediting MaxMind and
+replacing any copy more than 30 days old. See
+[the geo database](configuration.md#geo-database-mmdb) for the full
+walkthrough, the licence terms in full, a crontab example, and the
+`geoDatabaseUrl` setting the download URL comes from.
 
 Location awareness is optional. With no database installed, Warp resolves no
 location, flags no new locations, and sends no alerts, so a project that does

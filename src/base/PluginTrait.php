@@ -130,11 +130,18 @@ trait PluginTrait
      * Wires the device registry's pruning: forgetting a session's registry row
      * when the user logs out, and clearing orphaned rows on garbage collection.
      *
-     * The registry capture itself rides the login log's `EVENT_AFTER_LOGIN`
-     * listener (see [[_registerLoginLog()]]) rather than a second handler, so a
-     * login is recorded once. Logout is caught here on `EVENT_BEFORE_LOGOUT`,
-     * where the session token is still readable, so the exact row can be removed;
-     * garbage collection sweeps up rows whose core session has since vanished.
+     * The registry itself is Auth Kit's, shared with every other consumer on the
+     * install, but capture and logout pruning stay wired here: Auth Kit
+     * deliberately assumes nothing about when a consumer wants a login
+     * registered or what its privacy settings say about the stored address.
+     *
+     * The registry capture rides the login log's `EVENT_AFTER_LOGIN` listener
+     * (see [[_registerLoginLog()]]) rather than a second handler, so a login is
+     * recorded once. Logout is caught here on `EVENT_BEFORE_LOGOUT`, where the
+     * session token is still readable, so the exact row can be removed; garbage
+     * collection sweeps up rows whose core session has since vanished. Auth Kit
+     * runs that same sweep for the table it owns, so this listener is belt and
+     * braces — the second pass in one run finds nothing left to do.
      *
      * @author CraftPulse
      * @since 5.0.0
@@ -248,10 +255,14 @@ trait PluginTrait
     /**
      * Registers Warp's own editable system message — the new-location alert.
      *
-     * Auth Kit registers the login and registration emails; this is Warp's alone.
-     * Subject and body are Twig, rendered by [[\craftpulse\warp\services\Logins]]
-     * with a `location` string, the `user`, and a `sessionsUrl` the copy links to
-     * so a member can review and sign out other devices.
+     * The alert is now composed and sent by Auth Kit, which ships a generic
+     * equivalent of this message, but Warp keeps registering its own copy and
+     * names its own key on every send. An install that has edited these words
+     * would otherwise silently start receiving Auth Kit's instead.
+     *
+     * Subject and body are Twig, rendered with a `location` string, the `user`,
+     * and a `sessionsUrl` the copy links to so a member can review and sign out
+     * other devices.
      *
      * @author CraftPulse
      * @since 5.0.0

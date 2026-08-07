@@ -10,90 +10,26 @@
 
 namespace craftpulse\warp\models;
 
-use craft\base\Model;
-use craftpulse\warp\helpers\Device;
-use DateTime;
+use craftpulse\authkit\models\SessionInfo as AuthKitSessionInfo;
 
 /**
  * SessionInfo is one row the session-management screen renders: a single active
  * Craft session, resolved for display. It is assembled by
  * [[\craftpulse\warp\services\Sessions::getSessionsForUser()]] by joining the
- * user's live rows in core's `{{%sessions}}` table against Warp's device
+ * user's live rows in core's `{{%sessions}}` table against the shared device
  * registry, never persisted itself.
  *
- * The [[uid]] is the registry row's UID, the handle the front end posts back to
- * revoke this one session — the raw token is never exposed. A session core knows
- * about but the registry does not (created before Warp was installed, or by a
- * path Warp does not capture) still appears, labelled as an unknown device and
- * with a null [[uid]]; those are revocable only through "sign out everywhere
- * else", since there is no per-row handle to target.
+ * The shape moved to [[\craftpulse\authkit\models\SessionInfo]] with the
+ * registry it describes. This subclass is the type `craft.warp.sessions`
+ * hands templates, kept as Warp published it: every property
+ * ([[\craftpulse\authkit\models\SessionInfo::$uid]],
+ * [[\craftpulse\authkit\models\SessionInfo::$deviceLabel]], and the rest) is
+ * inherited unchanged, and a `SessionInfo` from Warp still satisfies an
+ * Auth Kit type hint.
  *
  * @author CraftPulse
  * @since 5.0.0
  */
-class SessionInfo extends Model
+class SessionInfo extends AuthKitSessionInfo
 {
-    // Public Properties
-    // =========================================================================
-
-    /**
-     * @var string|null The city the session was registered from, or null when no
-     * geo database is present or the session predates geo capture.
-     *
-     * @since 5.0.0
-     */
-    public ?string $city = null;
-
-    /**
-     * @var string A coarse, human-friendly device label like "Chrome on macOS",
-     * derived from the captured user-agent by
-     * [[\craftpulse\warp\helpers\Device::label()]]. "Unknown device" when the
-     * user-agent is missing or the session predates the registry.
-     *
-     * @since 5.0.0
-     */
-    public string $deviceLabel = '';
-
-    /**
-     * @var string The coarse device class — one of the
-     * [[\craftpulse\warp\helpers\Device]] `TYPE_*` constants — driving the
-     * device-type icon on each session card.
-     *
-     * @since 5.0.0
-     */
-    public string $deviceType = Device::TYPE_UNKNOWN;
-
-    /**
-     * @var bool Whether this is the session making the current request — the one
-     * a "this device" badge marks and that "sign out everywhere else" spares.
-     *
-     * @since 5.0.0
-     */
-    public bool $isCurrent = false;
-
-    /**
-     * @var string|null The IP captured when the session was registered, or null
-     * for a session that predates the registry.
-     *
-     * @since 5.0.0
-     */
-    public ?string $ip = null;
-
-    /**
-     * @var DateTime|null When the session was last seen, taken from core's own
-     * `{{%sessions}}.dateUpdated` — core touches it as the session is used, so
-     * it reflects genuine activity rather than Warp's bookkeeping.
-     *
-     * @since 5.0.0
-     */
-    public ?DateTime $lastSeen = null;
-
-    /**
-     * @var string|null The registry row's UID, the handle the front end posts to
-     * revoke this session. Null for a session with no registry row — revocable
-     * only through "sign out everywhere else".
-     *
-     * @since 5.0.0
-     */
-    public ?string $uid = null;
 }

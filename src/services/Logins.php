@@ -16,8 +16,9 @@ use craft\db\Query;
 use craft\db\Table as CraftTable;
 use craft\elements\User;
 use craft\helpers\Db;
-use craft\helpers\UrlHelper;
 use craft\web\Request as WebRequest;
+use craftpulse\authkit\AuthKit;
+use craftpulse\authkit\services\Locations;
 use craftpulse\warp\db\Table;
 use craftpulse\warp\helpers\Ip;
 use craftpulse\warp\models\Login;
@@ -37,6 +38,14 @@ use yii\base\Component;
  * (truncated) device and address, and when — the smallest audit surface the
  * overview renders. It is never an authentication authority, so a failed write
  * must never block a login; recording is best-effort.
+ *
+ * New-location awareness is not Warp's own any more. The rule that decides
+ * whether a sign-in came from somewhere the member has never been, and the alert
+ * that follows, live in [[\craftpulse\authkit\services\Locations]] so that two
+ * security plugins on one install produce one email rather than two. Warp keeps
+ * its own baseline — this log, not Auth Kit's shared history — by handing the
+ * rule a query over `warp_logins`, so the `isNewLocation` column means exactly
+ * what it always did: a place absent from Warp's own log.
  *
  * An instance of the service is available via `Warp::$plugin->getLogins()`.
  *
@@ -60,12 +69,22 @@ class Logins extends Component
 
     /**
      * @var string The system-message key for the new-location alert email. Warp
-     * registers this message in `PluginTrait::_registerSystemMessages()`; this
-     * service composes from it. Declared here as the single source of truth.
+     * registers this message in `PluginTrait::_registerSystemMessages()` and
+     * names it on every alert it asks Auth Kit to send, so an install that has
+     * customized this copy keeps seeing its own words rather than Auth Kit's
+     * generic equivalent. Declared here as the single source of truth.
      *
      * @since 5.0.0
      */
     public const MESSAGE_KEY_NEW_LOCATION = 'warp_new_location';
+
+    /**
+     * @var string The emitter handle recorded against every audit fact this
+     * service produces through Auth Kit's neutral contract.
+     *
+     * @since 5.0.0
+     */
+    private const EMITTER = 'warp';
 
     /**
      * @var int The maximum stored length of a captured user-agent string.
@@ -210,8 +229,11 @@ class Logins extends Component
         // the insert is wrapped: any failure is logged and swallowed.
         try {
             $userId = (int)$user->id;
+            $locations = $this->_locations();
             $location = Warp::$plugin->getGeo()->lookup($ip);
-            $isNewLocation = $this->_isNewLocation($userId, $location['country'], $location['city']);
+            // The baseline is Warp's own log, read as it stood before this row
+            // lands, so a member's very first sign-in is never "new".
+            $isNewLocation = $locations->isNew($userId, $location['country'], $location['city'], $this->_history());
 
             $record = new LoginRecord();
             $record->userId = $userId;
@@ -225,8 +247,16 @@ class Logins extends Component
             $record->isNewLocation = $isNewLocation;
             $record->save(false);
 
-            if ($isNewLocation && $this->_settings()->notifyOnNewLocation) {
-                $this->_notifyNewLocation($user, $location['city'], $location['country']);
+            if ($isNewLocation) {
+                // Auth Kit claims the alert, so a second security plugin that
+                // spotted the same trip does not send a second email. Warp's
+                // own setting decides only whether the member hears about it;
+                // the audit fact is recorded either way.
+                $locations->alert($user, $location['country'], $location['city'], [
+                    'emitter' => self::EMITTER,
+                    'messageKey' => self::MESSAGE_KEY_NEW_LOCATION,
+                    'notify' => $this->_settings()->notifyOnNewLocation,
+                ]);
             }
         } catch (Throwable $e) {
             Craft::warning("Could not record the login for user {$user->id}: {$e->getMessage()}", __METHOD__);
@@ -237,85 +267,48 @@ class Logins extends Component
     // =========================================================================
 
     /**
-     * Determines whether a login's resolved location is one the user had never
-     * successfully signed in from before.
+     * Returns the query the new-location rule reads Warp's baseline from — the
+     * login log itself, so `isNewLocation` keeps meaning "a place absent from
+     * Warp's own log" rather than "absent from the shared history".
      *
-     * A user's first-ever login is never new — there is no baseline to compare
-     * against — and no location (no geo database, or an IP that could not be
-     * placed) is never new either. Otherwise a location is new when no prior
-     * login row for the user shares this exact country and city.
-     *
-     * @param int $userId the user signing in
-     * @param string|null $country the resolved country, or null
-     * @param string|null $city the resolved city, or null
-     * @return bool
+     * @return Query<int, array<string, mixed>>
      *
      * @author CraftPulse
      * @since 5.0.0
      */
-    private function _isNewLocation(int $userId, ?string $country, ?string $city): bool
+    private function _history(): Query
     {
-        if ($country === null) {
-            return false;
-        }
-
-        $hadPriorLogin = (new Query())
-            ->from(Table::LOGINS)
-            ->where(['userId' => $userId])
-            ->exists();
-
-        if (!$hadPriorLogin) {
-            return false;
-        }
-
-        $seenThisLocation = (new Query())
-            ->from(Table::LOGINS)
-            ->where(['userId' => $userId, 'country' => $country, 'city' => $city])
-            ->exists();
-
-        return !$seenThisLocation;
+        return (new Query())->from(Table::LOGINS);
     }
 
     /**
-     * Emails a member that their account was signed in to from a new location.
+     * Returns Auth Kit's locations service, which owns the new-location rule
+     * and the one alert that goes out per place.
      *
-     * Best-effort and self-contained: a missing address or a delivery failure is
-     * logged and swallowed so it can never disturb the login it reports on. The
-     * message body and subject are editable through Craft's system messages.
-     *
-     * @param User $user the member to alert
-     * @param string|null $city the resolved city, or null
-     * @param string|null $country the resolved country, or null
+     * @return Locations
      *
      * @author CraftPulse
      * @since 5.0.0
      */
-    private function _notifyNewLocation(User $user, ?string $city, ?string $country): void
+    private function _locations(): Locations
     {
-        if ($user->email === null || $user->email === '') {
-            return;
-        }
+        return AuthKit::getInstance()->getLocations();
+    }
 
-        $location = match (true) {
-            $city !== null && $country !== null => "$city, $country",
-            $country !== null => $country,
-            default => (string)$city,
-        };
+    /**
+     * Returns Warp's settings model.
+     *
+     * @return Settings
+     *
+     * @author CraftPulse
+     * @since 5.0.0
+     */
+    private function _settings(): Settings
+    {
+        $settings = Warp::$plugin->getSettings();
+        assert($settings instanceof Settings);
 
-        try {
-            Craft::$app->getMailer()
-                ->composeFromKey(self::MESSAGE_KEY_NEW_LOCATION, [
-                    'user' => $user,
-                    'city' => (string)$city,
-                    'country' => (string)$country,
-                    'location' => $location,
-                    'sessionsUrl' => UrlHelper::siteUrl(),
-                ])
-                ->setTo($user)
-                ->send();
-        } catch (Throwable $e) {
-            Craft::error("Could not send the new-location alert for user {$user->id}: {$e->getMessage()}", __METHOD__);
-        }
+        return $settings;
     }
 
     /**
@@ -344,21 +337,5 @@ class Logins extends Component
             // the system timezone, so the zone must be named at parse time.
             'dateCreated' => is_string($dateCreated) ? Carbon::parse($dateCreated, 'UTC') : null,
         ]);
-    }
-
-    /**
-     * Returns Warp's settings model.
-     *
-     * @return Settings
-     *
-     * @author CraftPulse
-     * @since 5.0.0
-     */
-    private function _settings(): Settings
-    {
-        $settings = Warp::$plugin->getSettings();
-        assert($settings instanceof Settings);
-
-        return $settings;
     }
 }
