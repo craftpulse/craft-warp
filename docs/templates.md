@@ -31,7 +31,7 @@ it is documented here only so you know what it is if you find it.
 
 ### The session shape
 
-`craft.warp.sessions` returns `SessionInfo` models. Seven properties:
+`craft.warp.sessions` returns `SessionInfo` models. Eight properties:
 
 | Property | Description |
 |---|---|
@@ -40,8 +40,30 @@ it is documented here only so you know what it is if you find it.
 | `deviceType` | One of `desktop`, `mobile`, `tablet` or `unknown`, for picking an icon. |
 | `ip` | The recorded IP address, or `null` for a session that predates the registry. Coarsened when `anonymizeIp` is on. |
 | `isCurrent` | Whether this is the session making the request. Render it as "This device" and offer no sign-out button, since the normal sign-out link ends it. |
+| `isNewLocation` | Whether the session was registered from a place the account had never been seen at before. **Three states, not two**: `true` means the place was new, `false` means it was assessed and already known, and `null` means the question was never asked. Test it with `is same as(true)` rather than truthiness, and never render `null` as "not new". |
 | `lastSeen` | A `DateTime` of the session's last activity, or `null`. |
 | `uid` | The handle `warp/sessions/revoke` takes. **`null` means the session cannot be signed out individually**, so branch on it: "Sign out everywhere else" still clears those. |
+
+`null` covers exactly two cases: a session recorded before Warp 5.0.2, which
+raised the shared Auth Kit requirement to the release that started storing the
+answer, and a session with no registry row at all (the same ones that carry a
+`null` `uid`). With no geo database installed the flag is `false`, not `null`:
+a sign-in whose place cannot be resolved is assessed and is never treated as
+new.
+
+```twig
+{% if session.isNewLocation is same as(true) %}
+    <span>{{ 'Signed in from somewhere new'|t }}</span>
+{% endif %}
+```
+
+This is **not** the same flag as the `isNewLocation` column on Warp's login log,
+even though both answer a question shaped like "somewhere new". The login log's
+flag is judged against `warp_logins`, which is [pruned after 90
+days](privacy.md), so a place a member last visited a year ago reads as new
+there. The session flag is judged against the location history Auth Kit shares
+with every CraftPulse security plugin on the install, which is not pruned on
+that schedule. Both are correct, and they can disagree about the same trip.
 
 ```twig
 {% for session in craft.warp.sessions %}

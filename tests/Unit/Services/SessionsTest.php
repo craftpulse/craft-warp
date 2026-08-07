@@ -54,13 +54,14 @@ function insertCoreSession(int $userId): string
     return $token;
 }
 
-function insertRegistryRow(int $userId, string $token, ?string $userAgent = null, ?string $ip = null): string
+function insertRegistryRow(int $userId, string $token, ?string $userAgent = null, ?string $ip = null, ?bool $isNewLocation = null): string
 {
     $record = new SessionRecord();
     $record->userId = $userId;
     $record->tokenHash = hash('sha256', $token);
     $record->userAgent = $userAgent;
     $record->ip = $ip;
+    $record->isNewLocation = $isNewLocation;
     $record->save(false);
 
     return $record->uid;
@@ -334,6 +335,29 @@ it('lists sessions, flagging the current one and labelling unknown devices', fun
 
     expect($unknown)->toHaveCount(1)
         ->and($unknown[0]->deviceLabel)->toBe('Unknown device');
+});
+
+it('carries the registry new-location flag through in all three states', function() {
+    $user = sessionsUser();
+    $new = insertCoreSession((int)$user->id);
+    $familiar = insertCoreSession((int)$user->id);
+    $unassessed = insertCoreSession((int)$user->id);
+    $newUid = insertRegistryRow((int)$user->id, $new, isNewLocation: true);
+    $familiarUid = insertRegistryRow((int)$user->id, $familiar, isNewLocation: false);
+    // A row written before Auth Kit 1.11.0 began storing the answer.
+    $unassessedUid = insertRegistryRow((int)$user->id, $unassessed, isNewLocation: null);
+    Craft::$app->getUser()->setIdentity($user);
+
+    $byUid = [];
+
+    foreach (Warp::$plugin->getSessions()->getSessionsForUser($user) as $info) {
+        $byUid[(string)$info->uid] = $info->isNewLocation;
+    }
+
+    // Null is the third state, not a synonym for false: nobody asked.
+    expect($byUid[$newUid])->toBeTrue()
+        ->and($byUid[$familiarUid])->toBeFalse()
+        ->and($byUid[$unassessedUid])->toBeNull();
 });
 
 // =============================================================================

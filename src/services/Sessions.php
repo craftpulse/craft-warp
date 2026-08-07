@@ -64,6 +64,13 @@ class Sessions extends Component
      * labelled "Unknown device" with a null uid, so nothing is hidden from the
      * person managing their account.
      *
+     * The re-map below names every property by hand, and it has to stay
+     * exhaustive: [[SessionInfo]] extends Auth Kit's model and its docblock
+     * promises templates that every property is inherited unchanged, so a
+     * property added upstream and missed here is not absent, it is present and
+     * permanently null. Whenever Warp's Auth Kit requirement is raised to a
+     * release that adds one, add it here too.
+     *
      * @param User $user the user whose sessions to list
      * @return array<int, SessionInfo> the user's active sessions
      *
@@ -78,6 +85,7 @@ class Sessions extends Component
                 'deviceLabel' => $info->deviceLabel,
                 'deviceType' => $info->deviceType,
                 'isCurrent' => $info->isCurrent,
+                'isNewLocation' => $info->isNewLocation,
                 'ip' => $info->ip,
                 'lastSeen' => $info->lastSeen,
                 'uid' => $info->uid,
