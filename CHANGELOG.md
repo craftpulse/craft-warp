@@ -1,5 +1,14 @@
 # Release Notes for Warp
 
+## 5.0.2 - 2026-08-07
+
+> [!WARNING]
+> Run `php craft up` after updating. This release brings the shared session registry up to the schema Auth Kit 1.11.0 introduced, and sessions are not recorded until that migration has run.
+
+- Fixed a bug where no sessions were recorded at all on a site running Auth Kit 1.11.0, because the registry write referenced a column the database did not have yet and the failure was written to the log rather than raised. A site that updated Auth Kit without updating Warp stopped recording sessions from the moment Auth Kit 1.11.0 was installed, with no visible sign beyond the log entry.
+- Added `isNewLocation` to the `SessionInfo` models returned by `craft.warp.sessions`, carrying whether a sign-in came from a place the account had not been seen at before. It is true when the place was new, false when the place was assessed and already known, and null when the question was never asked, which is what sessions recorded before Auth Kit 1.11.0 carry.
+- Auth Kit 1.11.0 or later is now required.
+
 ## 5.0.1 - 2026-08-07
 
 > [!WARNING]
