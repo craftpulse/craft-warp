@@ -1,5 +1,15 @@
 # Release Notes for Warp
 
+## 5.0.1 - 2026-08-07
+
+> [!WARNING]
+> Run `php craft up` after updating. Warp's session registry now lives in Auth Kit's shared `authkit_sessions` table, and a migration copies every existing row across before dropping `warp_sessions`. Code that queried `warp_sessions` directly should read `craftpulse\warp\db\Table::SESSIONS`, which now resolves to the shared table.
+
+- Fixed a bug where `warp/geo/refresh` could never install a database, because the default `geoDatabaseUrl` pointed at a package that does not exist. An install still carrying that URL now resolves to a working MaxMind GeoLite2 city database, and any other URL is used as set.
+- The session registry, IP geolocation, and new-location alerting now live in Auth Kit, so a site running Warp alongside another CraftPulse plugin that records sign-ins keeps one registry and sends one new-location alert instead of two. Warp's template variables, endpoints, settings, events, and console commands are unchanged.
+- Auth Kit 1.10.0 or later is now required.
+- The geolocation database is MaxMind GeoLite2, used under the GeoLite2 End User License Agreement. Sites must credit MaxMind and refresh the database at least every 30 days, replacing the copy they hold. `warp/geo/refresh` overwrites in place, so a monthly scheduled run satisfies both obligations.
+
 ## 5.0.0 - 2026-08-05
 
 - Initial stable release.
