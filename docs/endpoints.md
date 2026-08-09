@@ -78,13 +78,18 @@ Rate limited to 10 posts per IP per 60 seconds. The per-code attempt cap
 
 ### `warp/auth/verify-link`
 
-GET, anonymous. Consumes a magic link. The member reaches it by clicking the link
-in their email, so there is nothing to build: the URL is generated at issuance
-with its `token` query param already on it.
+GET, anonymous. Consumes a magic link. The normal path is the member clicking
+the link in their email, which already carries the right query param. If you
+are building this URL yourself, for a test or a custom verify route, the
+param is `mlToken`, not `token`: Craft's web application reserves `token` for
+its own routed tokens and answers a 400 to any request naming it with a value
+Craft did not issue. A hand-built URL using `token` never reaches this
+controller at all, so you get Craft's rejection instead of Warp's "invalid or
+expired" flash.
 
 | Param | Description |
 |---|---|
-| `token` | The single-use secret from the emailed link. |
+| `mlToken` | The single-use secret from the emailed link. Not `token`, see above. |
 | `returnUrl` | Carried through from the original request. |
 
 Signs the member in and redirects to the validated `returnUrl`, or the site root.
@@ -94,8 +99,8 @@ flash "This sign-in link is invalid or has expired. Please request a new one."
 ### `warp/auth/verify-registration`
 
 GET, anonymous. Consumes a sign-up link, provisions the account and signs the new
-member in. Same params, same shape and same generic failure as
-`warp/auth/verify-link`.
+member in. Same params, including `mlToken` rather than `token`, same shape and
+same generic failure as `warp/auth/verify-link`.
 
 ## Passkeys
 
