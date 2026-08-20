@@ -1,5 +1,9 @@
 # Release Notes for Warp
 
+## Unreleased
+
+- Fixed an error that could occur when signing in or rendering the sign-in pages on Craft Cloud, where the platform's session component is not `craft\web\Session`.
+
 ## 5.0.2 - 2026-08-07
 
 > [!WARNING]

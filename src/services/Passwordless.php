@@ -235,15 +235,20 @@ class Passwordless extends Component
     }
 
     /**
-     * Returns Craft's session component, narrowed for static analysis — this
-     * service only ever runs on web requests.
+     * Returns the app's session component — this service only ever runs on web
+     * requests.
      *
-     * @return \craft\web\Session
+     * Typed against the Yii base class on purpose: hosting platforms swap the
+     * session component for their own class (Craft Cloud wires a
+     * `yii\web\DbSession` subclass), so `craft\web\Session` cannot be assumed,
+     * and the nudge state only needs the base get/set surface.
+     *
+     * @return \yii\web\Session
      *
      * @author CraftPulse
      * @since 5.0.0
      */
-    private function _session(): \craft\web\Session
+    private function _session(): \yii\web\Session
     {
         /** @var \craft\web\Application $app */
         $app = Craft::$app;
